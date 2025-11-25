@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Office System
+
+A Next.js application for managing office operations including EMKL (Logistics), Hutang (Accounts Payable), and Piutang (Accounts Receivable).
+
+## Features
+
+### EMKL (Logistics)
+- Manage Job Orders (Header) and Containers (Detail).
+- Track shipment details including origin, destination, vessel, and ETA.
+
+### Finance Modules
+- **Hutang (Accounts Payable)**:
+    - Manage payments to vendors/transporters.
+    - Filter expenses by Document Type or Transporter Name.
+    - Track outstanding balances.
+- **Piutang (Accounts Receivable)**:
+    - Manage receipts from customers.
+    - Search invoices by Customer Name.
+    - Track outstanding balances.
+
+### Documents & Invoices
+- **Dokumen**: Manage expense documents associated with jobs.
+- **Invoice**: Generate invoices for customers based on jobs.
 
 ## Getting Started
 
-First, run the development server:
+1.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2.  **Database Setup**:
+    Ensure your PostgreSQL database is running and `DATABASE_URL` is set in `.env`.
+    ```bash
+    npx prisma migrate dev
+    ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3.  **Run Development Server**:
+    ```bash
+    npm run dev
+    ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See [SCRIPTS.md](./SCRIPTS.md) for detailed information on available database management scripts.
 
-## Learn More
+- `npm run db:reset`: Reset the database (wipes all data).
+- `npm run db:erd`: Generate the Entity Relationship Diagram (ERD).
 
-To learn more about Next.js, take a look at the following resources:
+## Version History
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **v0.2.0**: Added Finance Modules (Hutang, Piutang), ERD Generator, and Database Scripts.
+- **v0.1.0**: Initial release with EMKL, Dokumen, and Invoice modules.

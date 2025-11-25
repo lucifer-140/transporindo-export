@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 export default async function EditDokumenPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const dokumen = await getDokumen(parseInt(id));
-    const jobs = await getJobs(); // Keep getJobs for now, as the instruction only removed it from Promise.all, not entirely.
+    const jobs = await getJobs();
 
     if (!dokumen) {
         notFound();

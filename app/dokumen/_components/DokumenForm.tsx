@@ -80,6 +80,13 @@ export default function DokumenForm({ jobs, initialData }: DokumenFormProps) {
                     </div>
 
                     <div className="sm:col-span-3">
+                        <label htmlFor="transporterName" className="block text-sm font-medium text-slate-700">Pengangkutan</label>
+                        <div className="mt-1">
+                            <input type="text" name="transporterName" id="transporterName" defaultValue={initialData?.transporterName || ''} className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-slate-300 rounded-md p-2 border" />
+                        </div>
+                    </div>
+
+                    <div className="sm:col-span-3">
                         <label htmlFor="cost" className="block text-sm font-medium text-slate-700">Biaya</label>
                         <div className="mt-1 relative rounded-md shadow-sm">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

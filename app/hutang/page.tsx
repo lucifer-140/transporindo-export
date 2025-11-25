@@ -51,6 +51,9 @@ export default async function HutangPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(hutang.nominal))}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{hutang.dokumen.receiptNo}</td>
+                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                        <a href={`/hutang/${hutang.id}/edit`} className="text-blue-600 hover:text-blue-900 mr-4">Edit</a>
+                                    </td>
                                 </tr>
                             ))
                         )}

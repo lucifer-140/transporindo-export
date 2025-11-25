@@ -9,6 +9,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../ERD.svg"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -57,12 +62,13 @@ model EmklJob {
 }
 
 model Dokumen {
-  id          Int      @id @default(autoincrement())
-  receiptNo   String // No. Quitansi
-  receiptDate DateTime // Tgl Quitansi (was spDate)
-  docType     String // Tipe Dokumen
-  description String? // Keterangan (was containerNo)
-  docNo       String // No.Dokumen
+  id              Int      @id @default(autoincrement())
+  receiptNo       String // No. Quitansi
+  receiptDate     DateTime // Tgl Quitansi (was spDate)
+  docType         String // Tipe Dokumen
+  description     String? // Keterangan (was containerNo)
+  transporterName String? // Pengangkutan
+  docNo           String // No.Dokumen
 
   jobId Int
   job   EmklJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
