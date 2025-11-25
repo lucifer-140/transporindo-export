@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Truck, Settings, FileText, FileSpreadsheet } from 'lucide-react';
+import { LayoutDashboard, Truck, Settings, FileText, FileSpreadsheet, CreditCard, Wallet } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const navigation = [
@@ -10,6 +10,8 @@ const navigation = [
     { name: 'EMKL (Logistics)', href: '/emkl', icon: Truck },
     { name: 'Dokumen', href: '/dokumen', icon: FileText },
     { name: 'Invoice', href: '/invoice', icon: FileSpreadsheet },
+    { name: 'Hutang', href: '/hutang', icon: CreditCard },
+    { name: 'Piutang', href: '/piutang', icon: Wallet },
     { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

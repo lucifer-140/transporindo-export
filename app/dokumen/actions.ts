@@ -9,13 +9,13 @@ const prisma = new PrismaClient();
 export async function createDokumen(formData: FormData) {
     const rawFormData = {
         receiptNo: formData.get('receiptNo') as string,
-        spDate: new Date(formData.get('spDate') as string),
+        receiptDate: new Date(formData.get('receiptDate') as string),
         docType: formData.get('docType') as string,
-        containerNo: formData.get('containerNo') as string,
+        description: formData.get('description') as string,
         docNo: formData.get('docNo') as string,
         jobId: parseInt(formData.get('jobId') as string),
         cost: parseFloat(formData.get('cost') as string),
-        paymentType: formData.get('paymentType') as string,
+        paymentType: formData.get('paymentType') as string || 'Cash', // Default to Cash if missing
     };
 
     await prisma.dokumen.create({
@@ -35,6 +35,36 @@ export async function getDokumens() {
             createdAt: 'desc'
         }
     });
+}
+
+export async function getDokumen(id: number) {
+    return await prisma.dokumen.findUnique({
+        where: { id },
+        include: {
+            job: true
+        }
+    });
+}
+
+export async function updateDokumen(id: number, formData: FormData) {
+    const rawFormData = {
+        receiptNo: formData.get('receiptNo') as string,
+        receiptDate: new Date(formData.get('receiptDate') as string),
+        docType: formData.get('docType') as string,
+        description: formData.get('description') as string,
+        docNo: formData.get('docNo') as string,
+        jobId: parseInt(formData.get('jobId') as string),
+        cost: parseFloat(formData.get('cost') as string),
+        paymentType: formData.get('paymentType') as string || 'Cash',
+    };
+
+    await prisma.dokumen.update({
+        where: { id },
+        data: rawFormData
+    });
+
+    revalidatePath('/dokumen');
+    redirect('/dokumen');
 }
 
 export async function searchJobs(query: string) {
