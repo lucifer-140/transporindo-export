@@ -26,7 +26,8 @@ export default async function DokumenPage() {
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Order No</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Receipt No</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Receipt Date</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Description</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Cost</th>
                             <th scope="col" className="relative px-6 py-3">
                                 <span className="sr-only">Actions</span>
@@ -36,7 +37,7 @@ export default async function DokumenPage() {
                     <tbody className="bg-white divide-y divide-slate-200">
                         {dokumens.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-4 text-center text-sm text-slate-500">
+                                <td colSpan={8} className="px-6 py-4 text-center text-sm text-slate-500">
                                     No documents found.
                                 </td>
                             </tr>
@@ -52,10 +53,13 @@ export default async function DokumenPage() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{doc.docType}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{doc.job.jobNo}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{doc.receiptNo}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Date(doc.spDate).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">Rp {Number(doc.cost).toLocaleString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <a href="#" className="text-blue-600 hover:text-blue-900">Edit</a>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Date(doc.receiptDate).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{doc.description}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(doc.cost))}</td>
+                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                        <Link href={`/dokumen/${doc.id}/edit`} className="text-blue-600 hover:text-blue-900">
+                                            View<span className="sr-only">, {doc.docNo}</span>
+                                        </Link>
                                     </td>
                                 </tr>
                             ))

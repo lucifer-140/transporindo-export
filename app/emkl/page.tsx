@@ -52,14 +52,14 @@ export default async function EmklListPage() {
                             jobs.map((job) => (
                                 <tr key={job.id}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{job.jobNo}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{job.date.toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Date(job.date).toLocaleDateString()}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{job.customer}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{job.vesselName} / {job.voyageNo}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{job.containers.length} Units</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{job.vesselName}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{job.containers.length}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <a href="#" className="text-blue-600 hover:text-blue-900">
-                                            <Eye className="h-4 w-4" />
-                                        </a>
+                                        <Link href={`/emkl/${job.id}/edit`} className="text-blue-600 hover:text-blue-900 flex items-center justify-end">
+                                            <Eye className="h-4 w-4 mr-1" /> View
+                                        </Link>
                                     </td>
                                 </tr>
                             ))

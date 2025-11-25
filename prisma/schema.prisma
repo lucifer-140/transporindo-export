@@ -9,6 +9,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../ERD.svg"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -57,18 +62,57 @@ model EmklJob {
 }
 
 model Dokumen {
-  id          Int      @id @default(autoincrement())
-  receiptNo   String // No. Quitansi
-  spDate      DateTime // Tgl Sp
-  docType     String // Tipe Dokumen
-  containerNo String? // No.Cont (Keeping as string for flexibility)
-  docNo       String // No.Dokumen
+  id              Int      @id @default(autoincrement())
+  receiptNo       String // No. Quitansi
+  receiptDate     DateTime // Tgl Quitansi (was spDate)
+  docType         String // Tipe Dokumen
+  description     String? // Keterangan (was containerNo)
+  transporterName String? // Pengangkutan
+  docNo           String // No.Dokumen
 
   jobId Int
   job   EmklJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   cost        Decimal // Biaya
   paymentType String // Tipe pembayaran
+
+  hutangs Hutang[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Hutang {
+  id            Int       @id @default(autoincrement())
+  noHutang      String // No. hutang
+  date          DateTime // tgl
+  paymentType   String // tipe pembayaran(cash or giro)
+  giroNo        String? // no. giro/cek
+  giroDate      DateTime? // tgl cair
+  nominal       Decimal
+  kodePerkiraan String
+  namaPerkiraan String
+
+  dokumenId Int
+  dokumen   Dokumen @relation(fields: [dokumenId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Piutang {
+  id            Int       @id @default(autoincrement())
+  noPiutang     String // No. piutang
+  date          DateTime // tgl
+  paymentType   String // tipe pembayaran(cash or giro)
+  giroNo        String? // no. giro/cek
+  giroDate      DateTime? // tgl cair
+  nominal       Decimal
+  kodePerkiraan String
+  namaPerkiraan String
+
+  invoiceId Int
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -98,8 +142,9 @@ model Invoice {
 
   items InvoiceItem[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  piutangs  Piutang[]
 }
 
 model InvoiceItem {
