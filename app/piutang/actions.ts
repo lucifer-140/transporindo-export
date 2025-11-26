@@ -49,6 +49,13 @@ export async function updatePiutang(id: number, formData: FormData) {
     redirect('/piutang');
 }
 
+export async function deletePiutang(id: number) {
+    await prisma.piutang.delete({
+        where: { id }
+    });
+    revalidatePath('/piutang');
+}
+
 export async function getPiutang(id: number) {
     return await prisma.piutang.findUnique({
         where: { id },

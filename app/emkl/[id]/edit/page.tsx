@@ -19,6 +19,7 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
         updatedAt: job.updatedAt.toISOString(),
         containers: job.containers.map(c => ({
             ...c,
+            cost: Number(c.cost), // Convert Decimal to number
             gateInDate: c.gateInDate?.toISOString() || null,
             gateOutDate: c.gateOutDate?.toISOString() || null,
             createdAt: c.createdAt.toISOString(),

@@ -22,6 +22,31 @@ This command triggers the Prisma generator, which includes the configured `prism
 
 **Use this when:** You have modified `prisma/schema.prisma` and want to update the visual diagram.
 
+## Production Reset Workflow
+
+If you want to reset the database for production (or switch from prototyping to a stable schema), follow these steps:
+
+### Step 1: Create Migrations
+You cannot use `db:reset` if you haven't created migration files yet. If you were using `db push`, do this first:
+
+**Command:**
+```bash
+npx prisma migrate dev --name init
+```
+*This creates the `prisma/migrations` folder and snapshots your current schema.*
+
+### Step 2: Reset Database
+Now you can safely reset the database. This will drop all data and re-apply the schema using the migration files.
+
+**Command:**
+```bash
+npm run db:reset
+```
+*(Or `npx prisma migrate reset --force`)*
+
+### Step 3: Seed (Optional)
+If you have a seed script, it will run automatically after reset.
+
 ## Prerequisites
 - Node.js and npm installed.
 - PostgreSQL database running and configured in `.env`.

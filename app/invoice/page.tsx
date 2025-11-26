@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Plus, FileSpreadsheet } from 'lucide-react';
-import { getInvoices } from './actions';
+import { getInvoices, deleteInvoice } from './actions';
+import DeleteButton from '../../components/DeleteButton';
 
 export default async function InvoicePage() {
     const invoices = await getInvoices();
@@ -52,10 +53,11 @@ export default async function InvoicePage() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{inv.customer}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{inv.job.jobNo}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{inv.items.length}</td>
-                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <Link href={`/invoice/${inv.id}/edit`} className="text-blue-600 hover:text-blue-900">
+                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 flex justify-end items-center">
+                                        <Link href={`/invoice/${inv.id}`} className="text-blue-600 hover:text-blue-900">
                                             View<span className="sr-only">, {inv.invoiceNo}</span>
                                         </Link>
+                                        <DeleteButton id={inv.id} deleteAction={deleteInvoice} />
                                     </td>
                                 </tr>
                             ))
