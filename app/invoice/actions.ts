@@ -107,6 +107,13 @@ export async function updateInvoice(id: number, formData: FormData) {
     redirect('/invoice');
 }
 
+export async function deleteInvoice(id: number) {
+    await prisma.invoice.delete({
+        where: { id }
+    });
+    revalidatePath('/invoice');
+}
+
 export async function getInvoices() {
     return await prisma.invoice.findMany({
         include: {

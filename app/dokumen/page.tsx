@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Plus, FileText } from 'lucide-react';
-import { getDokumens } from './actions';
+import { getDokumens, deleteDokumen } from './actions';
+import DeleteButton from '../../components/DeleteButton';
 
 export default async function DokumenPage() {
     const dokumens = await getDokumens();
@@ -56,10 +57,11 @@ export default async function DokumenPage() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Date(doc.receiptDate).toLocaleDateString()}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{doc.description}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(doc.cost))}</td>
-                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <Link href={`/dokumen/${doc.id}/edit`} className="text-blue-600 hover:text-blue-900">
+                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 flex justify-end items-center">
+                                        <Link href={`/dokumen/${doc.id}`} className="text-blue-600 hover:text-blue-900">
                                             View<span className="sr-only">, {doc.docNo}</span>
                                         </Link>
+                                        <DeleteButton id={doc.id} deleteAction={deleteDokumen} />
                                     </td>
                                 </tr>
                             ))

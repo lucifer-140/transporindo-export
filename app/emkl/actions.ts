@@ -142,3 +142,10 @@ export async function updateJob(id: number, formData: FormData) {
     revalidatePath('/emkl');
     redirect('/emkl');
 }
+
+export async function deleteJob(id: number) {
+    await prisma.emklJob.delete({
+        where: { id }
+    });
+    revalidatePath('/emkl');
+}

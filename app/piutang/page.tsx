@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
-import { getPiutangs } from './actions';
+import { getPiutangs, deletePiutang } from './actions';
+import DeleteButton from '../../components/DeleteButton';
 
 export default async function PiutangPage() {
     const piutangs = await getPiutangs();
@@ -51,8 +52,9 @@ export default async function PiutangPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(piutang.nominal))}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{piutang.invoice.invoiceNo}</td>
-                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <a href={`/piutang/${piutang.id}/edit`} className="text-blue-600 hover:text-blue-900 mr-4">Edit</a>
+                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 flex justify-end items-center">
+                                        <Link href={`/piutang/${piutang.id}`} className="text-blue-600 hover:text-blue-900 mr-4">View</Link>
+                                        <DeleteButton id={piutang.id} deleteAction={deletePiutang} />
                                     </td>
                                 </tr>
                             ))

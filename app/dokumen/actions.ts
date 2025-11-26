@@ -69,6 +69,13 @@ export async function updateDokumen(id: number, formData: FormData) {
     redirect('/dokumen');
 }
 
+export async function deleteDokumen(id: number) {
+    await prisma.dokumen.delete({
+        where: { id }
+    });
+    revalidatePath('/dokumen');
+}
+
 export async function searchJobs(query: string) {
     if (!query) return [];
 

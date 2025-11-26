@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
-import { getHutangs } from './actions';
+import { getHutangs, deleteHutang } from './actions';
+import DeleteButton from '../../components/DeleteButton';
 
 export default async function HutangPage() {
     const hutangs = await getHutangs();
@@ -50,9 +51,14 @@ export default async function HutangPage() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(hutang.nominal))}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{hutang.dokumen.receiptNo}</td>
-                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <a href={`/hutang/${hutang.id}/edit`} className="text-blue-600 hover:text-blue-900 mr-4">Edit</a>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                        {hutang.items.length > 1
+                                            ? `${hutang.items.length} Documents`
+                                            : hutang.items[0]?.dokumen.receiptNo || '-'}
+                                    </td>
+                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 flex justify-end items-center">
+                                        <Link href={`/hutang/${hutang.id}`} className="text-blue-600 hover:text-blue-900 mr-4">View</Link>
+                                        <DeleteButton id={hutang.id} deleteAction={deleteHutang} />
                                     </td>
                                 </tr>
                             ))

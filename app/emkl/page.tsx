@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { PrismaClient } from '@prisma/client';
 import { Plus, Eye } from 'lucide-react';
+import DeleteButton from '../../components/DeleteButton';
+import { deleteJob } from './actions';
 
 const prisma = new PrismaClient();
 
@@ -56,10 +58,11 @@ export default async function EmklListPage() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{job.customer}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{job.vesselName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{job.containers.length}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <Link href={`/emkl/${job.id}/edit`} className="text-blue-600 hover:text-blue-900 flex items-center justify-end">
-                                            <Eye className="h-4 w-4 mr-1" /> View
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end items-center">
+                                        <Link href={`/emkl/${job.id}`} className="text-blue-600 hover:text-blue-900 flex items-center">
+                                            View
                                         </Link>
+                                        <DeleteButton id={job.id} deleteAction={deleteJob} />
                                     </td>
                                 </tr>
                             ))

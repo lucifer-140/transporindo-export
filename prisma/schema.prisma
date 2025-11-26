@@ -76,10 +76,12 @@ model Dokumen {
   cost        Decimal // Biaya
   paymentType String // Tipe pembayaran
 
-  hutangs Hutang[]
+  hutangItems HutangItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  hutangs Hutang[]
 }
 
 model Hutang {
@@ -93,11 +95,22 @@ model Hutang {
   kodePerkiraan String
   namaPerkiraan String
 
-  dokumenId Int
-  dokumen   Dokumen @relation(fields: [dokumenId], references: [id])
+  items HutangItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  dokumen   Dokumen? @relation(fields: [dokumenId], references: [id])
+  dokumenId Int?
+}
+
+model HutangItem {
+  id        Int     @id @default(autoincrement())
+  hutangId  Int
+  hutang    Hutang  @relation(fields: [hutangId], references: [id], onDelete: Cascade)
+  dokumenId Int
+  dokumen   Dokumen @relation(fields: [dokumenId], references: [id])
+  amount    Decimal // Amount allocated to this document
 }
 
 model Piutang {
