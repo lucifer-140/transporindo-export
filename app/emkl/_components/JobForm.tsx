@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { createJob, updateJob } from '../actions';
 import { Plus, Trash2, Pencil } from 'lucide-react';
+import CustomerSelect from '../../../components/CustomerSelect';
 
 interface JobFormProps {
     initialData?: any;
@@ -113,7 +114,7 @@ export default function JobForm({ initialData }: JobFormProps) {
                         <div className="sm:col-span-2">
                             <label htmlFor="customer" className="block text-sm font-medium text-slate-700">Customer</label>
                             <div className="mt-1">
-                                <input type="text" name="customer" id="customer" required defaultValue={initialData?.customer} className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-slate-300 rounded-md p-2 border" />
+                                <CustomerSelect name="customer" defaultValue={initialData?.customer} required />
                             </div>
                         </div>
 

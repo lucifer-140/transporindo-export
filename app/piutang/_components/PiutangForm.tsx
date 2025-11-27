@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPiutang, updatePiutang, searchInvoices } from '../actions';
+import CustomerSelect from '../../../components/CustomerSelect';
 
 interface PiutangFormProps {
     initialData?: any;
@@ -104,12 +105,10 @@ export default function PiutangForm({ initialData }: PiutangFormProps) {
                         <h3 className="text-lg font-medium leading-6 text-slate-900 mb-4">Select Invoice to Receive Payment</h3>
 
                         <div className="mb-4">
-                            <input
-                                type="text"
-                                placeholder="Search Customer Name..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Filter by Customer</label>
+                            <CustomerSelect
+                                name="customerSearch"
+                                onChange={(value) => setSearchQuery(value)}
                             />
                         </div>
 

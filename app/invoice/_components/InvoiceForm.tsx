@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createInvoice, updateInvoice, getJobs, getJobDetails } from '../actions';
 import { Plus, Trash2 } from 'lucide-react';
+import CustomerSelect from '../../../components/CustomerSelect';
 
 type InvoiceItemType = 'INVOICE' | 'PAJAK' | 'REIMBURSEMENT' | 'KWITANSI';
 
@@ -262,7 +263,11 @@ export default function InvoiceForm({ initialData }: InvoiceFormProps) {
 
                         <div className="sm:col-span-3">
                             <label className="block text-sm font-medium text-slate-700">Customer</label>
-                            <input type="text" name="customer" value={formData.customer} onChange={handleInputChange} className="mt-1 block w-full shadow-sm sm:text-sm border-slate-300 rounded-md border p-2" />
+                            <CustomerSelect
+                                name="customer"
+                                defaultValue={formData.customer}
+                                onChange={(value) => setFormData(prev => ({ ...prev, customer: value }))}
+                            />
                         </div>
 
                         <div className="sm:col-span-3">
