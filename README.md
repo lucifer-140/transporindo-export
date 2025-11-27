@@ -22,6 +22,11 @@ A Next.js application for managing office operations including EMKL (Logistics),
 - **Dokumen**: Manage expense documents associated with jobs.
 - **Invoice**: Generate invoices for customers based on jobs.
 
+### Customer Management
+- **CRUD Operations**: Create, Read, Update, and Delete customer records.
+- **Global Search**: Searchable customer selection in all forms (Jobs, Invoices, Piutang).
+- **Database Seeding**: Pre-populate database with customer data.
+
 ## Getting Started
 
 1.  **Install Dependencies**:
@@ -35,7 +40,13 @@ A Next.js application for managing office operations including EMKL (Logistics),
     npx prisma migrate dev
     ```
 
-3.  **Run Development Server**:
+3.  **Seed Database (Optional)**:
+    Populate the database with initial customer data.
+    ```bash
+    npx prisma db seed
+    ```
+
+4.  **Run Development Server**:
     ```bash
     npm run dev
     ```
@@ -49,5 +60,6 @@ See [SCRIPTS.md](./SCRIPTS.md) for detailed information on available database ma
 
 ## Version History
 
+- **v0.3.0**: Added Customer Management, Database Seeding, and Global Customer Search.
 - **v0.2.0**: Added Finance Modules (Hutang, Piutang), ERD Generator, and Database Scripts.
 - **v0.1.0**: Initial release with EMKL, Dokumen, and Invoice modules.
