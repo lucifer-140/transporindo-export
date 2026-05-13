@@ -75,8 +75,8 @@ export async function bookingRoutes(fastify) {
     const userId = STUB_USER_ID;
 
     const result = db.prepare(`
-      INSERT INTO bookings (job_no, shipper, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, notes, status, created_by)
-      VALUES (@job_no, @shipper, @peb, @port, @feeder, @vessel_name, @vessel_no, @bon, @in_date, @out_date, @trucking, @notes, 'in_progress', @created_by)
+      INSERT INTO bookings (job_no, shipper, commodity, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, notes, status, created_by)
+      VALUES (@job_no, @shipper, @commodity, @peb, @port, @feeder, @vessel_name, @vessel_no, @bon, @in_date, @out_date, @trucking, @notes, 'in_progress', @created_by)
     `).run({ ...fields, created_by: userId });
 
     const bookingId = result.lastInsertRowid;
@@ -104,7 +104,7 @@ export async function bookingRoutes(fastify) {
     const userId = STUB_USER_ID;
 
     db.prepare(`
-      UPDATE bookings SET job_no=@job_no, shipper=@shipper, peb=@peb, port=@port,
+      UPDATE bookings SET job_no=@job_no, shipper=@shipper, commodity=@commodity, peb=@peb, port=@port,
         feeder=@feeder, vessel_name=@vessel_name, vessel_no=@vessel_no, bon=@bon,
         in_date=@in_date, out_date=@out_date, trucking=@trucking, notes=@notes
       WHERE id = @id

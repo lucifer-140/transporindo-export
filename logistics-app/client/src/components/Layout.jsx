@@ -19,6 +19,9 @@ export default function Layout() {
             <NavLink to="/hutang" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
               Hutang
             </NavLink>
+            <NavLink to="/shippers" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
+              Shippers
+            </NavLink>
             <NavLink to="/audit" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
               Audit Log
             </NavLink>

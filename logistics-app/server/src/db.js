@@ -47,6 +47,25 @@ function runMigrations(db) {
   }
   // 006: metode column on pembayaran
   try { db.exec("ALTER TABLE pembayaran ADD COLUMN metode TEXT NOT NULL DEFAULT 'transfer'"); } catch {}
+  // 007: shippers + commodities master tables
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS shippers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS commodities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shipper_id INTEGER NOT NULL REFERENCES shippers(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(shipper_id, name)
+    )
+  `);
+  // 008: commodity column on bookings
+  try { db.exec("ALTER TABLE bookings ADD COLUMN commodity TEXT NOT NULL DEFAULT ''"); } catch {}
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

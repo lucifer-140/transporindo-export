@@ -7,6 +7,7 @@ import Users from './pages/Users.jsx';
 import AuditLog from './pages/AuditLog.jsx';
 import Piutang from './pages/Piutang.jsx';
 import Hutang from './pages/Hutang.jsx';
+import Shippers from './pages/Shippers.jsx';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="piutang" element={<Piutang />} />
         <Route path="hutang" element={<Hutang />} />
         <Route path="audit" element={<AuditLog />} />
+        <Route path="shippers" element={<Shippers />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

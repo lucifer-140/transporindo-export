@@ -9,6 +9,7 @@ export const containerSchema = z.object({
 export const bookingSchema = z.object({
   job_no: z.string().min(1),
   shipper: z.string().min(1),
+  commodity: z.string().optional().default(''),
   peb: z.string().optional().default(''),
   port: z.string().optional().default(''),
   feeder: z.string().optional().default(''),

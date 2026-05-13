@@ -1,6 +1,6 @@
 # Project Status
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Last Updated:** 2026-05-13
 **Stage:** Active Development
 
@@ -10,7 +10,8 @@
 
 | Module | Status | Notes |
 |--------|--------|-------|
-| Bookings CRUD | Done | Soft-delete, search, CSV export |
+| Shippers & Commodities | Done | Master data management; commodities linked to shipper; smart auto-fill in booking form |
+| Bookings CRUD | Done | Soft-delete, search, CSV export, shipper/commodity fields |
 | Containers | Done | Multi-container per booking, derived qty |
 | Invoice (was Dokumen) | Done | Line items: Uraian/Qty/Harga Satuan/Jumlah; total row; replaces flat dokumen section |
 | Users + Roles | Done | admin/worker, bcrypt, activate/deactivate |
@@ -28,7 +29,6 @@
 | Item | Priority | Notes |
 |------|----------|-------|
 | Real auth enforcement | High | Wire `requireAuth` to all routes; replace STUB_USER_ID with `request.session.user.id` |
-| Customer entity | Medium | Replace raw `shipper` text with a proper Customer table (CRUD, searchable) |
 | Invoice module | Medium | Generate invoice from booking; link piutang to invoice |
 | Hutang filter by doc type / transporter | Low | Per reference docs |
 | Piutang linked to customer | Low | Search by customer name |

@@ -12,9 +12,7 @@ function deriveQty(containers) {
   return Object.entries(counts).map(([s, n]) => `${n}x${s}`).join(', ') || '—';
 }
 
-const FIELDS = [
-  ['job_no', 'Job No', true],
-  ['shipper', 'Shipper', true],
+const TEXT_FIELDS = [
   ['peb', 'PEB', false],
   ['port', 'Port', false],
   ['feeder', 'Feeder', false],
@@ -31,7 +29,7 @@ export default function BookingForm() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ job_no: '', shipper: '', peb: '', port: '', feeder: '', vessel_name: '', vessel_no: '', bon: '', in_date: '', out_date: '', trucking: '', notes: '' });
+  const [form, setForm] = useState({ job_no: '', shipper: '', commodity: '', peb: '', port: '', feeder: '', vessel_name: '', vessel_no: '', bon: '', in_date: '', out_date: '', trucking: '', notes: '' });
   const [containers, setContainers] = useState([EMPTY_CONTAINER()]);
   const [errors, setErrors] = useState({});
 
@@ -41,10 +39,30 @@ export default function BookingForm() {
     enabled: isEdit,
   });
 
+  const { data: shippers = [] } = useQuery({
+    queryKey: ['shippers'],
+    queryFn: () => api.get('/shippers').then(r => r.data),
+  });
+
+  // Commodities for selected shipper
+  const selectedShipper = shippers.find(s => s.name === form.shipper);
+  const shipperCommodities = selectedShipper?.commodities ?? [];
+
+  // When shipper changes, auto-fill commodity if exactly 1, else clear
+  function handleShipperChange(name) {
+    const s = shippers.find(sh => sh.name === name);
+    const commodities = s?.commodities ?? [];
+    setForm(f => ({
+      ...f,
+      shipper: name,
+      commodity: commodities.length === 1 ? commodities[0].name : '',
+    }));
+  }
+
   useEffect(() => {
     if (existing) {
       const b = existing.booking;
-      setForm({ job_no: b.job_no, shipper: b.shipper, peb: b.peb ?? '', port: b.port ?? '', feeder: b.feeder ?? '', vessel_name: b.vessel_name ?? '', vessel_no: b.vessel_no ?? '', bon: b.bon ?? '', in_date: b.in_date ?? '', out_date: b.out_date ?? '', trucking: b.trucking ?? '', notes: b.notes ?? '' });
+      setForm({ job_no: b.job_no, shipper: b.shipper, commodity: b.commodity ?? '', peb: b.peb ?? '', port: b.port ?? '', feeder: b.feeder ?? '', vessel_name: b.vessel_name ?? '', vessel_no: b.vessel_no ?? '', bon: b.bon ?? '', in_date: b.in_date ?? '', out_date: b.out_date ?? '', trucking: b.trucking ?? '', notes: b.notes ?? '' });
       setContainers(existing.containers.length ? existing.containers.map(c => ({ container_no: c.container_no, seal_no: c.seal_no ?? '', size: c.size })) : [EMPTY_CONTAINER()]);
     }
   }, [existing]);
@@ -86,6 +104,9 @@ export default function BookingForm() {
   function removeContainer(i) { setContainers(cs => cs.filter((_, idx) => idx !== i)); }
   function addContainer() { setContainers(cs => [...cs, EMPTY_CONTAINER()]); }
 
+  const selectClass = (hasError) =>
+    `w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${hasError ? 'border-red-400' : 'border-gray-300'}`;
+
   return (
     <div className="max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
@@ -95,7 +116,48 @@ export default function BookingForm() {
 
       <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-6 flex flex-col gap-5">
         <div className="grid grid-cols-2 gap-4">
-          {FIELDS.map(([name, label, required, type = 'text']) => (
+          {/* Job No */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Job No<span className="text-red-500 ml-0.5">*</span></label>
+            <input
+              type="text" value={form.job_no} onChange={e => setForm(f => ({ ...f, job_no: e.target.value }))}
+              className={`w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.job_no ? 'border-red-400' : 'border-gray-300'}`}
+            />
+            {errors.job_no && <p className="text-red-500 text-xs mt-0.5">{errors.job_no}</p>}
+          </div>
+
+          {/* Shipper */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Shipper<span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <select value={form.shipper} onChange={e => handleShipperChange(e.target.value)}
+              className={selectClass(errors.shipper)}>
+              <option value="">— Select shipper —</option>
+              {shippers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+            </select>
+            {errors.shipper && <p className="text-red-500 text-xs mt-0.5">{errors.shipper}</p>}
+          </div>
+
+          {/* Commodity */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Commodity</label>
+            {shipperCommodities.length === 1 ? (
+              <div className="flex items-center h-[34px] px-3 border border-gray-200 rounded bg-gray-50 text-sm text-gray-600">
+                {form.commodity}
+              </div>
+            ) : (
+              <select value={form.commodity} onChange={e => setForm(f => ({ ...f, commodity: e.target.value }))}
+                disabled={!form.shipper || shipperCommodities.length === 0}
+                className={`${selectClass(false)} disabled:bg-gray-50 disabled:text-gray-400`}>
+                <option value="">— Select commodity —</option>
+                {shipperCommodities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+            )}
+          </div>
+
+          {/* Remaining text fields */}
+          {TEXT_FIELDS.map(([name, label, required, type = 'text']) => (
             <div key={name}>
               <label className="block text-sm font-medium text-gray-700 mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
               <input

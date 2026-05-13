@@ -6,6 +6,17 @@ Format: [version] — date — description
 
 ---
 
+## [0.5.0] — 2026-05-13
+
+### Added
+- **Shippers & Commodities master data** — dedicated management page (`/shippers`) to create shippers and add commodities per shipper; cascading delete
+- **Commodity linked to shipper** — `commodities` table has `shipper_id` FK; each commodity belongs to one shipper; a shipper can have multiple commodities
+- **`commodity` field on bookings** — stored in DB, included in create/update API and booking form
+- **Smart commodity select in BookingForm** — selecting a shipper auto-fills commodity if shipper has exactly 1; shows dropdown if multiple; disabled if none
+- Nav link: **Shippers** added to header
+
+---
+
 ## [0.4.0] — 2026-05-13
 
 ### Changed
