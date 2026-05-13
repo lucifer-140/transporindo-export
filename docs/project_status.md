@@ -1,6 +1,6 @@
 # Project Status
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Last Updated:** 2026-05-13
 **Stage:** Active Development
 
@@ -12,12 +12,12 @@
 |--------|--------|-------|
 | Bookings CRUD | Done | Soft-delete, search, CSV export |
 | Containers | Done | Multi-container per booking, derived qty |
-| Dokumen | Done | Inline in BookingDetail |
+| Invoice (was Dokumen) | Done | Line items: Uraian/Qty/Harga Satuan/Jumlah; total row; replaces flat dokumen section |
 | Users + Roles | Done | admin/worker, bcrypt, activate/deactivate |
 | Audit Log | Done | Read-only, paginated |
 | Session Auth | Partial | Backend endpoints work; client hooks are stubs (STUB_USER_ID=1) |
-| Hutang (AP) | Done | CRUD, optional booking link, payment history, derived status |
-| Piutang (AR) | Done | Per-booking, auto-fill from dokumen, payment history, derived status |
+| Hutang (AP) | Done | CRUD, optional booking link, payment history, metode field, derived status |
+| Piutang (AR) | Done | Per-booking, auto-fill from invoice total, payment history, metode field, derived status |
 | Finance Summary | Done | `/api/finance/summary` aggregate |
 | Dedicated Finance Pages | Done | `/piutang` and `/hutang` pages with filters |
 

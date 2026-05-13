@@ -38,6 +38,15 @@ function runMigrations(db) {
   // 004: finance tables (piutang, hutang, pembayaran)
   const sql004 = readFileSync(join(__dirname, 'migrations/003_finance.sql'), 'utf8');
   db.exec(sql004);
+  // 005: invoice columns on dokumen (qty, harga_satuan)
+  for (const col of [
+    'ALTER TABLE dokumen ADD COLUMN qty INTEGER NOT NULL DEFAULT 1',
+    'ALTER TABLE dokumen ADD COLUMN harga_satuan INTEGER NOT NULL DEFAULT 0',
+  ]) {
+    try { db.exec(col); } catch {}
+  }
+  // 006: metode column on pembayaran
+  try { db.exec("ALTER TABLE pembayaran ADD COLUMN metode TEXT NOT NULL DEFAULT 'transfer'"); } catch {}
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

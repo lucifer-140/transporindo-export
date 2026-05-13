@@ -14,6 +14,7 @@ const hutangSchema = z.object({
 const pembayaranSchema = z.object({
   jumlah: z.number().int().min(1),
   tanggal: z.string().min(1),
+  metode: z.enum(['cash', 'transfer', 'giro', 'lainnya']).default('transfer'),
   keterangan: z.string().optional().default(''),
 });
 
@@ -123,10 +124,10 @@ export async function hutangRoutes(fastify) {
     const parsed = pembayaranSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    const { jumlah, tanggal, keterangan } = parsed.data;
+    const { jumlah, tanggal, metode, keterangan } = parsed.data;
     db.prepare(
-      "INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, keterangan, created_by) VALUES ('hutang', ?, ?, ?, ?, ?)"
-    ).run(existing.id, jumlah, tanggal, keterangan, STUB_USER_ID);
+      "INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, metode, keterangan, created_by) VALUES ('hutang', ?, ?, ?, ?, ?, ?)"
+    ).run(existing.id, jumlah, tanggal, metode, keterangan, STUB_USER_ID);
 
     const row = db.prepare('SELECT h.*, b.job_no FROM hutang h LEFT JOIN bookings b ON h.booking_id = b.id WHERE h.id = ?').get(existing.id);
     return reply.code(201).send(buildHutang(db, row));

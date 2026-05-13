@@ -6,6 +6,18 @@ Format: [version] — date — description
 
 ---
 
+## [0.4.0] — 2026-05-13
+
+### Changed
+- **Dokumen → Invoice section** — replaced flat dokumen table with proper invoice line items (Uraian, Qty, Harga Satuan, Jumlah); total row shown at bottom
+- `dokumen` table extended with `qty` and `harga_satuan` columns; `biaya` now stored as `qty × harga_satuan` (migration: `004_invoice.sql`)
+- **Piutang + Hutang sections restored** — both sections now visible in BookingDetail (`SHOW_FINANCE = true`)
+- **Metode payment field** — all pembayaran (piutang + hutang) now capture payment method: cash / transfer / giro / lainnya; shown in payment history tables (migration: `005_pembayaran_metode.sql`)
+- Piutang auto-fill button relabeled "Auto dari Invoice" — pulls from invoice line item totals
+- Payment forms expanded to 4-column grid (Tanggal / Jumlah / Metode / Keterangan)
+
+---
+
 ## [0.3.0] — 2026-05-13
 
 ### Added

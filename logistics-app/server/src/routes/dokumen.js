@@ -7,7 +7,8 @@ const STUB_USER_ID = 1;
 const dokumenSchema = z.object({
   tipe: z.string().min(1),
   no_dokumen: z.string().optional().default(''),
-  biaya: z.number().int().min(0).default(0),
+  qty: z.number().int().min(1).default(1),
+  harga_satuan: z.number().int().min(0).default(0),
 });
 
 export async function dokumenRoutes(fastify) {
@@ -28,10 +29,11 @@ export async function dokumenRoutes(fastify) {
     const parsed = dokumenSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    const { tipe, no_dokumen, biaya } = parsed.data;
+    const { tipe, no_dokumen, qty, harga_satuan } = parsed.data;
+    const biaya = qty * harga_satuan;
     const result = db.prepare(
-      'INSERT INTO dokumen (booking_id, tipe, no_dokumen, biaya, created_by) VALUES (?, ?, ?, ?, ?)'
-    ).run(booking.id, tipe, no_dokumen, biaya, STUB_USER_ID);
+      'INSERT INTO dokumen (booking_id, tipe, no_dokumen, qty, harga_satuan, biaya, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(booking.id, tipe, no_dokumen, qty, harga_satuan, biaya, STUB_USER_ID);
 
     logAudit({ userId: STUB_USER_ID, action: 'create', entityType: 'dokumen', entityId: result.lastInsertRowid, changes: parsed.data });
 
@@ -47,8 +49,9 @@ export async function dokumenRoutes(fastify) {
     const parsed = dokumenSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    const { tipe, no_dokumen, biaya } = parsed.data;
-    db.prepare('UPDATE dokumen SET tipe = ?, no_dokumen = ?, biaya = ? WHERE id = ?').run(tipe, no_dokumen, biaya, existing.id);
+    const { tipe, no_dokumen, qty, harga_satuan } = parsed.data;
+    const biaya = qty * harga_satuan;
+    db.prepare('UPDATE dokumen SET tipe = ?, no_dokumen = ?, qty = ?, harga_satuan = ?, biaya = ? WHERE id = ?').run(tipe, no_dokumen, qty, harga_satuan, biaya, existing.id);
 
     logAudit({ userId: STUB_USER_ID, action: 'update', entityType: 'dokumen', entityId: existing.id, changes: parsed.data });
 

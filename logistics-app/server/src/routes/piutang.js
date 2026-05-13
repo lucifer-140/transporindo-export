@@ -12,6 +12,7 @@ const piutangSchema = z.object({
 const pembayaranSchema = z.object({
   jumlah: z.number().int().min(1),
   tanggal: z.string().min(1),
+  metode: z.enum(['cash', 'transfer', 'giro', 'lainnya']).default('transfer'),
   keterangan: z.string().optional().default(''),
 });
 
@@ -127,10 +128,10 @@ export async function piutangRoutes(fastify) {
     const parsed = pembayaranSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    const { jumlah, tanggal, keterangan } = parsed.data;
+    const { jumlah, tanggal, metode, keterangan } = parsed.data;
     db.prepare(
-      "INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, keterangan, created_by) VALUES ('piutang', ?, ?, ?, ?, ?)"
-    ).run(row.id, jumlah, tanggal, keterangan, STUB_USER_ID);
+      "INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, metode, keterangan, created_by) VALUES ('piutang', ?, ?, ?, ?, ?, ?)"
+    ).run(row.id, jumlah, tanggal, metode, keterangan, STUB_USER_ID);
 
     return reply.code(201).send(buildPiutang(db, db.prepare('SELECT * FROM piutang WHERE id = ?').get(row.id)));
   });

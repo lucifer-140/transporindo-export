@@ -17,14 +17,16 @@ const STATUS_FINANCE_COLORS = {
 };
 const IDR = (n) => `Rp ${(n ?? 0).toLocaleString('id-ID')}`;
 
-const EMPTY_DOK = { tipe: '', no_dokumen: '', biaya: '' };
+const SHOW_FINANCE = true;
 
-function DokumenSection({ bookingId }) {
+const EMPTY_ITEM = { tipe: '', qty: 1, harga_satuan: '' };
+
+function InvoiceSection({ bookingId }) {
   const queryClient = useQueryClient();
   const qk = ['dokumen', bookingId];
   const [form, setForm] = useState(null);
 
-  const { data: dokumen = [] } = useQuery({
+  const { data: items = [] } = useQuery({
     queryKey: qk,
     queryFn: () => api.get(`/bookings/${bookingId}/dokumen`).then(r => r.data),
   });
@@ -46,7 +48,11 @@ function DokumenSection({ bookingId }) {
 
   function handleSubmit(e) {
     e.preventDefault();
-    const body = { tipe: form.tipe, no_dokumen: form.no_dokumen, biaya: parseInt(form.biaya) || 0 };
+    const body = {
+      tipe: form.tipe,
+      qty: parseInt(form.qty) || 1,
+      harga_satuan: parseInt(form.harga_satuan) || 0,
+    };
     if (form.id) {
       editMutation.mutate({ id: form.id, body });
     } else {
@@ -55,48 +61,55 @@ function DokumenSection({ bookingId }) {
   }
 
   const isPending = addMutation.isPending || editMutation.isPending;
+  const total = items.reduce((s, d) => s + (d.biaya || 0), 0);
 
   return (
     <div className="mt-5 pt-5 border-t border-gray-100">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-gray-700">
-          Dokumen <span className="text-gray-400 font-normal">({dokumen.length})</span>
+          Invoice <span className="text-gray-400 font-normal">({items.length} item)</span>
         </h3>
         {!form && (
           <button
-            onClick={() => setForm({ ...EMPTY_DOK })}
+            onClick={() => setForm({ ...EMPTY_ITEM })}
             className="text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50"
           >
-            + Tambah
+            + Tambah Biaya
           </button>
         )}
       </div>
 
-      {dokumen.length === 0 && !form && (
-        <p className="text-gray-400 text-sm">Belum ada dokumen.</p>
+      {items.length === 0 && !form && (
+        <p className="text-gray-400 text-sm">Belum ada biaya.</p>
       )}
 
-      {dokumen.length > 0 && (
+      {items.length > 0 && (
         <table className="w-full text-sm mb-3">
           <thead>
             <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
-              <th className="text-left py-1.5">Tipe</th>
-              <th className="text-left py-1.5">No. Dokumen</th>
-              <th className="text-right py-1.5">Biaya</th>
-              <th className="py-1.5"></th>
+              <th className="text-left py-1.5 w-8">No.</th>
+              <th className="text-left py-1.5">Uraian</th>
+              <th className="text-right py-1.5 w-16">Qty</th>
+              <th className="text-right py-1.5">Harga Satuan</th>
+              <th className="text-right py-1.5">Jumlah</th>
+              <th className="py-1.5 w-16"></th>
             </tr>
           </thead>
           <tbody>
-            {dokumen.map((d) => (
+            {items.map((d, i) => (
               <tr key={d.id} className="border-b border-gray-50">
+                <td className="py-1.5 text-gray-400">{i + 1}</td>
                 <td className="py-1.5 font-medium">{d.tipe}</td>
-                <td className="py-1.5 text-gray-600">{d.no_dokumen || '—'}</td>
+                <td className="py-1.5 text-right text-gray-600">{d.qty ?? 1}</td>
+                <td className="py-1.5 text-right font-mono text-gray-600">
+                  {d.harga_satuan > 0 ? IDR(d.harga_satuan) : '—'}
+                </td>
                 <td className="py-1.5 text-right font-mono">
-                  {d.biaya > 0 ? `Rp ${d.biaya.toLocaleString('id-ID')}` : '—'}
+                  {d.biaya > 0 ? IDR(d.biaya) : '—'}
                 </td>
                 <td className="py-1.5 text-right">
                   <button
-                    onClick={() => setForm({ id: d.id, tipe: d.tipe, no_dokumen: d.no_dokumen ?? '', biaya: d.biaya })}
+                    onClick={() => setForm({ id: d.id, tipe: d.tipe, qty: d.qty ?? 1, harga_satuan: d.harga_satuan ?? 0 })}
                     className="text-xs text-gray-400 hover:text-gray-700 mr-2"
                   >Edit</button>
                   <button
@@ -107,40 +120,55 @@ function DokumenSection({ bookingId }) {
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-gray-200">
+              <td colSpan={4} className="pt-2 text-sm font-semibold text-gray-700 text-right pr-4">Total</td>
+              <td className="pt-2 text-right font-mono font-semibold text-gray-900">{IDR(total)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table>
       )}
 
       {form && (
         <form onSubmit={handleSubmit} className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2">
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Tipe Dokumen</label>
+          <div className="grid grid-cols-4 gap-3 mb-3">
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Uraian</label>
               <input
                 required
                 value={form.tipe}
                 onChange={e => setForm(f => ({ ...f, tipe: e.target.value }))}
-                placeholder="PEB, COO, ICO…"
+                placeholder="Biaya Dokumen, Trucking, Storage…"
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">No. Dokumen</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Qty</label>
               <input
-                value={form.no_dokumen}
-                onChange={e => setForm(f => ({ ...f, no_dokumen: e.target.value }))}
+                type="number"
+                min="1"
+                required
+                value={form.qty}
+                onChange={e => setForm(f => ({ ...f, qty: e.target.value }))}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Biaya (Rp)</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Harga Satuan (Rp)</label>
               <input
                 type="number"
                 min="0"
-                value={form.biaya}
-                onChange={e => setForm(f => ({ ...f, biaya: e.target.value }))}
+                value={form.harga_satuan}
+                onChange={e => setForm(f => ({ ...f, harga_satuan: e.target.value }))}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400"
               />
             </div>
+          </div>
+          <div className="flex items-center gap-4 mb-3">
+            <span className="text-xs text-gray-500">
+              Jumlah: <span className="font-mono font-semibold text-gray-800">{IDR((parseInt(form.qty) || 0) * (parseInt(form.harga_satuan) || 0))}</span>
+            </span>
           </div>
           <div className="flex gap-2">
             <button type="submit" disabled={isPending}
@@ -167,7 +195,13 @@ function Field({ label, value }) {
   );
 }
 
-const EMPTY_PAY = { jumlah: '', tanggal: new Date().toISOString().slice(0, 10), keterangan: '' };
+const EMPTY_PAY = { jumlah: '', tanggal: new Date().toISOString().slice(0, 10), metode: 'transfer', keterangan: '' };
+const METODE_OPTIONS = [
+  { value: 'transfer', label: 'Transfer' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'giro', label: 'Giro' },
+  { value: 'lainnya', label: 'Lainnya' },
+];
 
 function PiutangSection({ bookingId }) {
   const queryClient = useQueryClient();
@@ -224,7 +258,7 @@ function PiutangSection({ bookingId }) {
 
   function handlePaySubmit(e) {
     e.preventDefault();
-    addPayMutation.mutate({ jumlah: parseInt(payForm.jumlah) || 0, tanggal: payForm.tanggal, keterangan: payForm.keterangan });
+    addPayMutation.mutate({ jumlah: parseInt(payForm.jumlah) || 0, tanggal: payForm.tanggal, metode: payForm.metode, keterangan: payForm.keterangan });
   }
 
   return (
@@ -267,6 +301,7 @@ function PiutangSection({ bookingId }) {
               <thead>
                 <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
                   <th className="text-left py-1">Tanggal</th>
+                  <th className="text-left py-1">Metode</th>
                   <th className="text-left py-1">Keterangan</th>
                   <th className="text-right py-1">Jumlah</th>
                   <th className="py-1"></th>
@@ -276,6 +311,7 @@ function PiutangSection({ bookingId }) {
                 {piutang.pembayaran.map(p => (
                   <tr key={p.id} className="border-b border-gray-50">
                     <td className="py-1 text-gray-600">{p.tanggal}</td>
+                    <td className="py-1 text-gray-600 capitalize">{p.metode || 'transfer'}</td>
                     <td className="py-1 text-gray-600">{p.keterangan || '—'}</td>
                     <td className="py-1 text-right font-mono">{IDR(p.jumlah)}</td>
                     <td className="py-1 text-right">
@@ -296,7 +332,7 @@ function PiutangSection({ bookingId }) {
 
           {payForm && (
             <form onSubmit={handlePaySubmit} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <div className="grid grid-cols-3 gap-3 mb-2">
+              <div className="grid grid-cols-4 gap-3 mb-2">
                 <div>
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Tanggal</label>
                   <input type="date" required value={payForm.tanggal}
@@ -308,6 +344,14 @@ function PiutangSection({ bookingId }) {
                   <input type="number" min="1" required value={payForm.jumlah}
                     onChange={e => setPayForm(f => ({ ...f, jumlah: e.target.value }))}
                     className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Metode</label>
+                  <select value={payForm.metode}
+                    onChange={e => setPayForm(f => ({ ...f, metode: e.target.value }))}
+                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400">
+                    {METODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Keterangan</label>
@@ -338,7 +382,7 @@ function PiutangSection({ bookingId }) {
                   className="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
                 <button type="button" onClick={autoFill}
                   className="text-xs border border-gray-300 rounded px-2 py-1.5 hover:bg-gray-50 whitespace-nowrap">
-                  Auto dari Dokumen
+                  Auto dari Invoice
                 </button>
               </div>
             </div>
@@ -457,6 +501,7 @@ function HutangSection({ bookingId }) {
                       <thead>
                         <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
                           <th className="text-left py-1">Tanggal</th>
+                          <th className="text-left py-1">Metode</th>
                           <th className="text-left py-1">Keterangan</th>
                           <th className="text-right py-1">Jumlah</th>
                           <th className="py-1"></th>
@@ -466,6 +511,7 @@ function HutangSection({ bookingId }) {
                         {h.pembayaran.map(p => (
                           <tr key={p.id} className="border-b border-gray-50">
                             <td className="py-1 text-gray-600">{p.tanggal}</td>
+                            <td className="py-1 text-gray-600 capitalize">{p.metode || 'transfer'}</td>
                             <td className="py-1 text-gray-600">{p.keterangan || '—'}</td>
                             <td className="py-1 text-right font-mono">{IDR(p.jumlah)}</td>
                             <td className="py-1 text-right">
@@ -486,9 +532,9 @@ function HutangSection({ bookingId }) {
                   )}
 
                   {payForms[h.id] && (
-                    <form onSubmit={e => { e.preventDefault(); addPayMutation.mutate({ id: h.id, body: { jumlah: parseInt(payForms[h.id].jumlah)||0, tanggal: payForms[h.id].tanggal, keterangan: payForms[h.id].keterangan } }); }}
+                    <form onSubmit={e => { e.preventDefault(); addPayMutation.mutate({ id: h.id, body: { jumlah: parseInt(payForms[h.id].jumlah)||0, tanggal: payForms[h.id].tanggal, metode: payForms[h.id].metode, keterangan: payForms[h.id].keterangan } }); }}
                       className="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-2">
-                      <div className="grid grid-cols-3 gap-3 mb-2">
+                      <div className="grid grid-cols-4 gap-3 mb-2">
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Tanggal</label>
                           <input type="date" required value={payForms[h.id].tanggal}
@@ -500,6 +546,14 @@ function HutangSection({ bookingId }) {
                           <input type="number" min="1" required value={payForms[h.id].jumlah}
                             onChange={e => setPayForms(f => ({ ...f, [h.id]: { ...f[h.id], jumlah: e.target.value } }))}
                             className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Metode</label>
+                          <select value={payForms[h.id].metode}
+                            onChange={e => setPayForms(f => ({ ...f, [h.id]: { ...f[h.id], metode: e.target.value } }))}
+                            className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400">
+                            {METODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
                         </div>
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Keterangan</label>
@@ -672,14 +726,14 @@ export default function BookingDetail() {
           )}
         </div>
 
-        {/* Dokumen */}
-        <DokumenSection bookingId={id} />
+        {/* Invoice */}
+        <InvoiceSection bookingId={id} />
 
-        {/* Piutang */}
-        <PiutangSection bookingId={id} />
+        {/* Piutang — hidden, pending implementation */}
+        {SHOW_FINANCE && <PiutangSection bookingId={id} />}
 
-        {/* Hutang */}
-        <HutangSection bookingId={id} />
+        {/* Hutang — hidden, pending implementation */}
+        {SHOW_FINANCE && <HutangSection bookingId={id} />}
       </div>
     </div>
   );
