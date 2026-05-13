@@ -66,6 +66,19 @@ function runMigrations(db) {
   `);
   // 008: commodity column on bookings
   try { db.exec("ALTER TABLE bookings ADD COLUMN commodity TEXT NOT NULL DEFAULT ''"); } catch {}
+  // 009: buku (monthly ledger) + buku_id on bookings
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS buku (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      tahun      INTEGER NOT NULL,
+      bulan      INTEGER NOT NULL,
+      status     TEXT NOT NULL DEFAULT 'open',
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tahun, bulan)
+    )
+  `);
+  try { db.exec('ALTER TABLE bookings ADD COLUMN buku_id INTEGER REFERENCES buku(id)'); } catch {}
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

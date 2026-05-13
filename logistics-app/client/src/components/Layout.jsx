@@ -8,16 +8,10 @@ export default function Layout() {
           <span className="font-bold text-blue-700 text-lg tracking-tight">TAS Logistics</span>
           <nav className="flex gap-4 text-sm">
             <NavLink to="/" end className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
-              Bookings
+              Buku
             </NavLink>
             <NavLink to="/users" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
               Users
-            </NavLink>
-            <NavLink to="/piutang" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
-              Piutang
-            </NavLink>
-            <NavLink to="/hutang" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
-              Hutang
             </NavLink>
             <NavLink to="/shippers" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
               Shippers

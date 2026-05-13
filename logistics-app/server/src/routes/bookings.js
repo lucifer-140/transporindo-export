@@ -20,15 +20,16 @@ export async function bookingRoutes(fastify) {
   // List bookings
   fastify.get('/api/bookings', async (request) => {
     const db = getDb();
-    const { q = '', status = '', from = '', to = '', page = '1', limit = '20' } = request.query;
+    const { q = '', status = '', from = '', to = '', buku_id = '', page = '1', limit = '20' } = request.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     let where = 'b.deleted_at IS NULL';
     const params = [];
 
-    if (status) { where += ' AND b.status = ?'; params.push(status); }
-    if (from)   { where += ' AND b.created_at >= ?'; params.push(from); }
-    if (to)     { where += ' AND b.created_at <= ?'; params.push(to + 'T23:59:59'); }
+    if (status)  { where += ' AND b.status = ?'; params.push(status); }
+    if (buku_id) { where += ' AND b.buku_id = ?'; params.push(parseInt(buku_id)); }
+    if (from)    { where += ' AND b.created_at >= ?'; params.push(from); }
+    if (to)      { where += ' AND b.created_at <= ?'; params.push(to + 'T23:59:59'); }
     if (q) {
       where += ` AND (b.job_no LIKE ? OR b.shipper LIKE ? OR b.peb LIKE ?
         OR b.bon LIKE ? OR b.vessel_name LIKE ?
@@ -70,13 +71,15 @@ export async function bookingRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     const { containers, ...fields } = parsed.data;
-    console.log('CREATE fields:', fields);
     const db = getDb();
     const userId = STUB_USER_ID;
 
+    const buku = db.prepare('SELECT id, status FROM buku WHERE id = ?').get(fields.buku_id);
+    if (!buku) return reply.code(400).send({ error: 'Buku not found' });
+
     const result = db.prepare(`
-      INSERT INTO bookings (job_no, shipper, commodity, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, notes, status, created_by)
-      VALUES (@job_no, @shipper, @commodity, @peb, @port, @feeder, @vessel_name, @vessel_no, @bon, @in_date, @out_date, @trucking, @notes, 'in_progress', @created_by)
+      INSERT INTO bookings (job_no, shipper, commodity, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, notes, status, buku_id, created_by)
+      VALUES (@job_no, @shipper, @commodity, @peb, @port, @feeder, @vessel_name, @vessel_no, @bon, @in_date, @out_date, @trucking, @notes, 'in_progress', @buku_id, @created_by)
     `).run({ ...fields, created_by: userId });
 
     const bookingId = result.lastInsertRowid;

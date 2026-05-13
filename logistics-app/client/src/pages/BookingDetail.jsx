@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client.js';
 
@@ -33,7 +33,7 @@ function InvoiceSection({ bookingId }) {
 
   const addMutation = useMutation({
     mutationFn: (body) => api.post(`/bookings/${bookingId}/dokumen`, body).then(r => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qk }); setForm(null); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
   });
 
   const editMutation = useMutation({
@@ -57,6 +57,7 @@ function InvoiceSection({ bookingId }) {
       editMutation.mutate({ id: form.id, body });
     } else {
       addMutation.mutate(body);
+      setForm({ ...EMPTY_ITEM });
     }
   }
 
@@ -131,7 +132,7 @@ function InvoiceSection({ bookingId }) {
       )}
 
       {form && (
-        <form onSubmit={handleSubmit} className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2">
+        <form onSubmit={handleSubmit} onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.type !== 'submit') e.preventDefault(); }} className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2">
           <div className="grid grid-cols-4 gap-3 mb-3">
             <div className="col-span-2">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Uraian</label>
@@ -426,7 +427,7 @@ function HutangSection({ bookingId }) {
 
   const createMutation = useMutation({
     mutationFn: (body) => api.post('/hutang', body).then(r => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qk }); setShowForm(false); setForm({ ...EMPTY_HUTANG_FORM }); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
   });
 
   const deleteMutation = useMutation({
@@ -447,6 +448,7 @@ function HutangSection({ bookingId }) {
   function handleSubmit(e) {
     e.preventDefault();
     createMutation.mutate({ pihak: form.pihak, jumlah: parseInt(form.jumlah) || 0, keterangan: form.keterangan, booking_id: parseInt(bookingId) });
+    setForm({ ...EMPTY_HUTANG_FORM });
   }
 
   return (
@@ -578,7 +580,7 @@ function HutangSection({ bookingId }) {
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <form onSubmit={handleSubmit} onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.type !== 'submit') e.preventDefault(); }} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Pihak (Vendor)</label>
@@ -614,6 +616,7 @@ function HutangSection({ bookingId }) {
 export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['booking', id],
@@ -629,7 +632,8 @@ export default function BookingDetail() {
     mutationFn: () => api.delete(`/bookings/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      navigate('/');
+      const bukuId = location.state?.buku_id;
+      navigate(bukuId ? `/buku/${bukuId}` : '/');
     },
   });
 
@@ -649,7 +653,7 @@ export default function BookingDetail() {
   return (
     <div className="max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate('/')} className="text-gray-400 hover:text-gray-600">←</button>
+        <button onClick={() => { const bukuId = location.state?.buku_id; navigate(bukuId ? `/buku/${bukuId}` : '/'); }} className="text-gray-400 hover:text-gray-600">←</button>
         <h2 className="text-xl font-bold text-gray-800">{booking.job_no}</h2>
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[booking.status] ?? 'bg-gray-100 text-gray-600'}`}>
           {STATUS_LABELS[booking.status] ?? booking.status}

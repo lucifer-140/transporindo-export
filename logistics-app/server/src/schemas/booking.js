@@ -20,6 +20,7 @@ export const bookingSchema = z.object({
   out_date: z.string().optional().default(''),
   trucking: z.string().optional().default(''),
   notes: z.string().optional().default(''),
+  buku_id: z.number().int().positive(),
   containers: z.array(containerSchema).default([]),
 });
 

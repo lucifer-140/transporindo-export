@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client.js';
 import ContainerInputRow from '../components/ContainerInputRow.jsx';
@@ -28,8 +28,11 @@ export default function BookingForm() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ job_no: '', shipper: '', commodity: '', peb: '', port: '', feeder: '', vessel_name: '', vessel_no: '', bon: '', in_date: '', out_date: '', trucking: '', notes: '' });
+
+  const bukuState = location.state ?? {};
+  const [form, setForm] = useState({ job_no: '', shipper: '', commodity: '', peb: '', port: '', feeder: '', vessel_name: '', vessel_no: '', bon: '', in_date: '', out_date: '', trucking: '', notes: '', buku_id: bukuState.buku_id ?? '' });
   const [containers, setContainers] = useState([EMPTY_CONTAINER()]);
   const [errors, setErrors] = useState({});
 
@@ -62,7 +65,7 @@ export default function BookingForm() {
   useEffect(() => {
     if (existing) {
       const b = existing.booking;
-      setForm({ job_no: b.job_no, shipper: b.shipper, commodity: b.commodity ?? '', peb: b.peb ?? '', port: b.port ?? '', feeder: b.feeder ?? '', vessel_name: b.vessel_name ?? '', vessel_no: b.vessel_no ?? '', bon: b.bon ?? '', in_date: b.in_date ?? '', out_date: b.out_date ?? '', trucking: b.trucking ?? '', notes: b.notes ?? '' });
+      setForm({ job_no: b.job_no, shipper: b.shipper, commodity: b.commodity ?? '', peb: b.peb ?? '', port: b.port ?? '', feeder: b.feeder ?? '', vessel_name: b.vessel_name ?? '', vessel_no: b.vessel_no ?? '', bon: b.bon ?? '', in_date: b.in_date ?? '', out_date: b.out_date ?? '', trucking: b.trucking ?? '', notes: b.notes ?? '', buku_id: b.buku_id ?? '' });
       setContainers(existing.containers.length ? existing.containers.map(c => ({ container_no: c.container_no, seal_no: c.seal_no ?? '', size: c.size })) : [EMPTY_CONTAINER()]);
     }
   }, [existing]);
@@ -80,6 +83,7 @@ export default function BookingForm() {
 
   function validate() {
     const errs = {};
+    if (!isEdit && !form.buku_id) errs.buku_id = 'Required';
     if (!form.job_no.trim()) errs.job_no = 'Required';
     if (!form.shipper.trim()) errs.shipper = 'Required';
     const validContainers = containers.filter(c => c.container_no.trim());
@@ -97,7 +101,7 @@ export default function BookingForm() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     const validContainers = containers.filter(c => c.container_no.trim());
-    mutation.mutate({ ...form, containers: validContainers });
+    mutation.mutate({ ...form, buku_id: parseInt(form.buku_id), containers: validContainers });
   }
 
   function updateContainer(i, val) { setContainers(cs => cs.map((c, idx) => idx === i ? val : c)); }
@@ -114,8 +118,40 @@ export default function BookingForm() {
         <h2 className="text-xl font-bold text-gray-800">{isEdit ? 'Edit Booking' : 'New Booking'}</h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-6 flex flex-col gap-5">
+      {mutation.isPending && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg px-6 py-4 shadow-xl flex items-center gap-3">
+            <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full" />
+            <span className="text-sm font-medium text-gray-700">Menyimpan…</span>
+          </div>
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.type !== 'submit') e.preventDefault(); }}
+        className="bg-white border border-gray-200 rounded-lg p-6 flex flex-col gap-5"
+      >
         <div className="grid grid-cols-2 gap-4">
+          {/* Buku — read-only label on new bookings */}
+          {!isEdit && (
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Buku (Periode)</label>
+              {bukuState.buku_periode ? (
+                <div className="flex items-center gap-2 h-[34px] px-3 border border-gray-200 rounded bg-gray-50 text-sm text-gray-700 font-mono">
+                  {bukuState.buku_periode}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 h-[34px] px-3 border border-red-300 rounded bg-red-50 text-sm text-red-600">
+                  Buku tidak dipilih —{' '}
+                  <button type="button" onClick={() => navigate('/buku')} className="underline hover:text-red-800">
+                    pilih dari halaman Buku
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Job No */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Job No<span className="text-red-500 ml-0.5">*</span></label>

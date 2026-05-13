@@ -6,6 +6,24 @@ Format: [version] — date — description
 
 ---
 
+## [0.6.0] — 2026-05-13
+
+### Added
+- **Buku (Monthly Ledger)** — `buku` table per YYYY/MM; all bookings now belong to a buku; new `buku_id` FK on bookings
+- **BukuList page** (`/`) — home page; lists all buku with booking count and open/closed status; create new buku via modal
+- **BukuDetail page** (`/buku/:id`) — shipper breakdown accordion with total tagihan / dibayar / sisa per shipper; drill down to booking list per shipper; auto-refreshes every 15s
+- **Buku-first navigation flow** — "+ Booking Baru" from BukuDetail passes buku context to BookingForm; no dropdown needed
+- **system-flow.md** — complete non-technical user guide for the full system flow
+
+### Changed
+- Home page changed from BookingsList to BukuList
+- BookingForm — buku shown as read-only label (passed via navigation state); removed buku dropdown
+- BookingDetail back button — returns to originating buku page instead of home
+- Nav — removed Bookings / Piutang / Hutang from main nav (access via buku); kept Buku, Users, Shippers, Audit Log
+- Auth — removed `requireAuth` from all routes and 401→/login redirect (auth not yet implemented)
+
+---
+
 ## [0.5.0] — 2026-05-13
 
 ### Added

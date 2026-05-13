@@ -1,6 +1,6 @@
 # Project Status
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Last Updated:** 2026-05-13
 **Stage:** Active Development
 
@@ -10,17 +10,18 @@
 
 | Module | Status | Notes |
 |--------|--------|-------|
+| Buku (Monthly Ledger) | Done | YYYY/MM ledger; bookings belong to a buku; BukuList home page; BukuDetail with shipper breakdown + piutang totals; auto-refresh 15s |
 | Shippers & Commodities | Done | Master data management; commodities linked to shipper; smart auto-fill in booking form |
-| Bookings CRUD | Done | Soft-delete, search, CSV export, shipper/commodity fields |
+| Bookings CRUD | Done | Soft-delete, search, CSV export, shipper/commodity fields; buku-first creation flow |
 | Containers | Done | Multi-container per booking, derived qty |
-| Invoice (was Dokumen) | Done | Line items: Uraian/Qty/Harga Satuan/Jumlah; total row; replaces flat dokumen section |
+| Invoice (was Dokumen) | Done | Line items: Uraian/Qty/Harga Satuan/Jumlah; total row |
 | Users + Roles | Done | admin/worker, bcrypt, activate/deactivate |
 | Audit Log | Done | Read-only, paginated |
 | Session Auth | Partial | Backend endpoints work; client hooks are stubs (STUB_USER_ID=1) |
 | Hutang (AP) | Done | CRUD, optional booking link, payment history, metode field, derived status |
 | Piutang (AR) | Done | Per-booking, auto-fill from invoice total, payment history, metode field, derived status |
 | Finance Summary | Done | `/api/finance/summary` aggregate |
-| Dedicated Finance Pages | Done | `/piutang` and `/hutang` pages with filters |
+| System Flow Doc | Done | `docs/system-flow.md` — non-technical user guide |
 
 ---
 

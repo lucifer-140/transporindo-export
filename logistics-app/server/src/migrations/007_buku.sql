@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS buku (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  tahun      INTEGER NOT NULL,
+  bulan      INTEGER NOT NULL,
+  status     TEXT NOT NULL DEFAULT 'open',
+  created_by INTEGER REFERENCES users(id),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(tahun, bulan)
+);
+
+ALTER TABLE bookings ADD COLUMN buku_id INTEGER REFERENCES buku(id);
