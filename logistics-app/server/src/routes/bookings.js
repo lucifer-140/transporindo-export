@@ -1,8 +1,7 @@
 import { getDb } from '../db.js';
 import { bookingSchema, statusSchema } from '../schemas/booking.js';
 import { logAudit } from '../utils/audit.js';
-
-const STUB_USER_ID = 1;
+import { requireRole } from '../middleware/requireRole.js';
 
 function deriveQty(containers) {
   const counts = {};
@@ -18,7 +17,7 @@ function getContainers(db, bookingId) {
 
 export async function bookingRoutes(fastify) {
   // List bookings
-  fastify.get('/api/bookings', async (request) => {
+  fastify.get('/api/bookings', { preHandler: requireRole('worker') }, async (request) => {
     const db = getDb();
     const { q = '', status = '', from = '', to = '', buku_id = '', page = '1', limit = '20' } = request.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -56,8 +55,31 @@ export async function bookingRoutes(fastify) {
     return { rows: result, total };
   });
 
+  // CSV export — must be before /:id
+  fastify.get('/api/bookings/export', { preHandler: requireRole('worker') }, async (request, reply) => {
+    const db = getDb();
+    const { from = '', to = '' } = request.query;
+    let where = 'deleted_at IS NULL';
+    const params = [];
+    if (from) { where += ' AND created_at >= ?'; params.push(from); }
+    if (to)   { where += ' AND created_at <= ?'; params.push(to + 'T23:59:59'); }
+
+    const rows = db.prepare(`SELECT * FROM bookings WHERE ${where} ORDER BY created_at DESC`).all(...params);
+
+    const header = 'id,job_no,shipper,peb,port,feeder,vessel_name,vessel_no,bon,status,notes,created_at\n';
+    const csv = rows.map(r =>
+      [r.id, r.job_no, r.shipper, r.peb, r.port, r.feeder, r.vessel_name, r.vessel_no, r.bon, r.status, r.notes, r.created_at]
+        .map(v => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
+        .join(',')
+    ).join('\n');
+
+    reply.header('Content-Type', 'text/csv');
+    reply.header('Content-Disposition', 'attachment; filename="bookings.csv"');
+    return reply.send(header + csv);
+  });
+
   // Get single booking
-  fastify.get('/api/bookings/:id', async (request, reply) => {
+  fastify.get('/api/bookings/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
     const booking = db.prepare('SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!booking) return reply.code(404).send({ error: 'Not found' });
@@ -66,13 +88,13 @@ export async function bookingRoutes(fastify) {
   });
 
   // Create booking
-  fastify.post('/api/bookings', async (request, reply) => {
+  fastify.post('/api/bookings', { preHandler: requireRole('worker') }, async (request, reply) => {
     const parsed = bookingSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     const { containers, ...fields } = parsed.data;
     const db = getDb();
-    const userId = STUB_USER_ID;
+    const userId = request.session.user.id;
 
     const buku = db.prepare('SELECT id, status FROM buku WHERE id = ?').get(fields.buku_id);
     if (!buku) return reply.code(400).send({ error: 'Buku not found' });
@@ -95,7 +117,7 @@ export async function bookingRoutes(fastify) {
   });
 
   // Update booking
-  fastify.put('/api/bookings/:id', async (request, reply) => {
+  fastify.put('/api/bookings/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
@@ -104,7 +126,7 @@ export async function bookingRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     const { containers, ...fields } = parsed.data;
-    const userId = STUB_USER_ID;
+    const userId = request.session.user.id;
 
     db.prepare(`
       UPDATE bookings SET job_no=@job_no, shipper=@shipper, commodity=@commodity, peb=@peb, port=@port,
@@ -125,7 +147,7 @@ export async function bookingRoutes(fastify) {
   });
 
   // Update status
-  fastify.patch('/api/bookings/:id/status', async (request, reply) => {
+  fastify.patch('/api/bookings/:id/status', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
@@ -134,47 +156,24 @@ export async function bookingRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     db.prepare('UPDATE bookings SET status = ? WHERE id = ?').run(parsed.data.status, existing.id);
-    logAudit({ userId: STUB_USER_ID, action: 'update', entityType: 'booking', entityId: existing.id, changes: { status: parsed.data.status } });
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'booking', entityId: existing.id, changes: { status: parsed.data.status } });
 
     return db.prepare('SELECT * FROM bookings WHERE id = ?').get(existing.id);
   });
 
   // Soft delete (admin only)
-  fastify.delete('/api/bookings/:id', async (request, reply) => {
+  fastify.delete('/api/bookings/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
 
     db.prepare('UPDATE bookings SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
-    logAudit({ userId: STUB_USER_ID, action: 'delete', entityType: 'booking', entityId: existing.id });
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'booking', entityId: existing.id });
     return reply.code(204).send();
   });
 
-  // CSV export
-  fastify.get('/api/bookings/export', async (request, reply) => {
-    const db = getDb();
-    const { from = '', to = '' } = request.query;
-    let where = 'deleted_at IS NULL';
-    const params = [];
-    if (from) { where += ' AND created_at >= ?'; params.push(from); }
-    if (to)   { where += ' AND created_at <= ?'; params.push(to + 'T23:59:59'); }
-
-    const rows = db.prepare(`SELECT * FROM bookings WHERE ${where} ORDER BY created_at DESC`).all(...params);
-
-    const header = 'id,job_no,shipper,peb,port,feeder,vessel_name,vessel_no,bon,status,notes,created_at\n';
-    const csv = rows.map(r =>
-      [r.id, r.job_no, r.shipper, r.peb, r.port, r.feeder, r.vessel_name, r.vessel_no, r.bon, r.status, r.notes, r.created_at]
-        .map(v => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
-        .join(',')
-    ).join('\n');
-
-    reply.header('Content-Type', 'text/csv');
-    reply.header('Content-Disposition', 'attachment; filename="bookings.csv"');
-    return reply.send(header + csv);
-  });
-
   // Audit log (admin only)
-  fastify.get('/api/audit', async (request) => {
+  fastify.get('/api/audit', { preHandler: requireRole('admin') }, async (request) => {
     const db = getDb();
     const { page = '1', limit = '50' } = request.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);

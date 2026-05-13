@@ -6,6 +6,31 @@ Format: [version] — date — description
 
 ---
 
+## [0.7.0] — 2026-05-13
+
+### Added
+- **Real authentication enforcement** — `requireRole(minRole)` middleware applied to every API route; hierarchy: worker < finance < admin
+- **3-role RBAC** — `finance` role added alongside `admin` and `worker`; role enum updated in user create/update schemas
+- **ProtectedRoute component** — client-side route guard; redirects unauthenticated users to `/login`; shows "Access Denied" for insufficient role
+- **Login page wired** — `useAuth` hook replaced stub with real TanStack Query fetch of `/api/auth/me`; `useLogin`/`useLogout` call real endpoints
+- **401 interceptor** — axios client redirects to `/login` on any 401 response
+- **Finance role access** — finance role can access BukuFinance, Piutang, Hutang, Finance summary pages and "Lihat Finance" button in BukuDetail
+- **BookingDetail finance sections gated** — Invoice, Piutang, Hutang sections hidden from worker role; visible only to finance and admin
+- **User delete** — `DELETE /api/users/:id` endpoint (admin only); blocks self-delete; inline confirm in UI
+- **User edit with password change** — edit row expands to full-width form; optional new password field with show/hide toggle
+- **commodityRoutes registered** — `GET/POST /api/commodities` now active in server
+
+### Changed
+- `STUB_USER_ID` removed from all route handlers — real `request.session.user.id` used throughout
+- `requireRole` now uses hierarchy check instead of exact match
+- Nav links conditionally rendered based on role (Piutang/Hutang for finance+; Shippers/Users/Audit for admin only)
+- Sign out button added to header
+- `staleTime` set to 0 — queries refetch on mount, fixing stale data after mutations
+- `keepPreviousData` (v4 API) replaced with `placeholderData: (prev) => prev` (v5) in BookingsList and AuditLog
+- Duplicate `DELETE /api/commodities/:id` removed from commodities.js (already in shippers.js)
+
+---
+
 ## [0.6.0] — 2026-05-13
 
 ### Added

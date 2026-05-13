@@ -15,7 +15,7 @@ export default function AuditLog() {
   const { data, isLoading } = useQuery({
     queryKey: ['audit', page],
     queryFn: () => api.get('/audit', { params: { page, limit: LIMIT } }).then(r => r.data),
-    keepPreviousData: true,
+    placeholderData: (prev) => prev,
   });
 
   const rows = data?.rows ?? [];

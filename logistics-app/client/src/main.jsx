@@ -6,7 +6,7 @@ import './index.css';
 import App from './App.jsx';
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
+  defaultOptions: { queries: { retry: 1, staleTime: 0 } },
 });
 
 createRoot(document.getElementById('root')).render(

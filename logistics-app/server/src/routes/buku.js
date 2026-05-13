@@ -1,8 +1,9 @@
 import { getDb } from '../db.js';
+import { requireRole } from '../middleware/requireRole.js';
 
 export async function bukuRoutes(fastify) {
   // List all buku with booking count
-  fastify.get('/api/buku', async () => {
+  fastify.get('/api/buku', { preHandler: requireRole('worker') }, async () => {
     const db = getDb();
     const rows = db.prepare(`
       SELECT b.*, COUNT(bk.id) AS booking_count
@@ -15,7 +16,7 @@ export async function bukuRoutes(fastify) {
   });
 
   // Create buku
-  fastify.post('/api/buku',  async (request, reply) => {
+  fastify.post('/api/buku', { preHandler: requireRole('worker') }, async (request, reply) => {
     const { tahun, bulan } = request.body ?? {};
     if (!tahun || !bulan) return reply.code(400).send({ error: 'tahun and bulan required' });
     if (bulan < 1 || bulan > 12) return reply.code(400).send({ error: 'bulan must be 1-12' });
@@ -34,7 +35,7 @@ export async function bukuRoutes(fastify) {
   });
 
   // Get single buku with shipper breakdown
-  fastify.get('/api/buku/:id',  async (request, reply) => {
+  fastify.get('/api/buku/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
     const buku = db.prepare('SELECT * FROM buku WHERE id = ?').get(request.params.id);
     if (!buku) return reply.code(404).send({ error: 'Not found' });
@@ -84,8 +85,24 @@ export async function bukuRoutes(fastify) {
     return { buku, shippers, booking_count: bookings.length };
   });
 
+  // Get flat bookings list for a buku (operational view)
+  fastify.get('/api/buku/:id/bookings', { preHandler: requireRole('worker') }, async (request, reply) => {
+    const db = getDb();
+    const buku = db.prepare('SELECT * FROM buku WHERE id = ?').get(request.params.id);
+    if (!buku) return reply.code(404).send({ error: 'Not found' });
+
+    const bookings = db.prepare(`
+      SELECT id, job_no, shipper, peb, port, feeder, vessel_name, vessel_no, bon, status, notes, created_at
+      FROM bookings
+      WHERE buku_id = ? AND deleted_at IS NULL
+      ORDER BY created_at DESC
+    `).all(buku.id);
+
+    return { buku, bookings };
+  });
+
   // Delete buku (only if no bookings)
-  fastify.delete('/api/buku/:id',  async (request, reply) => {
+  fastify.delete('/api/buku/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
     const db = getDb();
     const buku = db.prepare('SELECT * FROM buku WHERE id = ?').get(request.params.id);
     if (!buku) return reply.code(404).send({ error: 'Not found' });

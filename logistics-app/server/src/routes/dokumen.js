@@ -1,8 +1,7 @@
 import { getDb } from '../db.js';
 import { logAudit } from '../utils/audit.js';
 import { z } from 'zod';
-
-const STUB_USER_ID = 1;
+import { requireRole } from '../middleware/requireRole.js';
 
 const dokumenSchema = z.object({
   tipe: z.string().min(1),
@@ -13,7 +12,7 @@ const dokumenSchema = z.object({
 
 export async function dokumenRoutes(fastify) {
   // List dokumen for a booking
-  fastify.get('/api/bookings/:bookingId/dokumen', async (request, reply) => {
+  fastify.get('/api/bookings/:bookingId/dokumen', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
     const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });
@@ -21,7 +20,7 @@ export async function dokumenRoutes(fastify) {
   });
 
   // Add dokumen
-  fastify.post('/api/bookings/:bookingId/dokumen', async (request, reply) => {
+  fastify.post('/api/bookings/:bookingId/dokumen', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
     const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });
@@ -31,17 +30,18 @@ export async function dokumenRoutes(fastify) {
 
     const { tipe, no_dokumen, qty, harga_satuan } = parsed.data;
     const biaya = qty * harga_satuan;
+    const userId = request.session.user.id;
     const result = db.prepare(
       'INSERT INTO dokumen (booking_id, tipe, no_dokumen, qty, harga_satuan, biaya, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(booking.id, tipe, no_dokumen, qty, harga_satuan, biaya, STUB_USER_ID);
+    ).run(booking.id, tipe, no_dokumen, qty, harga_satuan, biaya, userId);
 
-    logAudit({ userId: STUB_USER_ID, action: 'create', entityType: 'dokumen', entityId: result.lastInsertRowid, changes: parsed.data });
+    logAudit({ userId, action: 'create', entityType: 'dokumen', entityId: result.lastInsertRowid, changes: parsed.data });
 
     return reply.code(201).send(db.prepare('SELECT * FROM dokumen WHERE id = ?').get(result.lastInsertRowid));
   });
 
   // Update dokumen
-  fastify.put('/api/bookings/:bookingId/dokumen/:id', async (request, reply) => {
+  fastify.put('/api/bookings/:bookingId/dokumen/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM dokumen WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
@@ -53,19 +53,19 @@ export async function dokumenRoutes(fastify) {
     const biaya = qty * harga_satuan;
     db.prepare('UPDATE dokumen SET tipe = ?, no_dokumen = ?, qty = ?, harga_satuan = ?, biaya = ? WHERE id = ?').run(tipe, no_dokumen, qty, harga_satuan, biaya, existing.id);
 
-    logAudit({ userId: STUB_USER_ID, action: 'update', entityType: 'dokumen', entityId: existing.id, changes: parsed.data });
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'dokumen', entityId: existing.id, changes: parsed.data });
 
     return db.prepare('SELECT * FROM dokumen WHERE id = ?').get(existing.id);
   });
 
   // Delete dokumen
-  fastify.delete('/api/bookings/:bookingId/dokumen/:id', async (request, reply) => {
+  fastify.delete('/api/bookings/:bookingId/dokumen/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM dokumen WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
 
     db.prepare('DELETE FROM dokumen WHERE id = ?').run(existing.id);
-    logAudit({ userId: STUB_USER_ID, action: 'delete', entityType: 'dokumen', entityId: existing.id });
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'dokumen', entityId: existing.id });
     return reply.code(204).send();
   });
 }

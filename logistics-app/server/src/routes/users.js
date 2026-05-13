@@ -2,29 +2,28 @@ import { getDb } from '../db.js';
 import { hash } from '../utils/password.js';
 import { logAudit } from '../utils/audit.js';
 import { z } from 'zod';
-
-const STUB_USER_ID = 1;
+import { requireRole } from '../middleware/requireRole.js';
 
 const createUserSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(8),
   full_name: z.string().optional().default(''),
-  role: z.enum(['admin', 'worker']).default('worker'),
+  role: z.enum(['admin', 'finance', 'worker']).default('worker'),
 });
 
 const updateUserSchema = z.object({
   full_name: z.string().optional(),
-  role: z.enum(['admin', 'worker']).optional(),
+  role: z.enum(['admin', 'finance', 'worker']).optional(),
   active: z.number().int().min(0).max(1).optional(),
 });
 
 export async function userRoutes(fastify) {
-  fastify.get('/api/users', async () => {
+  fastify.get('/api/users', { preHandler: requireRole('admin') }, async () => {
     const db = getDb();
     return db.prepare('SELECT id, username, full_name, role, active, created_at FROM users ORDER BY created_at DESC').all();
   });
 
-  fastify.post('/api/users', async (request, reply) => {
+  fastify.post('/api/users', { preHandler: requireRole('admin') }, async (request, reply) => {
     const parsed = createUserSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
@@ -36,11 +35,11 @@ export async function userRoutes(fastify) {
       'INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)'
     ).run(username, password_hash, full_name, role);
 
-    logAudit({ userId: STUB_USER_ID, action: 'create', entityType: 'user', entityId: result.lastInsertRowid });
+    logAudit({ userId: request.session.user.id, action: 'create', entityType: 'user', entityId: result.lastInsertRowid });
     return reply.code(201).send(db.prepare('SELECT id, username, full_name, role, active, created_at FROM users WHERE id = ?').get(result.lastInsertRowid));
   });
 
-  fastify.put('/api/users/:id', async (request, reply) => {
+  fastify.put('/api/users/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
     const parsed = updateUserSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
@@ -57,13 +56,23 @@ export async function userRoutes(fastify) {
 
     if (sets.length) {
       db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...params, user.id);
-      logAudit({ userId: STUB_USER_ID, action: 'update', entityType: 'user', entityId: user.id, changes: parsed.data });
+      logAudit({ userId: request.session.user.id, action: 'update', entityType: 'user', entityId: user.id, changes: parsed.data });
     }
 
     return db.prepare('SELECT id, username, full_name, role, active, created_at FROM users WHERE id = ?').get(user.id);
   });
 
-  fastify.post('/api/users/:id/password', async (request, reply) => {
+  fastify.delete('/api/users/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
+    const db = getDb();
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(request.params.id);
+    if (!user) return reply.code(404).send({ error: 'Not found' });
+    if (user.id === request.session.user.id) return reply.code(400).send({ error: 'Cannot delete your own account' });
+    db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'user', entityId: user.id });
+    return reply.code(204).send();
+  });
+
+  fastify.post('/api/users/:id/password', { preHandler: requireRole('admin') }, async (request, reply) => {
     const { new_password } = request.body ?? {};
     if (!new_password || new_password.length < 8) return reply.code(400).send({ error: 'Password must be at least 8 characters' });
 
@@ -72,7 +81,7 @@ export async function userRoutes(fastify) {
     if (!user) return reply.code(404).send({ error: 'Not found' });
 
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hash(new_password), user.id);
-    logAudit({ userId: STUB_USER_ID, action: 'update', entityType: 'user', entityId: user.id, changes: { password: 'changed' } });
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'user', entityId: user.id, changes: { password: 'changed' } });
     return reply.code(204).send();
   });
 }

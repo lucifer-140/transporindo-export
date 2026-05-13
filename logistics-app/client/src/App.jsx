@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
+import Login from './pages/Login.jsx';
 import BookingsList from './pages/BookingsList.jsx';
 import BookingForm from './pages/BookingForm.jsx';
 import BookingDetail from './pages/BookingDetail.jsx';
@@ -10,24 +12,45 @@ import Hutang from './pages/Hutang.jsx';
 import Shippers from './pages/Shippers.jsx';
 import BukuList from './pages/BukuList.jsx';
 import BukuDetail from './pages/BukuDetail.jsx';
+import BukuFinance from './pages/BukuFinance.jsx';
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
+      <Route path="/login" element={<Login />} />
+
+      <Route path="/" element={
+        <ProtectedRoute minRole="worker">
+          <Layout />
+        </ProtectedRoute>
+      }>
         <Route index element={<BukuList />} />
+        <Route path="buku" element={<BukuList />} />
+        <Route path="buku/:id" element={<BukuDetail />} />
+        <Route path="buku/:id/finance" element={
+          <ProtectedRoute minRole="finance"><BukuFinance /></ProtectedRoute>
+        } />
         <Route path="bookings" element={<BookingsList />} />
         <Route path="bookings/new" element={<BookingForm />} />
         <Route path="bookings/:id" element={<BookingDetail />} />
         <Route path="bookings/:id/edit" element={<BookingForm />} />
-        <Route path="users" element={<Users />} />
-        <Route path="piutang" element={<Piutang />} />
-        <Route path="hutang" element={<Hutang />} />
-        <Route path="audit" element={<AuditLog />} />
-        <Route path="shippers" element={<Shippers />} />
-        <Route path="buku" element={<BukuList />} />
-        <Route path="buku/:id" element={<BukuDetail />} />
+        <Route path="piutang" element={
+          <ProtectedRoute minRole="finance"><Piutang /></ProtectedRoute>
+        } />
+        <Route path="hutang" element={
+          <ProtectedRoute minRole="finance"><Hutang /></ProtectedRoute>
+        } />
+        <Route path="users" element={
+          <ProtectedRoute minRole="admin"><Users /></ProtectedRoute>
+        } />
+        <Route path="audit" element={
+          <ProtectedRoute minRole="admin"><AuditLog /></ProtectedRoute>
+        } />
+        <Route path="shippers" element={
+          <ProtectedRoute minRole="admin"><Shippers /></ProtectedRoute>
+        } />
       </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client.js';
+import { useAuth } from '../hooks/useAuth.js';
 
 const STATUS_LABELS = { in_progress: 'In Progress', done: 'Done' };
 const STATUS_COLORS = {
@@ -16,8 +17,6 @@ const STATUS_FINANCE_COLORS = {
   lunas: 'bg-green-100 text-green-800',
 };
 const IDR = (n) => `Rp ${(n ?? 0).toLocaleString('id-ID')}`;
-
-const SHOW_FINANCE = true;
 
 const EMPTY_ITEM = { tipe: '', qty: 1, harga_satuan: '' };
 
@@ -618,6 +617,7 @@ export default function BookingDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { isFinance } = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: ['booking', id],
     queryFn: () => api.get(`/bookings/${id}`).then(r => r.data),
@@ -730,14 +730,10 @@ export default function BookingDetail() {
           )}
         </div>
 
-        {/* Invoice */}
-        <InvoiceSection bookingId={id} />
-
-        {/* Piutang — hidden, pending implementation */}
-        {SHOW_FINANCE && <PiutangSection bookingId={id} />}
-
-        {/* Hutang — hidden, pending implementation */}
-        {SHOW_FINANCE && <HutangSection bookingId={id} />}
+        {/* Invoice, Piutang, Hutang — finance role only */}
+        {isFinance && <InvoiceSection bookingId={id} />}
+        {isFinance && <PiutangSection bookingId={id} />}
+        {isFinance && <HutangSection bookingId={id} />}
       </div>
     </div>
   );

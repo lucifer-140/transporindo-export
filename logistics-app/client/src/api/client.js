@@ -4,7 +4,12 @@ const api = axios.create({ baseURL: '/api', withCredentials: true });
 
 api.interceptors.response.use(
   (r) => r,
-  (err) => Promise.reject(err)
+  (err) => {
+    if (err.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
 );
 
 export default api;

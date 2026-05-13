@@ -23,7 +23,7 @@ export default function BookingsList() {
   const { data, isLoading } = useQuery({
     queryKey: ['bookings', { q, status, from, to, page }],
     queryFn: () => api.get('/bookings', { params: { q, status, from, to, page, limit: LIMIT } }).then(r => r.data),
-    keepPreviousData: true,
+    placeholderData: (prev) => prev,
   });
 
   const rows = data?.rows ?? [];

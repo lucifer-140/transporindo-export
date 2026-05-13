@@ -1,6 +1,6 @@
 # Project Status
 
-**Version:** 0.6.0
+**Version:** 0.7.0
 **Last Updated:** 2026-05-13
 **Stage:** Active Development
 
@@ -15,12 +15,15 @@
 | Bookings CRUD | Done | Soft-delete, search, CSV export, shipper/commodity fields; buku-first creation flow |
 | Containers | Done | Multi-container per booking, derived qty |
 | Invoice (was Dokumen) | Done | Line items: Uraian/Qty/Harga Satuan/Jumlah; total row |
-| Users + Roles | Done | admin/worker, bcrypt, activate/deactivate |
-| Audit Log | Done | Read-only, paginated |
-| Session Auth | Partial | Backend endpoints work; client hooks are stubs (STUB_USER_ID=1) |
+| Users + Roles | Done | admin/finance/worker; bcrypt; edit (full_name, role, password); delete with confirm |
+| Audit Log | Done | Read-only, paginated; admin-only access |
+| Session Auth | Done | Real login/logout; useAuth fetches /api/auth/me; 401 interceptor redirects to /login |
+| RBAC — Route Protection | Done | requireRole(minRole) on all server routes; ProtectedRoute on all client routes |
+| RBAC — Role Hierarchy | Done | worker < finance < admin; finance role accesses all finance pages |
 | Hutang (AP) | Done | CRUD, optional booking link, payment history, metode field, derived status |
 | Piutang (AR) | Done | Per-booking, auto-fill from invoice total, payment history, metode field, derived status |
-| Finance Summary | Done | `/api/finance/summary` aggregate |
+| Finance Summary | Done | `/api/finance/summary` aggregate; finance+ access only |
+| BukuFinance page | Done | Finance view per buku; accessible to finance and admin roles |
 | System Flow Doc | Done | `docs/system-flow.md` — non-technical user guide |
 
 ---
@@ -29,17 +32,14 @@
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| Real auth enforcement | High | Wire `requireAuth` to all routes; replace STUB_USER_ID with `request.session.user.id` |
-| Invoice module | Medium | Generate invoice from booking; link piutang to invoice |
+| Invoice module | Medium | Generate printable invoice from booking; link piutang to invoice |
 | Hutang filter by doc type / transporter | Low | Per reference docs |
 | Piutang linked to customer | Low | Search by customer name |
+| Status filter server-side | Low | Hutang/Piutang list status filter currently client-side; should be server-side for correct pagination |
 | Production deployment | Low | Build client → server/public, env config |
 
 ---
 
 ## Known Issues / Tech Debt
 
-- `STUB_USER_ID = 1` hardcoded in all route handlers — auth not enforced yet
-- Client `useAuth` / `useLogin` / `useLogout` hooks are stubs — login page does nothing
-- `requireAuth` and `requireRole` middleware defined but not applied to routes
-- Status filter on Hutang/Piutang list pages done client-side (should be server-side for correct pagination)
+- Status filter on Hutang/Piutang list pages done client-side (incorrect pagination when filtered)

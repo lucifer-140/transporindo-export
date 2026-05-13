@@ -1,8 +1,9 @@
 import { getDb } from '../db.js';
+import { requireRole } from '../middleware/requireRole.js';
 
 export async function shipperRoutes(fastify) {
   // List all shippers with their commodities
-  fastify.get('/api/shippers', async () => {
+  fastify.get('/api/shippers', { preHandler: requireRole('admin') }, async () => {
     const db = getDb();
     const shippers = db.prepare('SELECT * FROM shippers ORDER BY name ASC').all();
     const commodities = db.prepare('SELECT * FROM commodities ORDER BY name ASC').all();
@@ -13,7 +14,7 @@ export async function shipperRoutes(fastify) {
   });
 
   // Create shipper
-  fastify.post('/api/shippers', async (request, reply) => {
+  fastify.post('/api/shippers', { preHandler: requireRole('admin') }, async (request, reply) => {
     const { name } = request.body ?? {};
     if (!name?.trim()) return reply.code(400).send({ error: 'Name required' });
     const db = getDb();
@@ -27,7 +28,7 @@ export async function shipperRoutes(fastify) {
   });
 
   // Delete shipper (cascades to commodities)
-  fastify.delete('/api/shippers/:id', async (request, reply) => {
+  fastify.delete('/api/shippers/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
     const db = getDb();
     const result = db.prepare('DELETE FROM shippers WHERE id = ?').run(request.params.id);
     if (result.changes === 0) return reply.code(404).send({ error: 'Not found' });
@@ -35,7 +36,7 @@ export async function shipperRoutes(fastify) {
   });
 
   // Add commodity to shipper
-  fastify.post('/api/shippers/:id/commodities', async (request, reply) => {
+  fastify.post('/api/shippers/:id/commodities', { preHandler: requireRole('admin') }, async (request, reply) => {
     const { name } = request.body ?? {};
     if (!name?.trim()) return reply.code(400).send({ error: 'Name required' });
     const db = getDb();
@@ -50,7 +51,7 @@ export async function shipperRoutes(fastify) {
   });
 
   // Remove commodity
-  fastify.delete('/api/commodities/:id', async (request, reply) => {
+  fastify.delete('/api/commodities/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
     const db = getDb();
     const result = db.prepare('DELETE FROM commodities WHERE id = ?').run(request.params.id);
     if (result.changes === 0) return reply.code(404).send({ error: 'Not found' });

@@ -1,8 +1,7 @@
 import { getDb } from '../db.js';
 import { logAudit } from '../utils/audit.js';
 import { z } from 'zod';
-
-const STUB_USER_ID = 1;
+import { requireRole } from '../middleware/requireRole.js';
 
 const piutangSchema = z.object({
   jumlah: z.number().int().min(0),
@@ -28,7 +27,7 @@ function buildPiutang(db, row) {
 
 export async function piutangRoutes(fastify) {
   // List all piutang (with booking info)
-  fastify.get('/api/piutang', async (request) => {
+  fastify.get('/api/piutang', { preHandler: requireRole('finance') }, async (request) => {
     const db = getDb();
     const { q = '', page = '1', limit = '20' } = request.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -58,7 +57,7 @@ export async function piutangRoutes(fastify) {
   });
 
   // Get piutang for booking
-  fastify.get('/api/bookings/:bookingId/piutang', async (request, reply) => {
+  fastify.get('/api/bookings/:bookingId/piutang', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });
@@ -68,7 +67,7 @@ export async function piutangRoutes(fastify) {
   });
 
   // Create piutang for booking
-  fastify.post('/api/bookings/:bookingId/piutang', async (request, reply) => {
+  fastify.post('/api/bookings/:bookingId/piutang', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });
@@ -80,18 +79,19 @@ export async function piutangRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     const { jumlah, keterangan } = parsed.data;
+    const userId = request.session.user.id;
     const result = db.prepare(
       'INSERT INTO piutang (booking_id, jumlah, keterangan, created_by) VALUES (?, ?, ?, ?)'
-    ).run(booking.id, jumlah, keterangan, STUB_USER_ID);
+    ).run(booking.id, jumlah, keterangan, userId);
 
-    logAudit({ userId: STUB_USER_ID, action: 'create', entityType: 'piutang', entityId: result.lastInsertRowid, changes: parsed.data });
+    logAudit({ userId, action: 'create', entityType: 'piutang', entityId: result.lastInsertRowid, changes: parsed.data });
 
     const row = db.prepare('SELECT * FROM piutang WHERE id = ?').get(result.lastInsertRowid);
     return reply.code(201).send(buildPiutang(db, row));
   });
 
   // Update piutang
-  fastify.put('/api/bookings/:bookingId/piutang/:id', async (request, reply) => {
+  fastify.put('/api/bookings/:bookingId/piutang/:id', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
     if (!row) return reply.code(404).send({ error: 'Not found' });
@@ -102,25 +102,25 @@ export async function piutangRoutes(fastify) {
     const { jumlah, keterangan } = parsed.data;
     db.prepare('UPDATE piutang SET jumlah = ?, keterangan = ? WHERE id = ?').run(jumlah, keterangan, row.id);
 
-    logAudit({ userId: STUB_USER_ID, action: 'update', entityType: 'piutang', entityId: row.id, changes: parsed.data });
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'piutang', entityId: row.id, changes: parsed.data });
 
     return buildPiutang(db, db.prepare('SELECT * FROM piutang WHERE id = ?').get(row.id));
   });
 
   // Delete piutang
-  fastify.delete('/api/bookings/:bookingId/piutang/:id', async (request, reply) => {
+  fastify.delete('/api/bookings/:bookingId/piutang/:id', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
     if (!row) return reply.code(404).send({ error: 'Not found' });
 
     db.prepare("DELETE FROM pembayaran WHERE entity_type='piutang' AND entity_id=?").run(row.id);
     db.prepare('DELETE FROM piutang WHERE id = ?').run(row.id);
-    logAudit({ userId: STUB_USER_ID, action: 'delete', entityType: 'piutang', entityId: row.id });
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'piutang', entityId: row.id });
     return reply.code(204).send();
   });
 
   // Add pembayaran to piutang
-  fastify.post('/api/bookings/:bookingId/piutang/:id/pembayaran', async (request, reply) => {
+  fastify.post('/api/bookings/:bookingId/piutang/:id/pembayaran', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
     if (!row) return reply.code(404).send({ error: 'Not found' });
@@ -131,13 +131,13 @@ export async function piutangRoutes(fastify) {
     const { jumlah, tanggal, metode, keterangan } = parsed.data;
     db.prepare(
       "INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, metode, keterangan, created_by) VALUES ('piutang', ?, ?, ?, ?, ?, ?)"
-    ).run(row.id, jumlah, tanggal, metode, keterangan, STUB_USER_ID);
+    ).run(row.id, jumlah, tanggal, metode, keterangan, request.session.user.id);
 
     return reply.code(201).send(buildPiutang(db, db.prepare('SELECT * FROM piutang WHERE id = ?').get(row.id)));
   });
 
   // Remove pembayaran from piutang
-  fastify.delete('/api/bookings/:bookingId/piutang/:id/pembayaran/:payId', async (request, reply) => {
+  fastify.delete('/api/bookings/:bookingId/piutang/:id/pembayaran/:payId', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
     if (!row) return reply.code(404).send({ error: 'Not found' });

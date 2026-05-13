@@ -1,8 +1,7 @@
 import { getDb } from '../db.js';
 import { logAudit } from '../utils/audit.js';
 import { z } from 'zod';
-
-const STUB_USER_ID = 1;
+import { requireRole } from '../middleware/requireRole.js';
 
 const hutangSchema = z.object({
   pihak: z.string().min(1),
@@ -30,7 +29,7 @@ function buildHutang(db, row) {
 
 export async function hutangRoutes(fastify) {
   // List all hutang
-  fastify.get('/api/hutang', async (request) => {
+  fastify.get('/api/hutang', { preHandler: requireRole('finance') }, async (request) => {
     const db = getDb();
     const { q = '', status = '', page = '1', limit = '20' } = request.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -62,7 +61,7 @@ export async function hutangRoutes(fastify) {
   });
 
   // Create hutang
-  fastify.post('/api/hutang', async (request, reply) => {
+  fastify.post('/api/hutang', { preHandler: requireRole('finance') }, async (request, reply) => {
     const parsed = hutangSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
@@ -74,18 +73,19 @@ export async function hutangRoutes(fastify) {
       if (!booking) return reply.code(404).send({ error: 'Booking not found' });
     }
 
+    const userId = request.session.user.id;
     const result = db.prepare(
       'INSERT INTO hutang (pihak, booking_id, jumlah, keterangan, created_by) VALUES (?, ?, ?, ?, ?)'
-    ).run(pihak, booking_id ?? null, jumlah, keterangan, STUB_USER_ID);
+    ).run(pihak, booking_id ?? null, jumlah, keterangan, userId);
 
-    logAudit({ userId: STUB_USER_ID, action: 'create', entityType: 'hutang', entityId: result.lastInsertRowid, changes: parsed.data });
+    logAudit({ userId, action: 'create', entityType: 'hutang', entityId: result.lastInsertRowid, changes: parsed.data });
 
     const row = db.prepare('SELECT h.*, b.job_no FROM hutang h LEFT JOIN bookings b ON h.booking_id = b.id WHERE h.id = ?').get(result.lastInsertRowid);
     return reply.code(201).send(buildHutang(db, row));
   });
 
   // Update hutang
-  fastify.put('/api/hutang/:id', async (request, reply) => {
+  fastify.put('/api/hutang/:id', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
@@ -97,26 +97,26 @@ export async function hutangRoutes(fastify) {
     db.prepare('UPDATE hutang SET pihak=?, booking_id=?, jumlah=?, keterangan=? WHERE id=?')
       .run(pihak, booking_id ?? null, jumlah, keterangan, existing.id);
 
-    logAudit({ userId: STUB_USER_ID, action: 'update', entityType: 'hutang', entityId: existing.id, changes: parsed.data });
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'hutang', entityId: existing.id, changes: parsed.data });
 
     const row = db.prepare('SELECT h.*, b.job_no FROM hutang h LEFT JOIN bookings b ON h.booking_id = b.id WHERE h.id = ?').get(existing.id);
     return buildHutang(db, row);
   });
 
   // Delete hutang
-  fastify.delete('/api/hutang/:id', async (request, reply) => {
+  fastify.delete('/api/hutang/:id', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
 
     db.prepare("DELETE FROM pembayaran WHERE entity_type='hutang' AND entity_id=?").run(existing.id);
     db.prepare('DELETE FROM hutang WHERE id = ?').run(existing.id);
-    logAudit({ userId: STUB_USER_ID, action: 'delete', entityType: 'hutang', entityId: existing.id });
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'hutang', entityId: existing.id });
     return reply.code(204).send();
   });
 
   // Add pembayaran to hutang
-  fastify.post('/api/hutang/:id/pembayaran', async (request, reply) => {
+  fastify.post('/api/hutang/:id/pembayaran', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
@@ -127,14 +127,14 @@ export async function hutangRoutes(fastify) {
     const { jumlah, tanggal, metode, keterangan } = parsed.data;
     db.prepare(
       "INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, metode, keterangan, created_by) VALUES ('hutang', ?, ?, ?, ?, ?, ?)"
-    ).run(existing.id, jumlah, tanggal, metode, keterangan, STUB_USER_ID);
+    ).run(existing.id, jumlah, tanggal, metode, keterangan, request.session.user.id);
 
     const row = db.prepare('SELECT h.*, b.job_no FROM hutang h LEFT JOIN bookings b ON h.booking_id = b.id WHERE h.id = ?').get(existing.id);
     return reply.code(201).send(buildHutang(db, row));
   });
 
   // Remove pembayaran from hutang
-  fastify.delete('/api/hutang/:id/pembayaran/:payId', async (request, reply) => {
+  fastify.delete('/api/hutang/:id/pembayaran/:payId', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
@@ -148,7 +148,7 @@ export async function hutangRoutes(fastify) {
   });
 
   // Hutang by booking (for BookingDetail inline section)
-  fastify.get('/api/bookings/:bookingId/hutang', async (request, reply) => {
+  fastify.get('/api/bookings/:bookingId/hutang', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
     const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });

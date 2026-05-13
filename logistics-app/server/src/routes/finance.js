@@ -1,7 +1,8 @@
 import { getDb } from '../db.js';
+import { requireRole } from '../middleware/requireRole.js';
 
 export async function financeRoutes(fastify) {
-  fastify.get('/api/finance/summary', async () => {
+  fastify.get('/api/finance/summary', { preHandler: requireRole('finance') }, async () => {
     const db = getDb();
 
     const { total_piutang } = db.prepare('SELECT COALESCE(SUM(jumlah),0) AS total_piutang FROM piutang').get();
