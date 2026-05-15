@@ -6,6 +6,17 @@ Format: [version] — date — description
 
 ---
 
+## [0.9.0] — 2026-05-15
+
+### Changed
+- **BookingDetail v2** — full tabbed layout with journey timeline, shipment hero card, and document checklist; replaces single-scroll layout
+- **Theme toggle** — light/dark mode switcher in Layout sidebar; persisted in `localStorage`; flash-free inline script in `index.html` applies theme before React mounts
+- **Geist font** — Geist + Geist Mono loaded via Google Fonts; monospace used for dates, codes, and finance figures
+- **`useTheme` hook** — new `src/hooks/useTheme.js` manages theme state and `document.documentElement.className`
+- **CSS** — `bd-tabs`, `bd-tab`, `journey`, `shipment-hero`, `doc-list` component classes added to design system
+
+---
+
 ## [0.8.0] — 2026-05-15
 
 ### Added

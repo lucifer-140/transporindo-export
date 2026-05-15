@@ -1,6 +1,6 @@
 # Project Status
 
-**Version:** 0.8.0
+**Version:** 0.9.0
 **Last Updated:** 2026-05-15
 **Stage:** Active Development
 
@@ -27,6 +27,8 @@
 | System Flow Doc | Done | `docs/system-flow.md` — non-technical user guide |
 | Custom Design System | Done | CSS variable tokens; dark/light theme; `Icons.jsx`; `ui.jsx` primitives |
 | UI Redesign (all pages) | Done | All pages restyled with design system; sidebar nav with sectioned layout |
+| Theme Toggle | Done | Light/dark switcher in sidebar; localStorage persistence; flash-free init script |
+| BookingDetail v2 | Done | Tabbed layout (Info / Finance / Docs); journey timeline; shipment hero card; Geist font |
 
 ---
 
