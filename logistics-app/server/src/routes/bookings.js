@@ -4,6 +4,7 @@ import { bookingSchema, statusSchema } from '../schemas/booking.js';
 import { logAudit } from '../utils/audit.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { broadcast } from '../utils/sse.js';
+import { isBukuClosed } from '../utils/bukuGuard.js';
 
 function deriveQty(containers) {
   const counts = {};
@@ -130,6 +131,7 @@ export async function bookingRoutes(fastify) {
 
     const buku = db.prepare('SELECT id, status FROM buku WHERE id = ?').get(fields.buku_id);
     if (!buku) return reply.code(400).send({ error: 'Buku not found' });
+    if (buku.status === 'closed') return reply.code(409).send({ error: 'buku_closed' });
 
     const publicId = randomBytes(16).toString('hex');
     const result = db.prepare(`
@@ -155,6 +157,7 @@ export async function bookingRoutes(fastify) {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
+    if (isBukuClosed(existing.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
 
     const parsed = bookingSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
@@ -186,6 +189,7 @@ export async function bookingRoutes(fastify) {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
+    if (isBukuClosed(existing.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
 
     const parsed = statusSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
@@ -202,6 +206,7 @@ export async function bookingRoutes(fastify) {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
+    if (isBukuClosed(existing.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
 
     db.prepare('UPDATE bookings SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
     logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'booking', entityId: existing.id });

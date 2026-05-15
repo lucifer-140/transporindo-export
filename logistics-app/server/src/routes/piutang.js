@@ -2,6 +2,7 @@ import { getDb } from '../db.js';
 import { logAudit } from '../utils/audit.js';
 import { z } from 'zod';
 import { requireRole } from '../middleware/requireRole.js';
+import { isBukuClosed } from '../utils/bukuGuard.js';
 
 const piutangSchema = z.object({
   jumlah: z.number().int().min(0),
@@ -79,8 +80,9 @@ export async function piutangRoutes(fastify) {
   // Create piutang for booking
   fastify.post('/api/bookings/:bookingId/piutang', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
-    const booking = db.prepare('SELECT id FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.bookingId);
+    const booking = db.prepare('SELECT id, buku_id FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });
+    if (isBukuClosed(booking.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
 
     const existing = db.prepare('SELECT id FROM piutang WHERE booking_id = ?').get(booking.id);
     if (existing) return reply.code(409).send({ error: 'Piutang already exists for this booking' });
@@ -103,8 +105,9 @@ export async function piutangRoutes(fastify) {
   // Update piutang
   fastify.put('/api/bookings/:bookingId/piutang/:id', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
-    const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
+    const row = db.prepare('SELECT p.*, b.buku_id FROM piutang p JOIN bookings b ON b.id = p.booking_id WHERE p.id = ?').get(request.params.id);
     if (!row) return reply.code(404).send({ error: 'Not found' });
+    if (isBukuClosed(row.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
 
     const parsed = piutangSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
@@ -120,8 +123,9 @@ export async function piutangRoutes(fastify) {
   // Delete piutang
   fastify.delete('/api/bookings/:bookingId/piutang/:id', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
-    const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
+    const row = db.prepare('SELECT p.*, b.buku_id FROM piutang p JOIN bookings b ON b.id = p.booking_id WHERE p.id = ?').get(request.params.id);
     if (!row) return reply.code(404).send({ error: 'Not found' });
+    if (isBukuClosed(row.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
 
     db.prepare("DELETE FROM pembayaran WHERE entity_type='piutang' AND entity_id=?").run(row.id);
     db.prepare('DELETE FROM piutang WHERE id = ?').run(row.id);
@@ -132,8 +136,9 @@ export async function piutangRoutes(fastify) {
   // Add pembayaran to piutang
   fastify.post('/api/bookings/:bookingId/piutang/:id/pembayaran', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
-    const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
+    const row = db.prepare('SELECT p.*, b.buku_id FROM piutang p JOIN bookings b ON b.id = p.booking_id WHERE p.id = ?').get(request.params.id);
     if (!row) return reply.code(404).send({ error: 'Not found' });
+    if (isBukuClosed(row.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
 
     const parsed = pembayaranSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
@@ -149,8 +154,9 @@ export async function piutangRoutes(fastify) {
   // Edit pembayaran on piutang
   fastify.put('/api/bookings/:bookingId/piutang/:id/pembayaran/:payId', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
-    const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
+    const row = db.prepare('SELECT p.*, b.buku_id FROM piutang p JOIN bookings b ON b.id = p.booking_id WHERE p.id = ?').get(request.params.id);
     if (!row) return reply.code(404).send({ error: 'Not found' });
+    if (isBukuClosed(row.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
 
     const pay = db.prepare("SELECT * FROM pembayaran WHERE id = ? AND entity_type='piutang' AND entity_id=?").get(request.params.payId, row.id);
     if (!pay) return reply.code(404).send({ error: 'Payment not found' });
@@ -168,8 +174,9 @@ export async function piutangRoutes(fastify) {
   // Remove pembayaran from piutang
   fastify.delete('/api/bookings/:bookingId/piutang/:id/pembayaran/:payId', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
-    const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
+    const row = db.prepare('SELECT p.*, b.buku_id FROM piutang p JOIN bookings b ON b.id = p.booking_id WHERE p.id = ?').get(request.params.id);
     if (!row) return reply.code(404).send({ error: 'Not found' });
+    if (isBukuClosed(row.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
 
     const pay = db.prepare("SELECT * FROM pembayaran WHERE id = ? AND entity_type='piutang' AND entity_id=?").get(request.params.payId, row.id);
     if (!pay) return reply.code(404).send({ error: 'Payment not found' });

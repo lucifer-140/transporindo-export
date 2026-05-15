@@ -9,6 +9,12 @@ import { Badge, Button, Card, PageHeader, Empty, Modal, Field, Input, Select, Pr
 import { IconEdit, IconTrash, IconPlus, IconChevron, IconMore } from "../components/Icons.jsx";
 import { exportBookingInvoice, exportInvoiceOnly } from "../utils/invoicePdf.js";
 
+function apiErrMsg(e, fallback) {
+  const err = e?.response?.data?.error;
+  if (err === 'buku_closed') return 'Buku sudah ditutup, tidak dapat diedit.';
+  return err ?? fallback;
+}
+
 // ── Inline icons used by the new design (kept local to avoid touching Icons.jsx) ──
 const I = ({ children, size = 14, style }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
@@ -87,12 +93,12 @@ function LineItemModal({ open, onClose, item, onSave, isPending }) {
   const subtotal = qty * harga;
   return (
     <Modal open={open} onClose={onClose} title={item?.id ? "Edit Line Item" : "Add Line Item"}
-      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!tipe || !harga || isPending} onClick={() => onSave({ tipe, qty, harga_satuan: harga })}>{item?.id ? "Save" : "Add"}</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!tipe || !harga || isPending} onClick={() => onSave({ tipe, qty: +qty, harga_satuan: +harga })}>{item?.id ? "Save" : "Add"}</Button></>}>
       <div className="col" style={{ gap: 14 }}>
         <Field label="Uraian (Deskripsi biaya)" required><Input value={tipe} onChange={(e) => setTipe(e.target.value)} placeholder="Biaya Handling Container 40ft" /></Field>
         <div className="grid grid-form-2">
           <Field label="Qty" required><Input type="number" min={1} value={qty} onChange={(e) => setQty(+e.target.value)} /></Field>
-          <Field label="Harga Satuan (Rp)" required><Input type="number" min={0} value={harga} onChange={(e) => setHarga(+e.target.value)} /></Field>
+          <Field label="Harga Satuan (Rp)" required><Input type="number" min={0} value={harga} onChange={(e) => setHarga(e.target.value)} placeholder="0" /></Field>
         </div>
         <div style={{ padding: 12, borderRadius: 8, background: "var(--bg-2)", display: "flex", justifyContent: "space-between" }}>
           <span className="muted" style={{ fontSize: 12 }}>Subtotal</span>
@@ -119,15 +125,15 @@ function PiutangSetModal({ open, onClose, currentAmount, invoiceTotal, onSave, i
 
 function HutangFormModal({ open, onClose, onSave, isPending }) {
   const [pihak, setPihak] = useState("");
-  const [jumlah, setJumlah] = useState(0);
+  const [jumlah, setJumlah] = useState("");
   const [keterangan, setKeterangan] = useState("");
-  useEffect(() => { if (open) { setPihak(""); setJumlah(0); setKeterangan(""); } }, [open]);
+  useEffect(() => { if (open) { setPihak(""); setJumlah(""); setKeterangan(""); } }, [open]);
   return (
     <Modal open={open} onClose={onClose} title="Tambah Hutang Vendor"
-      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!pihak || !jumlah || isPending} onClick={() => onSave({ pihak, jumlah, keterangan })}>Tambah</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!pihak || !jumlah || isPending} onClick={() => onSave({ pihak, jumlah: +jumlah, keterangan })}>Tambah</Button></>}>
       <div className="grid grid-form-2">
         <Field label="Pihak / Vendor" required span={2}><Input value={pihak} onChange={(e) => setPihak(e.target.value)} placeholder="Nama vendor" /></Field>
-        <Field label="Jumlah (Rp)" required><Input type="number" min={1} value={jumlah} onChange={(e) => setJumlah(+e.target.value)} /></Field>
+        <Field label="Jumlah (Rp)" required><Input type="number" min={1} value={jumlah} onChange={(e) => setJumlah(e.target.value)} placeholder="0" /></Field>
         <Field label="Keterangan"><Input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} /></Field>
       </div>
     </Modal>
@@ -177,7 +183,7 @@ function InvoiceTabPanel({ dokumen, invoiceTotal, setItemModal, deleteItemMutati
         </div>
         <div className="row" style={{ gap: 6 }}>
           <Button variant="default" size="sm" disabled={dokumen.length === 0} onClick={onExportInvoice}>Download Invoice</Button>
-          <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setItemModal({ tipe: "", qty: 1, harga_satuan: 0 })}>Tambah Line Item</Button>
+          <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setItemModal({ tipe: "", qty: 1, harga_satuan: "" })}>Tambah Line Item</Button>
         </div>
       </div>
       <table className="tbl">
@@ -488,25 +494,25 @@ export default function BookingDetail() {
       toast('Booking berhasil dihapus.');
       navigate(location.state?.buku_id ? `/buku/${location.state.buku_id}` : "/");
     },
-    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menghapus booking.', 'error'),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus booking.'), 'error'),
   });
 
   const addItemMutation = useMutation({
     mutationFn: (body) => api.post(`/bookings/${id}/dokumen`, body).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); setItemModal(null); toast('Dokumen ditambahkan.'); },
-    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menambah dokumen.', 'error'),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menambah dokumen.'), 'error'),
   });
 
   const editItemMutation = useMutation({
     mutationFn: ({ itemId, body }) => api.put(`/bookings/${id}/dokumen/${itemId}`, body).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); setItemModal(null); toast('Dokumen diperbarui.'); },
-    onError: (e) => toast(e.response?.data?.error ?? 'Gagal memperbarui dokumen.', 'error'),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal memperbarui dokumen.'), 'error'),
   });
 
   const deleteItemMutation = useMutation({
     mutationFn: (itemId) => api.delete(`/bookings/${id}/dokumen/${itemId}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); toast('Dokumen dihapus.'); },
-    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menghapus dokumen.', 'error'),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus dokumen.'), 'error'),
   });
 
   const setPiutangMutation = useMutation({
@@ -514,48 +520,55 @@ export default function BookingDetail() {
       ? api.put(`/bookings/${id}/piutang/${piutang.id}`, body).then((r) => r.data)
       : api.post(`/bookings/${id}/piutang`, body).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["piutang", id] }); setPiutangModal(false); toast('Piutang disimpan.'); },
-    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menyimpan piutang.', 'error'),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menyimpan piutang.'), 'error'),
   });
 
   const addPiutangPayMutation = useMutation({
     mutationFn: (body) => api.post(`/bookings/${id}/piutang/${piutang.id}/pembayaran`, body).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["piutang", id] }); setPayModal(null); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menambah pembayaran.'), 'error'),
   });
 
   const deletePiutangPayMutation = useMutation({
     mutationFn: (payId) => api.delete(`/bookings/${id}/piutang/${piutang.id}/pembayaran/${payId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["piutang", id] }),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus pembayaran.'), 'error'),
   });
 
   const editPiutangPayMutation = useMutation({
     mutationFn: ({ payId, body }) => api.put(`/bookings/${id}/piutang/${piutang.id}/pembayaran/${payId}`, body).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["piutang", id] }); setPayModal(null); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal mengubah pembayaran.'), 'error'),
   });
 
   const addHutangMutation = useMutation({
-    mutationFn: (body) => api.post("/hutang", { ...body, booking_id: parseInt(id) }).then((r) => r.data),
+    mutationFn: (body) => api.post("/hutang", { ...body, booking_id: bookingData?.booking?.id }).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setHutangModal(false); toast('Hutang ditambahkan.'); },
-    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menambah hutang.', 'error'),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menambah hutang.'), 'error'),
   });
 
   const deleteHutangMutation = useMutation({
     mutationFn: (hutangId) => api.delete(`/hutang/${hutangId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus hutang.'), 'error'),
   });
 
   const addHutangPayMutation = useMutation({
     mutationFn: ({ hutangId, body }) => api.post(`/hutang/${hutangId}/pembayaran`, body).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setPayModal(null); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menambah pembayaran.'), 'error'),
   });
 
   const deleteHutangPayMutation = useMutation({
     mutationFn: ({ hutangId, payId }) => api.delete(`/hutang/${hutangId}/pembayaran/${payId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus pembayaran.'), 'error'),
   });
 
   const editHutangPayMutation = useMutation({
     mutationFn: ({ hutangId, payId, body }) => api.put(`/hutang/${hutangId}/pembayaran/${payId}`, body).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setPayModal(null); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal mengubah pembayaran.'), 'error'),
   });
 
   if (isLoading) return <BookingDetailSkeleton />;

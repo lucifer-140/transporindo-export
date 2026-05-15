@@ -1,5 +1,6 @@
 import { getDb } from '../db.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { logAudit } from '../utils/audit.js';
 
 export async function bukuRoutes(fastify) {
   // List all buku with booking count + financial aggregates
@@ -119,6 +120,29 @@ export async function bukuRoutes(fastify) {
     `).all(buku.id);
 
     return { buku, bookings };
+  });
+
+  // Open / close buku (admin only)
+  fastify.patch('/api/buku/:id/status', { preHandler: requireRole('admin') }, async (request, reply) => {
+    const { action } = request.body ?? {};
+    if (!['tutup', 'buka'].includes(action)) return reply.code(400).send({ error: 'action must be tutup or buka' });
+
+    const db = getDb();
+    const buku = db.prepare('SELECT * FROM buku WHERE id = ?').get(request.params.id);
+    if (!buku) return reply.code(404).send({ error: 'Not found' });
+
+    const userId = request.session.user.id;
+    if (action === 'tutup') {
+      db.prepare('UPDATE buku SET status = ?, closed_at = CURRENT_TIMESTAMP, closed_by = ? WHERE id = ?')
+        .run('closed', userId, buku.id);
+      logAudit({ userId, action: 'update', entityType: 'buku', entityId: buku.id, changes: { status: 'closed' } });
+    } else {
+      db.prepare('UPDATE buku SET status = ?, closed_at = NULL, closed_by = NULL WHERE id = ?')
+        .run('open', buku.id);
+      logAudit({ userId, action: 'update', entityType: 'buku', entityId: buku.id, changes: { status: 'open' } });
+    }
+
+    return db.prepare('SELECT * FROM buku WHERE id = ?').get(buku.id);
   });
 
   // Delete buku (only if no bookings)

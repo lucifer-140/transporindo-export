@@ -1,6 +1,6 @@
 # Project Status
 
-**Version:** 0.10.0
+**Version:** 0.11.0
 **Last Updated:** 2026-05-15
 **Stage:** Active Development
 
@@ -10,7 +10,7 @@
 
 | Module | Status | Notes |
 |--------|--------|-------|
-| Buku (Monthly Ledger) | Done | YYYY/MM ledger; bookings belong to a buku; BukuList home page; BukuDetail with shipper breakdown + piutang totals; auto-refresh 15s |
+| Buku (Monthly Ledger) | Done | YYYY/MM ledger; bookings belong to a buku; BukuList with year filter tabs + month search; BukuDetail with master-detail split panel (shipper sidebar + paginated booking table with search) |
 | Shippers & Commodities | Done | Master data management; commodities linked to shipper; smart auto-fill in booking form |
 | Bookings CRUD | Done | Soft-delete, search, CSV export, shipper/commodity fields; buku-first creation flow |
 | Containers | Done | Multi-container per booking, derived qty |

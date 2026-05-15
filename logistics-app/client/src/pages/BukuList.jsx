@@ -15,6 +15,8 @@ export default function BukuList() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ tahun: new Date().getFullYear(), bulan: new Date().getMonth() + 1 });
   const [formError, setFormError] = useState("");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [search, setSearch] = useState("");
 
   const { data: bukuList = [], isLoading } = useQuery({
     queryKey: ["buku"],
@@ -45,6 +47,11 @@ export default function BukuList() {
     setFormError("");
     createMutation.mutate({ tahun: parseInt(form.tahun), bulan: parseInt(form.bulan) });
   }
+
+  const years = [...new Set(bukuList.map((b) => b.tahun))].sort((a, b) => b - a);
+  const filteredList = bukuList
+    .filter((b) => (selectedYear === "all" ? true : b.tahun === selectedYear))
+    .filter((b) => search.trim() === "" ? true : monthLabel(b.bulan).toLowerCase().includes(search.toLowerCase()));
 
   const totalTagihan = bukuList.reduce((a, b) => a + (b.tagihan ?? 0), 0);
   const totalDibayar = bukuList.reduce((a, b) => a + (b.dibayar ?? 0), 0);
@@ -118,7 +125,39 @@ export default function BukuList() {
       ) : bukuList.length === 0 ? (
         <Empty title="Belum ada buku" sub="Buat buku baru untuk mulai mencatat booking." />
       ) : (
-        <Card title="Semua Periode" action={<span className="muted" style={{ fontSize: 12 }}>{bukuList.length} periode</span>} pad={false}>
+        <>
+          <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+              <button
+                className={`pill-tab${selectedYear === "all" ? " is-active" : ""}`}
+                onClick={() => setSelectedYear("all")}
+              >Semua</button>
+              {years.map((y) => (
+                <button
+                  key={y}
+                  className={`pill-tab${selectedYear === y ? " is-active" : ""}`}
+                  onClick={() => setSelectedYear(y)}
+                >{y}</button>
+              ))}
+            </div>
+            <Input
+              placeholder="Cari bulan…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ width: 160, marginLeft: "auto" }}
+            />
+          </div>
+
+          <Card
+            title="Semua Periode"
+            action={<span className="muted" style={{ fontSize: 12 }}>{filteredList.length} periode</span>}
+            pad={false}
+          >
+          {filteredList.length === 0 ? (
+            <div style={{ padding: "24px 0", textAlign: "center" }}>
+              <span className="muted">Tidak ada periode yang cocok.</span>
+            </div>
+          ) : (
           <table className="tbl">
             <thead>
               <tr>
@@ -135,7 +174,7 @@ export default function BukuList() {
               </tr>
             </thead>
             <tbody>
-              {bukuList.map((b) => {
+              {filteredList.map((b) => {
                 const pct = b.tagihan ? Math.round(((b.dibayar ?? 0) / b.tagihan) * 100) : 0;
                 return (
                   <tr key={b.id} className="is-clickable" onClick={() => navigate(`/buku/${b.id}`)}>
@@ -184,7 +223,9 @@ export default function BukuList() {
               })}
             </tbody>
           </table>
-        </Card>
+          )}
+          </Card>
+        </>
       )}
     </>
   );

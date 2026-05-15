@@ -6,6 +6,14 @@ Format: [version] — date — description
 
 ---
 
+## [0.11.0] — 2026-05-15
+
+### Changed
+- **BukuList UX** — year filter pill-tabs (defaults to current year) + month name search input; period count updates live; no API change, all client-side filtering
+- **BukuDetail UX** — accordion replaced with master-detail split panel; left sidebar lists all shippers (name, booking count, finance metrics + progress bar); right panel shows selected shipper's bookings with search (job no / komoditi / kapal) and pagination (20 rows/page); switching shippers resets search and page
+
+---
+
 ## [0.10.0] — 2026-05-15
 
 ### Added

@@ -2,6 +2,7 @@ import { getDb } from '../db.js';
 import { logAudit } from '../utils/audit.js';
 import { z } from 'zod';
 import { requireRole } from '../middleware/requireRole.js';
+import { isBukuClosed } from '../utils/bukuGuard.js';
 
 const hutangSchema = z.object({
   pihak: z.string().min(1),
@@ -80,8 +81,9 @@ export async function hutangRoutes(fastify) {
     const db = getDb();
 
     if (booking_id) {
-      const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(booking_id); // booking_id here is integer FK, not public_id
+      const booking = db.prepare('SELECT id, buku_id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(booking_id);
       if (!booking) return reply.code(404).send({ error: 'Booking not found' });
+      if (isBukuClosed(booking.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
     }
 
     const userId = request.session.user.id;
@@ -100,6 +102,10 @@ export async function hutangRoutes(fastify) {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
+    if (existing.booking_id) {
+      const bk = db.prepare('SELECT buku_id FROM bookings WHERE id = ?').get(existing.booking_id);
+      if (isBukuClosed(bk?.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
+    }
 
     const parsed = hutangSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
@@ -119,6 +125,10 @@ export async function hutangRoutes(fastify) {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
+    if (existing.booking_id) {
+      const bk = db.prepare('SELECT buku_id FROM bookings WHERE id = ?').get(existing.booking_id);
+      if (isBukuClosed(bk?.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
+    }
 
     db.prepare("DELETE FROM pembayaran WHERE entity_type='hutang' AND entity_id=?").run(existing.id);
     db.prepare('DELETE FROM hutang WHERE id = ?').run(existing.id);
@@ -131,6 +141,10 @@ export async function hutangRoutes(fastify) {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
+    if (existing.booking_id) {
+      const bk = db.prepare('SELECT buku_id FROM bookings WHERE id = ?').get(existing.booking_id);
+      if (isBukuClosed(bk?.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
+    }
 
     const parsed = pembayaranSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
@@ -149,6 +163,10 @@ export async function hutangRoutes(fastify) {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
+    if (existing.booking_id) {
+      const bk = db.prepare('SELECT buku_id FROM bookings WHERE id = ?').get(existing.booking_id);
+      if (isBukuClosed(bk?.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
+    }
 
     const pay = db.prepare("SELECT * FROM pembayaran WHERE id = ? AND entity_type='hutang' AND entity_id=?").get(request.params.payId, existing.id);
     if (!pay) return reply.code(404).send({ error: 'Payment not found' });
@@ -169,6 +187,10 @@ export async function hutangRoutes(fastify) {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
+    if (existing.booking_id) {
+      const bk = db.prepare('SELECT buku_id FROM bookings WHERE id = ?').get(existing.booking_id);
+      if (isBukuClosed(bk?.buku_id)) return reply.code(409).send({ error: 'buku_closed' });
+    }
 
     const pay = db.prepare("SELECT * FROM pembayaran WHERE id = ? AND entity_type='hutang' AND entity_id=?").get(request.params.payId, existing.id);
     if (!pay) return reply.code(404).send({ error: 'Payment not found' });
