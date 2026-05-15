@@ -3,8 +3,11 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/client.js";
 import { useAuth } from "../hooks/useAuth.js";
-import { Badge, Button, Card, PageHeader, Empty, Modal, Field, Input, Select, Progress, fmtRp, fmtDate } from "../components/ui.jsx";
+import { BookingDetailSkeleton } from "../components/Skeleton.jsx";
+import { useToast } from "../components/Toast.jsx";
+import { Badge, Button, Card, PageHeader, Empty, Modal, Field, Input, Select, Progress, fmtRp, fmtDate, monthLabel } from "../components/ui.jsx";
 import { IconEdit, IconTrash, IconPlus, IconChevron, IconMore } from "../components/Icons.jsx";
+import { exportBookingInvoice, exportInvoiceOnly } from "../utils/invoicePdf.js";
 
 // ── Inline icons used by the new design (kept local to avoid touching Icons.jsx) ──
 const I = ({ children, size = 14, style }) => (
@@ -163,7 +166,7 @@ function ShipmentTabPanel({ booking, containers, onEdit }) {
   );
 }
 
-function InvoiceTabPanel({ dokumen, invoiceTotal, setItemModal, deleteItemMutation }) {
+function InvoiceTabPanel({ dokumen, invoiceTotal, setItemModal, deleteItemMutation, onExportInvoice }) {
   return (
     <Card pad={false}>
       <div className="bd-invoice-bar">
@@ -172,7 +175,10 @@ function InvoiceTabPanel({ dokumen, invoiceTotal, setItemModal, deleteItemMutati
           <b>{fmtRp(invoiceTotal)}</b>
           <span className="muted" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400, fontSize: 12.5 }}>· {dokumen.length} line item</span>
         </div>
-        <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setItemModal({ tipe: "", qty: 1, harga_satuan: 0 })}>Tambah Line Item</Button>
+        <div className="row" style={{ gap: 6 }}>
+          <Button variant="default" size="sm" disabled={dokumen.length === 0} onClick={onExportInvoice}>Download Invoice</Button>
+          <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setItemModal({ tipe: "", qty: 1, harga_satuan: 0 })}>Tambah Line Item</Button>
+        </div>
       </div>
       <table className="tbl">
         <thead>
@@ -436,6 +442,7 @@ export default function BookingDetail() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { isFinance, isAdmin } = useAuth();
+  const toast = useToast();
 
   // Modal state
   const [payModal, setPayModal] = useState(null);
@@ -449,7 +456,7 @@ export default function BookingDetail() {
   const [tab, setTab] = useState("shipment");
 
   // Queries
-  const { data: bookingData, isLoading } = useQuery({
+  const { data: bookingData, isLoading, error: bookingError } = useQuery({
     queryKey: ["booking", id],
     queryFn: () => api.get(`/bookings/${id}`).then((r) => r.data),
   });
@@ -475,29 +482,39 @@ export default function BookingDetail() {
   // Mutations
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/bookings/${id}`),
-    onSuccess: () => navigate(location.state?.buku_id ? `/buku/${location.state.buku_id}` : "/"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["buku"] });
+      toast('Booking berhasil dihapus.');
+      navigate(location.state?.buku_id ? `/buku/${location.state.buku_id}` : "/");
+    },
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menghapus booking.', 'error'),
   });
 
   const addItemMutation = useMutation({
     mutationFn: (body) => api.post(`/bookings/${id}/dokumen`, body).then((r) => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); setItemModal(null); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); setItemModal(null); toast('Dokumen ditambahkan.'); },
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menambah dokumen.', 'error'),
   });
 
   const editItemMutation = useMutation({
     mutationFn: ({ itemId, body }) => api.put(`/bookings/${id}/dokumen/${itemId}`, body).then((r) => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); setItemModal(null); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); setItemModal(null); toast('Dokumen diperbarui.'); },
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal memperbarui dokumen.', 'error'),
   });
 
   const deleteItemMutation = useMutation({
     mutationFn: (itemId) => api.delete(`/bookings/${id}/dokumen/${itemId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dokumen", id] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); toast('Dokumen dihapus.'); },
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menghapus dokumen.', 'error'),
   });
 
   const setPiutangMutation = useMutation({
     mutationFn: (body) => piutang
       ? api.put(`/bookings/${id}/piutang/${piutang.id}`, body).then((r) => r.data)
       : api.post(`/bookings/${id}/piutang`, body).then((r) => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["piutang", id] }); setPiutangModal(false); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["piutang", id] }); setPiutangModal(false); toast('Piutang disimpan.'); },
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menyimpan piutang.', 'error'),
   });
 
   const addPiutangPayMutation = useMutation({
@@ -517,7 +534,8 @@ export default function BookingDetail() {
 
   const addHutangMutation = useMutation({
     mutationFn: (body) => api.post("/hutang", { ...body, booking_id: parseInt(id) }).then((r) => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setHutangModal(false); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setHutangModal(false); toast('Hutang ditambahkan.'); },
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menambah hutang.', 'error'),
   });
 
   const deleteHutangMutation = useMutation({
@@ -540,7 +558,7 @@ export default function BookingDetail() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setPayModal(null); },
   });
 
-  if (isLoading) return <div className="empty"><div className="empty__title">Memuat…</div></div>;
+  if (isLoading) return <BookingDetailSkeleton />;
   if (!bookingData) return <div className="empty"><div className="empty__title" style={{ color: "var(--danger)" }}>Booking tidak ditemukan.</div></div>;
 
   const { booking, containers } = bookingData;
@@ -550,9 +568,15 @@ export default function BookingDetail() {
   const piutangSt = piutang?.status ?? "none";
 
   const bukuState = location.state ?? {};
+  const bukuPeriodeLabel = (() => {
+    const p = bukuState.buku_periode;
+    if (!p) return null;
+    const [y, m] = p.split("/");
+    return `${monthLabel(parseInt(m))} ${y}`;
+  })();
   const crumbs = [
-    { label: "Buku", onClick: () => navigate("/") },
-    ...(bukuState.buku_id ? [{ label: `Buku ${bukuState.buku_periode ?? ""}`, onClick: () => navigate(`/buku/${bukuState.buku_id}`) }] : []),
+    { label: "Buku Bulanan", onClick: () => navigate("/") },
+    ...(bukuState.buku_id ? [{ label: bukuPeriodeLabel ?? bukuState.buku_periode, onClick: () => navigate(`/buku/${bukuState.buku_id}`) }] : []),
     { label: booking.job_no },
   ];
 
@@ -597,6 +621,11 @@ export default function BookingDetail() {
                       <button className="action-menu__item" onClick={() => { setShowMenu(false); onEdit(); }}>
                         <IconEdit size={13} /> Edit Booking
                       </button>
+                      {isFinance && (
+                        <button className="action-menu__item" onClick={() => { setShowMenu(false); exportBookingInvoice(booking, containers, dokumen, piutang); }}>
+                          <IcDown size={13} /> Export Booking PDF
+                        </button>
+                      )}
                       <div className="action-menu__divider" />
                       <button className="action-menu__item action-menu__item--danger" onClick={() => { setShowMenu(false); setShowDelete(true); }}>
                         <IconTrash size={13} /> Hapus Booking
@@ -655,7 +684,7 @@ export default function BookingDetail() {
           </div>
 
           {tab === "shipment" && <ShipmentTabPanel booking={booking} containers={containers} onEdit={onEdit} />}
-          {tab === "invoice"  && <InvoiceTabPanel  dokumen={dokumen} invoiceTotal={invoiceTotal} setItemModal={setItemModal} deleteItemMutation={deleteItemMutation} />}
+          {tab === "invoice"  && <InvoiceTabPanel  dokumen={dokumen} invoiceTotal={invoiceTotal} setItemModal={setItemModal} deleteItemMutation={deleteItemMutation} onExportInvoice={() => exportInvoiceOnly(booking, dokumen)} />}
           {tab === "piutang"  && <PiutangTabPanel  piutang={piutang} piutangPaid={piutangPaid} piutangSisa={piutangSisa} piutangSt={piutangSt} invoiceTotal={invoiceTotal} setPiutangMutation={setPiutangMutation} setPiutangModal={setPiutangModal} setPayModal={setPayModal} deletePiutangPayMutation={deletePiutangPayMutation} />}
           {tab === "hutang"   && <HutangTabPanel   hutangList={hutangList} setHutangModal={setHutangModal} setPayModal={setPayModal} deleteHutangMutation={deleteHutangMutation} deleteHutangPayMutation={deleteHutangPayMutation} />}
         </>

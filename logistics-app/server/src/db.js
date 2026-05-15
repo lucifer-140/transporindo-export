@@ -79,6 +79,10 @@ function runMigrations(db) {
     )
   `);
   try { db.exec('ALTER TABLE bookings ADD COLUMN buku_id INTEGER REFERENCES buku(id)'); } catch {}
+  // 010: public_id for unguessable booking URLs
+  try { db.exec('ALTER TABLE bookings ADD COLUMN public_id TEXT'); } catch {}
+  db.exec("UPDATE bookings SET public_id = lower(hex(randomblob(16))) WHERE public_id IS NULL");
+  try { db.exec('CREATE UNIQUE INDEX idx_bookings_public_id ON bookings(public_id)'); } catch {}
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

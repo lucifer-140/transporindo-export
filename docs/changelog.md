@@ -6,6 +6,24 @@ Format: [version] — date — description
 
 ---
 
+## [0.10.0] — 2026-05-15
+
+### Added
+- **SSE real-time updates** — `GET /api/events` Server-Sent Events endpoint; `broadcast()` utility called on all booking mutations (create/update/delete/status); `useSSE` hook subscribes in Layout and invalidates affected query keys automatically
+- **Public booking IDs** — `public_id` column (random 16-byte hex) on bookings; all URL params and API routes (`GET/PUT/PATCH/DELETE /api/bookings/:id`) now use `public_id` instead of numeric ID (migration: `009_booking_public_id.sql`)
+- **Toast notifications** — `Toast.jsx` component + `useToast` hook; `ToastProvider` wraps app; all mutations in BookingDetail show success/error toasts
+- **Skeleton loaders** — `Skeleton.jsx` with `BookingDetailSkeleton`; BookingDetail shows skeleton while loading instead of plain text
+- **PDF export** — `exportBookingInvoice` and `exportInvoiceOnly` utils in `src/utils/invoicePdf.js`; "Download Invoice" button in Invoice tab; "Export Booking PDF" in BookingDetail action menu (finance+ only)
+- **DB indexes** — `008_indexes.sql` performance indexes on frequently queried columns
+
+### Changed
+- **Code splitting** — all pages converted to `React.lazy()` + `Suspense` with `PageLoader` spinner; reduces initial bundle size
+- **Query N+1 fix** — bookings list fetches all containers in one batched query instead of one per row; buku detail uses `pay_agg` LEFT JOIN subquery instead of correlated subquery per booking
+- **QueryClient config** — added `gcTime: 5min` and `refetchOnWindowFocus: true`; stale queries now refetch when tab regains focus
+- **Breadcrumb** — BookingDetail buku crumb shows human-readable month label (e.g. "Mei 2026") via `monthLabel()`
+
+---
+
 ## [0.9.0] — 2026-05-15
 
 ### Changed

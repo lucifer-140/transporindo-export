@@ -14,7 +14,7 @@ export async function dokumenRoutes(fastify) {
   // List dokumen for a booking
   fastify.get('/api/bookings/:bookingId/dokumen', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
-    const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.bookingId);
+    const booking = db.prepare('SELECT id FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });
     return db.prepare('SELECT * FROM dokumen WHERE booking_id = ? ORDER BY created_at ASC').all(booking.id);
   });
@@ -22,7 +22,7 @@ export async function dokumenRoutes(fastify) {
   // Add dokumen
   fastify.post('/api/bookings/:bookingId/dokumen', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
-    const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.bookingId);
+    const booking = db.prepare('SELECT id FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });
 
     const parsed = dokumenSchema.safeParse(request.body);

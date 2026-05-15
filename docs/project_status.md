@@ -1,6 +1,6 @@
 # Project Status
 
-**Version:** 0.9.0
+**Version:** 0.10.0
 **Last Updated:** 2026-05-15
 **Stage:** Active Development
 
@@ -29,6 +29,13 @@
 | UI Redesign (all pages) | Done | All pages restyled with design system; sidebar nav with sectioned layout |
 | Theme Toggle | Done | Light/dark switcher in sidebar; localStorage persistence; flash-free init script |
 | BookingDetail v2 | Done | Tabbed layout (Info / Finance / Docs); journey timeline; shipment hero card; Geist font |
+| SSE Real-time | Done | `/api/events` SSE endpoint; `broadcast()` on booking mutations; `useSSE` hook auto-invalidates queries |
+| Public Booking IDs | Done | `public_id` hex field; all API routes use public_id; migration 009 |
+| Toast Notifications | Done | `Toast.jsx` + `useToast`; all mutations show success/error feedback |
+| Skeleton Loaders | Done | `Skeleton.jsx`; BookingDetail uses skeleton while loading |
+| PDF Export | Done | `exportBookingInvoice` + `exportInvoiceOnly`; invoice download in BookingDetail (finance+) |
+| DB Indexes | Done | `008_indexes.sql` performance indexes |
+| Code Splitting | Done | All pages lazy-loaded via `React.lazy` + `Suspense` |
 
 ---
 

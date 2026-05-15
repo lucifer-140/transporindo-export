@@ -18,6 +18,8 @@ export default function BookingsList() {
     queryKey: ["bookings", { q, bukuFilter, page }],
     queryFn: () => api.get("/bookings", { params: { q, buku_id: bukuFilter || undefined, page, limit: LIMIT } }).then((r) => r.data),
     placeholderData: (prev) => prev,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 
   const { data: bukuList = [] } = useQuery({
@@ -82,7 +84,7 @@ export default function BookingsList() {
             {rows.map((row) => {
               const buku = bukuList.find((b) => b.id === row.buku_id);
               return (
-                <tr key={row.id} className="is-clickable" onClick={() => navigate(`/bookings/${row.id}`)}>
+                <tr key={row.id} className="is-clickable" onClick={() => navigate(`/bookings/${row.public_id}`)}>
                   <td className="strong mono">{row.job_no}</td>
                   <td className="muted" style={{ fontSize: 12 }}>
                     {buku ? `${String(buku.bulan).padStart(2, "0")}/${buku.tahun}` : row.buku_id ? `#${row.buku_id}` : "—"}

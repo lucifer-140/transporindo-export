@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBukuList, createBuku, deleteBuku } from "../api/buku.js";
 import { useAuth } from "../hooks/useAuth.js";
+import { useToast } from "../components/Toast.jsx";
 import { Badge, Button, Field, Input, Select, Modal, PageHeader, Empty, Card, Stat, Progress, fmtRp, monthLabel } from "../components/ui.jsx";
 import { IconPlus, IconTrash, IconChevron } from "../components/Icons.jsx";
 
@@ -10,6 +11,7 @@ export default function BukuList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isFinance } = useAuth();
+  const toast = useToast();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ tahun: new Date().getFullYear(), bulan: new Date().getMonth() + 1 });
   const [formError, setFormError] = useState("");
@@ -17,7 +19,8 @@ export default function BukuList() {
   const { data: bukuList = [], isLoading } = useQuery({
     queryKey: ["buku"],
     queryFn: getBukuList,
-    refetchInterval: 15000,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 
   const createMutation = useMutation({
@@ -26,14 +29,15 @@ export default function BukuList() {
       queryClient.invalidateQueries({ queryKey: ["buku"] });
       setShowForm(false);
       setFormError("");
+      toast("Buku berhasil dibuat.");
     },
     onError: (e) => setFormError(e.response?.data?.error ?? "Gagal membuat buku"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteBuku,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["buku"] }),
-    onError: (e) => alert(e.response?.data?.error ?? "Gagal hapus buku"),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["buku"] }); toast("Buku berhasil dihapus."); },
+    onError: (e) => toast(e.response?.data?.error ?? "Gagal hapus buku.", "error"),
   });
 
   function handleCreate(e) {
@@ -57,7 +61,6 @@ export default function BukuList() {
           : "Periode pencatatan ekspor — pilih bulan untuk melihat daftar booking."}
         actions={
           <div className="row" style={{ gap: 8 }}>
-            <span className="refresh-pill"><span className="dot dot--ok" /> Auto-refresh 15s</span>
             <Button variant="primary" icon={<IconPlus size={14} />} onClick={() => { setShowForm(true); setFormError(""); }}>
               Buku Baru
             </Button>

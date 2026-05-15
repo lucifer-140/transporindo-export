@@ -50,15 +50,17 @@ export async function bukuRoutes(fastify) {
     if (!buku) return reply.code(404).send({ error: 'Not found' });
 
     const bookings = db.prepare(`
-      SELECT bk.id, bk.job_no, bk.shipper, bk.commodity, bk.vessel_name, bk.vessel_no,
+      SELECT bk.id, bk.public_id, bk.job_no, bk.shipper, bk.commodity, bk.vessel_name, bk.vessel_no,
              bk.in_date, bk.out_date, bk.peb, bk.bon, bk.trucking, bk.status, bk.created_at,
              p.jumlah AS tagihan, p.id AS piutang_id,
-             COALESCE((
-               SELECT SUM(pm.jumlah) FROM pembayaran pm
-               WHERE pm.entity_type = 'piutang' AND pm.entity_id = p.id
-             ), 0) AS total_paid
+             COALESCE(pay_agg.total_paid, 0) AS total_paid
       FROM bookings bk
       LEFT JOIN piutang p ON p.booking_id = bk.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(jumlah) AS total_paid
+        FROM pembayaran WHERE entity_type = 'piutang'
+        GROUP BY entity_id
+      ) pay_agg ON pay_agg.entity_id = p.id
       WHERE bk.buku_id = ? AND bk.deleted_at IS NULL
       ORDER BY bk.shipper, bk.created_at
     `).all(buku.id);
@@ -72,6 +74,7 @@ export async function bukuRoutes(fastify) {
       const sisa = (row.tagihan ?? 0) - (row.total_paid ?? 0);
       shipperMap[row.shipper].bookings.push({
         id: row.id,
+        public_id: row.public_id,
         job_no: row.job_no,
         commodity: row.commodity ?? null,
         vessel_name: row.vessel_name ?? null,
@@ -109,7 +112,7 @@ export async function bukuRoutes(fastify) {
     if (!buku) return reply.code(404).send({ error: 'Not found' });
 
     const bookings = db.prepare(`
-      SELECT id, job_no, shipper, peb, port, feeder, vessel_name, vessel_no, bon, status, notes, created_at
+      SELECT id, public_id, job_no, shipper, peb, port, feeder, vessel_name, vessel_no, bon, status, notes, created_at
       FROM bookings
       WHERE buku_id = ? AND deleted_at IS NULL
       ORDER BY created_at DESC
@@ -124,9 +127,11 @@ export async function bukuRoutes(fastify) {
     const buku = db.prepare('SELECT * FROM buku WHERE id = ?').get(request.params.id);
     if (!buku) return reply.code(404).send({ error: 'Not found' });
 
-    const count = db.prepare('SELECT COUNT(*) AS n FROM bookings WHERE buku_id = ? AND deleted_at IS NULL').get(buku.id).n;
-    if (count > 0) return reply.code(409).send({ error: 'Cannot delete: buku has bookings' });
+    const activeCount = db.prepare('SELECT COUNT(*) AS n FROM bookings WHERE buku_id = ? AND deleted_at IS NULL').get(buku.id).n;
+    if (activeCount > 0) return reply.code(409).send({ error: 'Cannot delete: buku has bookings' });
 
+    // Detach soft-deleted bookings so FK doesn't block
+    db.prepare('UPDATE bookings SET buku_id = NULL WHERE buku_id = ? AND deleted_at IS NOT NULL').run(buku.id);
     db.prepare('DELETE FROM buku WHERE id = ?').run(buku.id);
     return reply.code(204).send();
   });

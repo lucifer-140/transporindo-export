@@ -15,14 +15,14 @@ const pembayaranSchema = z.object({
   keterangan: z.string().optional().default(''),
 });
 
-function buildPiutang(db, row) {
-  const payments = db.prepare(
+function buildPiutang(db, row, payments) {
+  const pmts = payments ?? db.prepare(
     "SELECT * FROM pembayaran WHERE entity_type='piutang' AND entity_id=? ORDER BY tanggal ASC"
   ).all(row.id);
-  const total_paid = payments.reduce((s, p) => s + p.jumlah, 0);
+  const total_paid = pmts.reduce((s, p) => s + p.jumlah, 0);
   const sisa = Math.max(0, row.jumlah - total_paid);
   const status = total_paid === 0 ? 'belum_bayar' : sisa === 0 ? 'lunas' : 'sebagian';
-  return { ...row, total_paid, sisa, status, pembayaran: payments };
+  return { ...row, total_paid, sisa, status, pembayaran: pmts };
 }
 
 export async function piutangRoutes(fastify) {
@@ -42,7 +42,7 @@ export async function piutangRoutes(fastify) {
     }
 
     const rows = db.prepare(`
-      SELECT p.*, b.job_no, b.shipper, b.buku_id FROM piutang p
+      SELECT p.*, b.job_no, b.shipper, b.buku_id, b.public_id AS booking_public_id FROM piutang p
       JOIN bookings b ON p.booking_id = b.id
       WHERE ${where}
       ORDER BY p.created_at DESC
@@ -53,13 +53,23 @@ export async function piutangRoutes(fastify) {
       SELECT COUNT(*) AS total FROM piutang p JOIN bookings b ON p.booking_id = b.id WHERE ${where}
     `).get(...params);
 
-    return { rows: rows.map(row => buildPiutang(db, row)), total };
+    let paysByPiutang = {};
+    if (rows.length > 0) {
+      const ids = rows.map(r => r.id);
+      const allPays = db.prepare(
+        `SELECT * FROM pembayaran WHERE entity_type='piutang' AND entity_id IN (${ids.map(() => '?').join(',')}) ORDER BY tanggal ASC`
+      ).all(...ids);
+      for (const p of allPays) {
+        (paysByPiutang[p.entity_id] ??= []).push(p);
+      }
+    }
+    return { rows: rows.map(row => buildPiutang(db, row, paysByPiutang[row.id] ?? [])), total };
   });
 
   // Get piutang for booking
   fastify.get('/api/bookings/:bookingId/piutang', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
-    const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.bookingId);
+    const booking = db.prepare('SELECT id FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });
     const row = db.prepare('SELECT * FROM piutang WHERE booking_id = ?').get(booking.id);
     if (!row) return reply.send(null);
@@ -69,7 +79,7 @@ export async function piutangRoutes(fastify) {
   // Create piutang for booking
   fastify.post('/api/bookings/:bookingId/piutang', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();
-    const booking = db.prepare('SELECT id FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.bookingId);
+    const booking = db.prepare('SELECT id FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.bookingId);
     if (!booking) return reply.code(404).send({ error: 'Booking not found' });
 
     const existing = db.prepare('SELECT id FROM piutang WHERE booking_id = ?').get(booking.id);

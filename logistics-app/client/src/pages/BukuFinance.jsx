@@ -5,6 +5,7 @@ import { getBuku } from "../api/buku.js";
 import { fmtRp } from "../components/ui.jsx";
 import { Badge, Button, PageHeader, Card, Stat, Progress, Empty } from "../components/ui.jsx";
 import { IconPlus, IconChevron } from "../components/Icons.jsx";
+import { exportShipperInvoice } from "../utils/invoicePdf.js";
 
 export default function BukuFinance() {
   const { id } = useParams();
@@ -14,7 +15,8 @@ export default function BukuFinance() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["buku", id],
     queryFn: () => getBuku(id),
-    refetchInterval: 15000,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 
   if (isLoading) return <div className="empty"><div className="empty__title">Memuat…</div></div>;
@@ -70,6 +72,14 @@ export default function BukuFinance() {
                 <div className="acc__metric"><small>Dibayar</small><strong style={{ color: "var(--ok)" }}>{fmtRp(s.total_paid)}</strong></div>
                 <div className="acc__metric"><small>Sisa</small><strong style={{ color: s.sisa > 0 ? "var(--accent)" : "var(--ok)" }}>{fmtRp(s.sisa)}</strong></div>
                 <Badge status={s.status} />
+                <button
+                  className="btn btn--default btn--sm"
+                  style={{ marginLeft: 4, flexShrink: 0 }}
+                  onClick={(e) => { e.stopPropagation(); exportShipperInvoice(s, buku); }}
+                  title="Export Invoice PDF"
+                >
+                  PDF
+                </button>
               </div>
 
               {expanded[s.shipper] && (
@@ -87,7 +97,7 @@ export default function BukuFinance() {
                     <tbody>
                       {s.bookings.map((b) => (
                         <tr key={b.id} className="is-clickable"
-                          onClick={() => navigate(`/bookings/${b.id}`, { state: { buku_id: buku.id, buku_periode: periode } })}>
+                          onClick={() => navigate(`/bookings/${b.public_id}`, { state: { buku_id: buku.id, buku_periode: periode } })}>
                           <td className="strong mono">{b.job_no}</td>
                           <td><Badge status={b.status} /></td>
                           <td className="right num">{fmtRp(b.tagihan)}</td>

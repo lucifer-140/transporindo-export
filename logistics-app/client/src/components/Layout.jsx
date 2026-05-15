@@ -1,12 +1,14 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth, useLogout } from "../hooks/useAuth.js";
 import { useTheme } from "../hooks/useTheme.js";
+import { useSSE } from "../hooks/useSSE.js";
 import { IconBook, IconBox, IconUsers, IconActivity, IconShipper, IconArrow, IconExternal, LogoMark } from "./Icons.jsx";
 
 export default function Layout() {
   const { user, isAdmin, isFinance } = useAuth();
   const logout = useLogout();
   const { theme, toggle } = useTheme();
+  useSSE();
 
   const initials = (user?.full_name || user?.username || "U")
     .split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();

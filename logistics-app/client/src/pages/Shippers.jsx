@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/client.js";
+import { useToast } from "../components/Toast.jsx";
 import {
   Button,
   Card,
@@ -130,12 +131,15 @@ export default function Shippers() {
     setOpenModal(true);
   }
 
+  const toast = useToast();
+
   const addMutation = useMutation({
     mutationFn: ({ name, commodities }) =>
       api.post("/shippers", { name, commodities }).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["shippers"] });
       setOpenModal(false);
+      toast("Shipper berhasil ditambahkan.");
     },
     onError: (e) => setError(e.response?.data?.error ?? "Gagal menyimpan"),
   });
@@ -146,6 +150,7 @@ export default function Shippers() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["shippers"] });
       setOpenModal(false);
+      toast("Shipper berhasil diperbarui.");
     },
     onError: (e) => setError(e.response?.data?.error ?? "Gagal menyimpan"),
   });

@@ -3,7 +3,9 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client.js';
 import { Button, PageHeader, Card, Field, Input, Select, fmtDate, monthLabel } from '../components/ui.jsx';
+import { useToast } from '../components/Toast.jsx';
 import { IconPlus, IconTrash, IconCheck } from '../components/Icons.jsx';
+import { BookingFormSkeleton } from '../components/Skeleton.jsx';
 
 const EMPTY_CONTAINER = () => ({ container_no: '', seal_no: '', size: '40ft' });
 
@@ -29,13 +31,13 @@ export default function BookingForm() {
   const [containers, setContainers] = useState([EMPTY_CONTAINER()]);
   const [errors, setErrors] = useState({});
 
-  const { data: existing } = useQuery({
+  const { data: existing, isLoading: isLoadingBooking } = useQuery({
     queryKey: ['booking', id],
     queryFn: () => api.get(`/bookings/${id}`).then(r => r.data),
     enabled: isEdit,
   });
 
-  const { data: shippers = [] } = useQuery({
+  const { data: shippers = [], isLoading: isLoadingShippers } = useQuery({
     queryKey: ['shippers'],
     queryFn: () => api.get('/shippers').then(r => r.data),
   });
@@ -65,6 +67,8 @@ export default function BookingForm() {
     }
   }, [existing]);
 
+  const toast = useToast();
+
   const mutation = useMutation({
     mutationFn: (data) => isEdit
       ? api.put(`/bookings/${id}`, data).then(r => r.data)
@@ -72,9 +76,13 @@ export default function BookingForm() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['booking', id] });
-      navigate(`/bookings/${data.booking.id}`);
+      toast(isEdit ? 'Booking berhasil diperbarui.' : 'Booking berhasil dibuat.');
+      navigate(`/bookings/${data.booking.public_id}`);
     },
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menyimpan booking.', 'error'),
   });
+
+  if (isEdit && (isLoadingBooking || isLoadingShippers)) return <BookingFormSkeleton />;
 
   function validate() {
     const errs = {};

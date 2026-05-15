@@ -16,6 +16,8 @@ export default function Piutang() {
   const { data, isLoading } = useQuery({
     queryKey: ["piutang-list", { q, page }],
     queryFn: () => api.get("/piutang", { params: { q, page, limit: 20 } }).then((r) => r.data),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 
   const { data: bukuList = [] } = useQuery({
@@ -82,7 +84,7 @@ export default function Piutang() {
               const pct = r.jumlah ? Math.round(((r.total_paid ?? 0) / r.jumlah) * 100) : 0;
               const buku = bukuList.find((b) => b.id === r.buku_id);
               return (
-                <tr key={r.id} className="is-clickable" onClick={() => navigate(`/bookings/${r.booking_id}`)}>
+                <tr key={r.id} className="is-clickable" onClick={() => navigate(`/bookings/${r.booking_public_id}`)}>
                   <td className="strong mono">{r.job_no}</td>
                   <td className="strong">{r.shipper}</td>
                   <td className="muted mono" style={{ fontSize: 12 }}>

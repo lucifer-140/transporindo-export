@@ -1,7 +1,9 @@
+import { randomBytes } from 'crypto';
 import { getDb } from '../db.js';
 import { bookingSchema, statusSchema } from '../schemas/booking.js';
 import { logAudit } from '../utils/audit.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { broadcast } from '../utils/sse.js';
 
 function deriveQty(containers) {
   const counts = {};
@@ -14,6 +16,7 @@ function deriveQty(containers) {
 function getContainers(db, bookingId) {
   return db.prepare('SELECT * FROM containers WHERE booking_id = ?').all(bookingId);
 }
+
 
 export async function bookingRoutes(fastify) {
   // List bookings
@@ -63,10 +66,23 @@ export async function bookingRoutes(fastify) {
 
     const { total } = db.prepare(`SELECT COUNT(*) AS total FROM bookings b WHERE ${where}`).get(...params);
 
-    const result = rows.map(row => {
-      const containers = getContainers(db, row.id);
-      return { ...row, qty: deriveQty(containers), first_container: containers[0]?.container_no ?? '', extra_containers: Math.max(0, containers.length - 1) };
-    });
+    let result;
+    if (rows.length === 0) {
+      result = [];
+    } else {
+      const ids = rows.map(r => r.id);
+      const allContainers = db.prepare(
+        `SELECT * FROM containers WHERE booking_id IN (${ids.map(() => '?').join(',')})`
+      ).all(...ids);
+      const byBooking = {};
+      for (const c of allContainers) {
+        (byBooking[c.booking_id] ??= []).push(c);
+      }
+      result = rows.map(row => {
+        const containers = byBooking[row.id] ?? [];
+        return { ...row, qty: deriveQty(containers), first_container: containers[0]?.container_no ?? '', extra_containers: Math.max(0, containers.length - 1) };
+      });
+    }
 
     return { rows: result, total };
   });
@@ -97,7 +113,7 @@ export async function bookingRoutes(fastify) {
   // Get single booking
   fastify.get('/api/bookings/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
-    const booking = db.prepare('SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.id);
+    const booking = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!booking) return reply.code(404).send({ error: 'Not found' });
     const containers = getContainers(db, booking.id);
     return { booking: { ...booking, qty: deriveQty(containers) }, containers };
@@ -115,10 +131,11 @@ export async function bookingRoutes(fastify) {
     const buku = db.prepare('SELECT id, status FROM buku WHERE id = ?').get(fields.buku_id);
     if (!buku) return reply.code(400).send({ error: 'Buku not found' });
 
+    const publicId = randomBytes(16).toString('hex');
     const result = db.prepare(`
-      INSERT INTO bookings (job_no, shipper, commodity, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, notes, status, buku_id, created_by)
-      VALUES (@job_no, @shipper, @commodity, @peb, @port, @feeder, @vessel_name, @vessel_no, @bon, @in_date, @out_date, @trucking, @notes, 'in_progress', @buku_id, @created_by)
-    `).run({ ...fields, created_by: userId });
+      INSERT INTO bookings (job_no, shipper, commodity, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, notes, status, buku_id, created_by, public_id)
+      VALUES (@job_no, @shipper, @commodity, @peb, @port, @feeder, @vessel_name, @vessel_no, @bon, @in_date, @out_date, @trucking, @notes, 'in_progress', @buku_id, @created_by, @public_id)
+    `).run({ ...fields, created_by: userId, public_id: publicId });
 
     const bookingId = result.lastInsertRowid;
 
@@ -126,6 +143,7 @@ export async function bookingRoutes(fastify) {
     for (const c of containers) insertContainer.run(bookingId, c.container_no, c.seal_no, c.size);
 
     logAudit({ userId, action: 'create', entityType: 'booking', entityId: bookingId, changes: parsed.data });
+    broadcast(['bookings', 'buku']);
 
     const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(bookingId);
     const savedContainers = getContainers(db, bookingId);
@@ -135,7 +153,7 @@ export async function bookingRoutes(fastify) {
   // Update booking
   fastify.put('/api/bookings/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
-    const existing = db.prepare('SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.id);
+    const existing = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
 
     const parsed = bookingSchema.safeParse(request.body);
@@ -156,6 +174,7 @@ export async function bookingRoutes(fastify) {
     for (const c of containers) insertContainer.run(existing.id, c.container_no, c.seal_no, c.size);
 
     logAudit({ userId, action: 'update', entityType: 'booking', entityId: existing.id, changes: parsed.data });
+    broadcast(['bookings', 'buku']);
 
     const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(existing.id);
     const savedContainers = getContainers(db, existing.id);
@@ -165,7 +184,7 @@ export async function bookingRoutes(fastify) {
   // Update status
   fastify.patch('/api/bookings/:id/status', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
-    const existing = db.prepare('SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.id);
+    const existing = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
 
     const parsed = statusSchema.safeParse(request.body);
@@ -173,6 +192,7 @@ export async function bookingRoutes(fastify) {
 
     db.prepare('UPDATE bookings SET status = ? WHERE id = ?').run(parsed.data.status, existing.id);
     logAudit({ userId: request.session.user.id, action: 'update', entityType: 'booking', entityId: existing.id, changes: { status: parsed.data.status } });
+    broadcast(['bookings', 'buku']);
 
     return db.prepare('SELECT * FROM bookings WHERE id = ?').get(existing.id);
   });
@@ -180,11 +200,12 @@ export async function bookingRoutes(fastify) {
   // Soft delete (admin only)
   fastify.delete('/api/bookings/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
-    const existing = db.prepare('SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.id);
+    const existing = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });
 
     db.prepare('UPDATE bookings SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
     logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'booking', entityId: existing.id });
+    broadcast(['bookings', 'buku']);
     return reply.code(204).send();
   });
 

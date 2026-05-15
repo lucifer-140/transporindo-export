@@ -18,10 +18,11 @@ export async function shipperRoutes(fastify) {
       ORDER BY s.name ASC
     `).all();
     const commodities = db.prepare('SELECT * FROM commodities ORDER BY name ASC').all();
-    return shippers.map(s => ({
-      ...s,
-      commodities: commodities.filter(c => c.shipper_id === s.id),
-    }));
+    const commodityMap = {};
+    for (const c of commodities) {
+      (commodityMap[c.shipper_id] ??= []).push(c);
+    }
+    return shippers.map(s => ({ ...s, commodities: commodityMap[s.id] ?? [] }));
   });
 
   // Create shipper

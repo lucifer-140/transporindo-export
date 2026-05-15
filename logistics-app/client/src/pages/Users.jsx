@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/client.js";
 import { Badge, Button, Field, Input, Select, Modal, PageHeader, Card, Empty } from "../components/ui.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { IconPlus, IconEdit, IconTrash } from "../components/Icons.jsx";
 
 const EMPTY_FORM = { username: "", password: "", full_name: "", role: "worker" };
@@ -25,11 +26,14 @@ export default function Users() {
     queryFn: () => api.get("/users").then((r) => r.data),
   });
 
+  const toast = useToast();
+
   const createMutation = useMutation({
     mutationFn: (data) => api.post("/users", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setShowCreate(false); setForm(EMPTY_FORM); setFormError("");
+      toast("User berhasil dibuat.");
     },
     onError: (e) => setFormError(e.response?.data?.error ?? "Create failed."),
   });
@@ -44,7 +48,8 @@ export default function Users() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/users/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); setDeleteConfirm(null); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); setDeleteConfirm(null); toast("User berhasil dihapus."); },
+    onError: (e) => toast(e.response?.data?.error ?? "Gagal menghapus user.", "error"),
   });
 
   function handleCreate(e) {
@@ -68,6 +73,7 @@ export default function Users() {
       if (editForm.new_password) await changePassMutation.mutateAsync({ id, new_password: editForm.new_password });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setEditingId(null);
+      toast("User berhasil diperbarui.");
     } catch (e) {
       setEditError(e.response?.data?.error ?? "Save failed.");
     }

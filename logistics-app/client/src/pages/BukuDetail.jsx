@@ -15,7 +15,6 @@ export default function BukuDetail() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["buku", id],
     queryFn: () => getBuku(id),
-    refetchInterval: 15000,
   });
 
   if (isLoading) return <div className="empty"><div className="empty__title">Memuat…</div></div>;
@@ -48,8 +47,6 @@ export default function BukuDetail() {
             <Badge status={buku.status} dot={false} />
             <span className="dim">•</span>
             <span>{booking_count} bookings · {shippers.length} shipper aktif</span>
-            <span className="dim">•</span>
-            <span className="refresh-pill"><span className="dot dot--ok" /> Auto-refresh 15s</span>
           </span>
         }
         actions={
@@ -159,7 +156,7 @@ export default function BukuDetail() {
                     <tbody>
                       {g.bookings.map((bk) => (
                         <tr key={bk.id} className="is-clickable"
-                          onClick={() => navigate(`/bookings/${bk.id}`, { state: { buku_id: buku.id, buku_periode: `${buku.tahun}/${String(buku.bulan).padStart(2, "0")}` } })}>
+                          onClick={() => navigate(`/bookings/${bk.public_id}`, { state: { buku_id: buku.id, buku_periode: `${buku.tahun}/${String(buku.bulan).padStart(2, "0")}` } })}>
                           <td className="strong mono">{bk.job_no}</td>
                           <td>{bk.commodity || "—"}</td>
                           <td>{bk.vessel_name || "—"}{bk.vessel_no ? <span className="muted"> / {bk.vessel_no}</span> : ""}</td>

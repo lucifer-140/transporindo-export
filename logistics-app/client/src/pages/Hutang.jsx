@@ -5,6 +5,7 @@ import { getBukuList } from "../api/buku.js";
 import api from "../api/client.js";
 import { fmtRp, Badge, Button, Field, Input, Modal, PageHeader, Card, Empty, Stat } from "../components/ui.jsx";
 import { IconPlus, IconSearch, IconChevron } from "../components/Icons.jsx";
+import { useToast } from "../components/Toast.jsx";
 
 const EMPTY_FORM = { pihak: "", jumlah: "", keterangan: "", booking_id: "" };
 
@@ -21,6 +22,8 @@ export default function Hutang() {
   const { data, isLoading } = useQuery({
     queryKey: ["hutang-list", { q, page }],
     queryFn: () => api.get("/hutang", { params: { q, page, limit: 20 } }).then((r) => r.data),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 
   const { data: bukuList = [] } = useQuery({
@@ -37,11 +40,14 @@ export default function Hutang() {
   const belumCount = allRows.filter((r) => r.status === "belum_bayar").length;
   const lunasCount = allRows.filter((r) => r.status === "lunas").length;
 
+  const toast = useToast();
+
   const createMutation = useMutation({
     mutationFn: (body) => api.post("/hutang", body).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hutang-list"] });
       setShowForm(false); setForm({ ...EMPTY_FORM }); setFormError("");
+      toast("Hutang berhasil ditambahkan.");
     },
     onError: (e) => setFormError(e.response?.data?.error ?? "Gagal menyimpan."),
   });
@@ -129,7 +135,7 @@ export default function Hutang() {
               const buku = bukuList.find((b) => b.id === h.buku_id);
               return (
                 <tr key={h.id} className="is-clickable"
-                  onClick={() => h.booking_id ? navigate(`/bookings/${h.booking_id}`) : undefined}>
+                  onClick={() => h.booking_id ? navigate(`/bookings/${h.booking_public_id}`) : undefined}>
                   <td className="strong">{h.pihak}</td>
                   <td className="mono" style={{ fontSize: 12 }}>{h.job_no || "—"}</td>
                   <td>{h.shipper || <span className="dim">—</span>}</td>
