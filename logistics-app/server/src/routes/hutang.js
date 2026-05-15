@@ -44,8 +44,9 @@ export async function hutangRoutes(fastify) {
     }
 
     const rows = db.prepare(`
-      SELECT h.*, b.job_no FROM hutang h
+      SELECT h.*, b.job_no, b.shipper, b.buku_id, bk.tahun, bk.bulan FROM hutang h
       LEFT JOIN bookings b ON h.booking_id = b.id
+      LEFT JOIN buku bk ON b.buku_id = bk.id
       WHERE ${where}
       ORDER BY h.created_at DESC
       LIMIT ? OFFSET ?
@@ -131,6 +132,26 @@ export async function hutangRoutes(fastify) {
 
     const row = db.prepare('SELECT h.*, b.job_no FROM hutang h LEFT JOIN bookings b ON h.booking_id = b.id WHERE h.id = ?').get(existing.id);
     return reply.code(201).send(buildHutang(db, row));
+  });
+
+  // Edit pembayaran on hutang
+  fastify.put('/api/hutang/:id/pembayaran/:payId', { preHandler: requireRole('finance') }, async (request, reply) => {
+    const db = getDb();
+    const existing = db.prepare('SELECT * FROM hutang WHERE id = ?').get(request.params.id);
+    if (!existing) return reply.code(404).send({ error: 'Not found' });
+
+    const pay = db.prepare("SELECT * FROM pembayaran WHERE id = ? AND entity_type='hutang' AND entity_id=?").get(request.params.payId, existing.id);
+    if (!pay) return reply.code(404).send({ error: 'Payment not found' });
+
+    const parsed = pembayaranSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const { jumlah, tanggal, metode, keterangan } = parsed.data;
+    db.prepare('UPDATE pembayaran SET jumlah=?, tanggal=?, metode=?, keterangan=? WHERE id=?')
+      .run(jumlah, tanggal, metode, keterangan, pay.id);
+
+    const row = db.prepare('SELECT h.*, b.job_no FROM hutang h LEFT JOIN bookings b ON h.booking_id = b.id WHERE h.id = ?').get(existing.id);
+    return buildHutang(db, row);
   });
 
   // Remove pembayaran from hutang

@@ -38,8 +38,24 @@ export async function bookingRoutes(fastify) {
     }
 
     const rows = db.prepare(`
-      SELECT b.*, u.full_name AS created_by_name FROM bookings b
+      SELECT b.*, u.full_name AS created_by_name,
+        p.jumlah AS tagihan,
+        COALESCE(pm_agg.total_paid, 0) AS piutang_paid,
+        COALESCE(p.jumlah, 0) - COALESCE(pm_agg.total_paid, 0) AS sisa_piutang,
+        CASE
+          WHEN p.jumlah IS NULL THEN 'none'
+          WHEN COALESCE(pm_agg.total_paid, 0) = 0 THEN 'belum_bayar'
+          WHEN COALESCE(pm_agg.total_paid, 0) >= p.jumlah THEN 'lunas'
+          ELSE 'sebagian'
+        END AS piutang_status
+      FROM bookings b
       LEFT JOIN users u ON b.created_by = u.id
+      LEFT JOIN piutang p ON p.booking_id = b.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(jumlah) AS total_paid
+        FROM pembayaran WHERE entity_type = 'piutang'
+        GROUP BY entity_id
+      ) pm_agg ON pm_agg.entity_id = p.id
       WHERE ${where}
       ORDER BY b.created_at DESC
       LIMIT ? OFFSET ?
@@ -131,7 +147,7 @@ export async function bookingRoutes(fastify) {
     db.prepare(`
       UPDATE bookings SET job_no=@job_no, shipper=@shipper, commodity=@commodity, peb=@peb, port=@port,
         feeder=@feeder, vessel_name=@vessel_name, vessel_no=@vessel_no, bon=@bon,
-        in_date=@in_date, out_date=@out_date, trucking=@trucking, notes=@notes
+        in_date=@in_date, out_date=@out_date, trucking=@trucking, notes=@notes, buku_id=@buku_id
       WHERE id = @id
     `).run({ ...fields, id: existing.id });
 
@@ -162,7 +178,7 @@ export async function bookingRoutes(fastify) {
   });
 
   // Soft delete (admin only)
-  fastify.delete('/api/bookings/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
+  fastify.delete('/api/bookings/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
     const db = getDb();
     const existing = db.prepare('SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL').get(request.params.id);
     if (!existing) return reply.code(404).send({ error: 'Not found' });

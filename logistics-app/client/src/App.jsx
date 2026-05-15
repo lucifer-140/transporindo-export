@@ -30,10 +30,18 @@ export default function App() {
         <Route path="buku/:id/finance" element={
           <ProtectedRoute minRole="finance"><BukuFinance /></ProtectedRoute>
         } />
-        <Route path="bookings" element={<BookingsList />} />
-        <Route path="bookings/new" element={<BookingForm />} />
-        <Route path="bookings/:id" element={<BookingDetail />} />
-        <Route path="bookings/:id/edit" element={<BookingForm />} />
+        <Route path="bookings" element={
+          <ProtectedRoute minRole="admin"><BookingsList /></ProtectedRoute>
+        } />
+        <Route path="bookings/new" element={
+          <ProtectedRoute minRole="worker"><BookingForm /></ProtectedRoute>
+        } />
+        <Route path="bookings/:id" element={
+          <ProtectedRoute minRole="worker"><BookingDetail /></ProtectedRoute>
+        } />
+        <Route path="bookings/:id/edit" element={
+          <ProtectedRoute minRole="worker"><BookingForm /></ProtectedRoute>
+        } />
         <Route path="piutang" element={
           <ProtectedRoute minRole="finance"><Piutang /></ProtectedRoute>
         } />

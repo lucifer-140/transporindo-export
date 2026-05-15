@@ -1,25 +1,10 @@
-import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getBuku } from '../api/buku.js';
-
-function formatRp(n) {
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n ?? 0);
-}
-
-function formatPeriode(tahun, bulan) {
-  return `${tahun}/${String(bulan).padStart(2, '0')}`;
-}
-
-const STATUS_BADGE = {
-  lunas:       'bg-green-100 text-green-700',
-  sebagian:    'bg-yellow-100 text-yellow-700',
-  belum_bayar: 'bg-red-100 text-red-600',
-  none:        'bg-gray-100 text-gray-500',
-};
-const STATUS_LABEL = {
-  lunas: 'Lunas', sebagian: 'Sebagian', belum_bayar: 'Belum Bayar', none: '—',
-};
+import { useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { getBuku } from "../api/buku.js";
+import { fmtRp } from "../components/ui.jsx";
+import { Badge, Button, PageHeader, Card, Stat, Progress, Empty } from "../components/ui.jsx";
+import { IconPlus, IconChevron } from "../components/Icons.jsx";
 
 export default function BukuFinance() {
   const { id } = useParams();
@@ -27,115 +12,88 @@ export default function BukuFinance() {
   const [expanded, setExpanded] = useState({});
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['buku', id],
+    queryKey: ["buku", id],
     queryFn: () => getBuku(id),
     refetchInterval: 15000,
   });
 
-  if (isLoading) return <div className="text-sm text-gray-500">Memuat…</div>;
-  if (isError)   return <div className="text-sm text-red-500">Gagal memuat data.</div>;
+  if (isLoading) return <div className="empty"><div className="empty__title">Memuat…</div></div>;
+  if (isError) return <div className="empty"><div className="empty__title" style={{ color: "var(--danger)" }}>Gagal memuat data.</div></div>;
 
   const { buku, shippers, booking_count } = data;
+  const periode = `${buku.tahun}/${String(buku.bulan).padStart(2, "0")}`;
   const grandTagihan = shippers.reduce((s, x) => s + x.total_tagihan, 0);
   const grandPaid    = shippers.reduce((s, x) => s + x.total_paid, 0);
   const grandSisa    = grandTagihan - grandPaid;
 
-  function toggle(shipper) {
-    setExpanded(e => ({ ...e, [shipper]: !e[shipper] }));
+  function toggle(key) {
+    setExpanded((e) => ({ ...e, [key]: !e[key] }));
   }
 
   return (
-    <div className="max-w-4xl">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(`/buku/${id}`)} className="text-gray-400 hover:text-gray-600">←</button>
-        <div>
-          <h2 className="text-xl font-bold text-gray-800 font-mono">Finance — Buku {formatPeriode(buku.tahun, buku.bulan)}</h2>
-          <p className="text-sm text-gray-500">{booking_count} booking</p>
-        </div>
-        <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${buku.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-          {buku.status === 'open' ? 'Open' : 'Closed'}
-        </span>
-        <div className="ml-auto">
-          <button
-            onClick={() => navigate('/bookings/new', { state: { buku_id: buku.id, buku_periode: formatPeriode(buku.tahun, buku.bulan) } })}
-            className="bg-blue-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-blue-700"
-          >
-            + Booking Baru
-          </button>
-        </div>
-      </div>
+    <>
+      <PageHeader
+        crumbs={[
+          { label: "Buku", onClick: () => navigate("/") },
+          { label: `Buku ${periode}`, onClick: () => navigate(`/buku/${id}`) },
+          { label: "Finance" },
+        ]}
+        title={`Finance — Buku ${periode}`}
+        meta={<span className="row" style={{ gap: 8 }}><Badge status={buku.status} /><span>{booking_count} booking</span></span>}
+        actions={
+          <Button variant="primary" icon={<IconPlus size={14} />}
+            onClick={() => navigate("/bookings/new", { state: { buku_id: buku.id, buku_periode: periode } })}>
+            Booking Baru
+          </Button>
+        }
+      />
 
-      {/* Summary bar */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        {[
-          { label: 'Total Tagihan', value: grandTagihan, cls: 'text-gray-800' },
-          { label: 'Dibayar',       value: grandPaid,    cls: 'text-green-700' },
-          { label: 'Sisa',          value: grandSisa,    cls: grandSisa > 0 ? 'text-red-600' : 'text-green-700' },
-        ].map(({ label, value, cls }) => (
-          <div key={label} className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-            <p className="text-xs text-gray-500 mb-1">{label}</p>
-            <p className={`text-base font-semibold ${cls}`}>{formatRp(value)}</p>
-          </div>
-        ))}
+      <div className="grid grid-stats mb-24">
+        <Card pad={false}><Stat label="Total Tagihan" value={fmtRp(grandTagihan)} /></Card>
+        <Card pad={false}><Stat label="Dibayar" value={fmtRp(grandPaid)} tone="ok" /></Card>
+        <Card pad={false}><Stat label="Sisa" value={fmtRp(grandSisa)} tone={grandSisa > 0 ? "warn" : "ok"} /></Card>
       </div>
 
       {shippers.length === 0 ? (
-        <div className="text-sm text-gray-500 py-8 text-center">Belum ada booking di buku ini.</div>
+        <Empty title="Belum ada booking" />
       ) : (
-        <div className="flex flex-col gap-3">
-          {shippers.map(s => (
-            <div key={s.shipper} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left"
-                onClick={() => toggle(s.shipper)}
-              >
-                <span className="font-medium text-gray-800 flex-1">{s.shipper}</span>
-                <span className="text-xs text-gray-500">{s.bookings.length} booking</span>
-                <div className="flex gap-6 text-sm">
-                  <span className="text-gray-500">Tagihan: <span className="font-medium text-gray-800">{formatRp(s.total_tagihan)}</span></span>
-                  <span className="text-gray-500">Dibayar: <span className="font-medium text-green-700">{formatRp(s.total_paid)}</span></span>
-                  <span className="text-gray-500">Sisa: <span className={`font-medium ${s.sisa > 0 ? 'text-red-600' : 'text-green-700'}`}>{formatRp(s.sisa)}</span></span>
+        <div className="col" style={{ gap: 10 }}>
+          {shippers.map((s) => (
+            <div key={s.shipper} className={`acc${expanded[s.shipper] ? " is-open" : ""}`}>
+              <div className="acc__hd" onClick={() => toggle(s.shipper)}>
+                <IconChevron size={14} className="acc__chev" />
+                <div>
+                  <div className="acc__name">{s.shipper}</div>
+                  <div className="acc__sub">{s.bookings.length} booking</div>
                 </div>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_BADGE[s.status]}`}>
-                  {STATUS_LABEL[s.status]}
-                </span>
-                <span className="text-gray-400 text-xs ml-1">{expanded[s.shipper] ? '▲' : '▼'}</span>
-              </button>
+                <div className="acc__metric"><small>Tagihan</small><strong>{fmtRp(s.total_tagihan)}</strong></div>
+                <div className="acc__metric"><small>Dibayar</small><strong style={{ color: "var(--ok)" }}>{fmtRp(s.total_paid)}</strong></div>
+                <div className="acc__metric"><small>Sisa</small><strong style={{ color: s.sisa > 0 ? "var(--accent)" : "var(--ok)" }}>{fmtRp(s.sisa)}</strong></div>
+                <Badge status={s.status} />
+              </div>
 
               {expanded[s.shipper] && (
-                <div className="border-t border-gray-100">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
+                <div className="acc__body">
+                  <table className="tbl">
+                    <thead>
                       <tr>
-                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Job No</th>
-                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Status</th>
-                        <th className="text-right px-4 py-2 text-xs font-medium text-gray-500">Tagihan</th>
-                        <th className="text-right px-4 py-2 text-xs font-medium text-gray-500">Dibayar</th>
-                        <th className="text-right px-4 py-2 text-xs font-medium text-gray-500">Sisa</th>
-                        <th className="px-4 py-2 text-xs font-medium text-gray-500">Piutang</th>
+                        <th>Job No</th><th>Status</th>
+                        <th className="right">Tagihan</th>
+                        <th className="right">Dibayar</th>
+                        <th className="right">Sisa</th>
+                        <th>Piutang</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {s.bookings.map(b => (
-                        <tr key={b.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-2">
-                            <Link to={`/bookings/${b.id}`} state={{ buku_id: buku.id, buku_periode: formatPeriode(buku.tahun, buku.bulan) }} className="text-blue-600 hover:underline font-mono text-xs">
-                              {b.job_no}
-                            </Link>
-                          </td>
-                          <td className="px-4 py-2">
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${b.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                              {b.status === 'done' ? 'Done' : 'In Progress'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-right text-gray-700">{formatRp(b.tagihan)}</td>
-                          <td className="px-4 py-2 text-right text-green-700">{formatRp(b.total_paid)}</td>
-                          <td className="px-4 py-2 text-right">{formatRp(b.sisa)}</td>
-                          <td className="px-4 py-2">
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${STATUS_BADGE[b.piutang_status]}`}>
-                              {STATUS_LABEL[b.piutang_status]}
-                            </span>
-                          </td>
+                    <tbody>
+                      {s.bookings.map((b) => (
+                        <tr key={b.id} className="is-clickable"
+                          onClick={() => navigate(`/bookings/${b.id}`, { state: { buku_id: buku.id, buku_periode: periode } })}>
+                          <td className="strong mono">{b.job_no}</td>
+                          <td><Badge status={b.status} /></td>
+                          <td className="right num">{fmtRp(b.tagihan)}</td>
+                          <td className="right num" style={{ color: "var(--ok)" }}>{fmtRp(b.total_paid)}</td>
+                          <td className="right num">{fmtRp(b.sisa)}</td>
+                          <td><Badge status={b.piutang_status} /></td>
                         </tr>
                       ))}
                     </tbody>
@@ -146,6 +104,6 @@ export default function BukuFinance() {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }

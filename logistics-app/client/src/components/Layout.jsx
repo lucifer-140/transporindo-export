@@ -1,57 +1,87 @@
-import { Outlet, NavLink } from 'react-router-dom';
-import { useAuth, useLogout } from '../hooks/useAuth.js';
+import { NavLink, Outlet } from "react-router-dom";
+import { useAuth, useLogout } from "../hooks/useAuth.js";
+import { IconBook, IconBox, IconUsers, IconActivity, IconShipper, IconArrow, IconExternal, LogoMark } from "./Icons.jsx";
 
 export default function Layout() {
   const { user, isAdmin, isFinance } = useAuth();
   const logout = useLogout();
 
+  const initials = (user?.full_name || user?.username || "U")
+    .split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+  const roleChipClass =
+    user?.role === "finance" ? "sb-user__role-chip--finance" :
+    user?.role === "worker"  ? "sb-user__role-chip--worker" : "";
+
+  const sections = [
+    {
+      label: "Operasional",
+      links: [
+        { to: "/", end: true, label: "Buku",     icon: <IconBook size={15} /> },
+        { to: "/bookings",    label: "Bookings",  icon: <IconBox size={15} />, adminOnly: true },
+        { to: "/shippers",   label: "Shippers",  icon: <IconShipper size={15} />, adminOnly: true },
+      ],
+    },
+    {
+      label: "Finance",
+      links: [
+        { to: "/piutang", label: "Piutang", icon: <IconArrow size={15} />,  financeOnly: true },
+        { to: "/hutang",  label: "Hutang",  icon: <IconArrow size={15} style={{ transform: "rotate(180deg)" }} />, financeOnly: true },
+      ],
+    },
+    {
+      label: "Admin",
+      links: [
+        { to: "/users", label: "Users",     icon: <IconUsers size={15} />,    adminOnly: true },
+        { to: "/audit", label: "Audit Log", icon: <IconActivity size={15} />, adminOnly: true },
+      ],
+    },
+  ];
+
+  const visible = sections
+    .map((s) => ({ ...s, links: s.links.filter((l) => (!l.adminOnly || isAdmin) && (!l.financeOnly || isFinance)) }))
+    .filter((s) => s.links.length > 0);
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 flex items-center h-14 gap-6">
-          <span className="font-bold text-blue-700 text-lg tracking-tight">TAS Logistics</span>
-          <nav className="flex gap-4 text-sm flex-1">
-            <NavLink to="/" end className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
-              Buku
-            </NavLink>
-            {isFinance && (
-              <NavLink to="/piutang" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
-                Piutang
-              </NavLink>
-            )}
-            {isFinance && (
-              <NavLink to="/hutang" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
-                Hutang
-              </NavLink>
-            )}
-            {isAdmin && (
-              <NavLink to="/shippers" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
-                Shippers
-              </NavLink>
-            )}
-            {isAdmin && (
-              <NavLink to="/users" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
-                Users
-              </NavLink>
-            )}
-            {isAdmin && (
-              <NavLink to="/audit" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}>
-                Audit Log
-              </NavLink>
-            )}
-          </nav>
-          <div className="flex items-center gap-3 text-sm text-gray-500">
-            <span>{user?.full_name || user?.username}</span>
-            <button
-              onClick={logout}
-              className="text-xs border border-gray-200 rounded px-2 py-1 hover:bg-gray-50"
-            >
-              Sign out
-            </button>
+    <div className="app">
+      <aside className="sidebar">
+        <NavLink to="/" className="sb-brand" style={{ textDecoration: "none" }}>
+          <LogoMark size={40} accent="var(--accent)" />
+          <div className="sb-brand__wm">
+            <b>TAS</b>
+            <small>Logistics</small>
           </div>
+        </NavLink>
+
+        {visible.map((sec) => (
+          <div key={sec.label} className="sb-section">
+            <div className="sb-section__lbl">{sec.label}</div>
+            {sec.links.map((l) => (
+              <NavLink
+                key={l.to} to={l.to} end={l.end}
+                className={({ isActive }) => `sb-link${isActive ? " is-active" : ""}`}
+              >
+                {l.icon}
+                <span>{l.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        ))}
+
+        <div className="sb-user">
+          <div className="sb-user__avatar">{initials}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="sb-user__name" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {user?.full_name || user?.username}
+            </div>
+            <span className={`sb-user__role-chip ${roleChipClass}`}>{user?.role}</span>
+          </div>
+          <button className="sb-user__signout" onClick={logout} title="Sign out">
+            <IconExternal size={14} />
+          </button>
         </div>
-      </header>
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+      </aside>
+
+      <main className="main">
         <Outlet />
       </main>
     </div>

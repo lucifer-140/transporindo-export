@@ -6,6 +6,24 @@ Format: [version] — date — description
 
 ---
 
+## [0.8.0] — 2026-05-15
+
+### Added
+- **Custom design system** — full CSS variable token system in `index.css`; dark (default) and light themes via `.theme-dark` / `.theme-light` classes; accent color tokens
+- **Icons component** — `Icons.jsx` with unified icon set (IconBook, IconBox, IconUsers, IconActivity, IconShipper, IconArrow, LogoMark, etc.)
+- **UI primitives** — `ui.jsx` shared component library for buttons, inputs, chips, cards
+- **Sectioned sidebar nav** — Layout redesigned with grouped sections (Operasional / Finance / Admin); user avatar with initials + role chip; visibility controlled by RBAC
+- **ProtectedRoute on all booking routes** — BookingsList gated to admin; BookingForm/BookingDetail open to worker+
+- **seed-db.js script** — dev utility to seed database with sample data
+
+### Changed
+- All pages restyled to use design system tokens — Login, BookingsList, BookingForm, BookingDetail, BukuList, BukuDetail, BukuFinance, Piutang, Hutang, Shippers, Users, AuditLog
+- Layout sidebar replaces top nav; user info block at bottom with initials avatar and role chip
+- `vite.config.js` updated (proxy and build config refinements)
+- Server routes (hutang, piutang, buku, shippers) minor fixes and cleanup
+
+---
+
 ## [0.7.0] — 2026-05-13
 
 ### Added

@@ -1,136 +1,119 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useNavigate, Link } from 'react-router-dom';
-import api from '../api/client.js';
-import { useAuth } from '../hooks/useAuth.js';
-
-const STATUS_LABELS = { in_progress: 'In Progress', done: 'Done' };
-const STATUS_COLORS = {
-  in_progress: 'bg-yellow-100 text-yellow-800',
-  done: 'bg-green-100 text-green-800',
-};
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { getBukuList } from "../api/buku.js";
+import api from "../api/client.js";
+import { fmtRp, fmtDate, Badge, Button, Input, Select, PageHeader, Card, Empty } from "../components/ui.jsx";
+import { IconPlus, IconSearch, IconDownload, IconChevron } from "../components/Icons.jsx";
 
 export default function BookingsList() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [q, setQ] = useState('');
-  const [status, setStatus] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [q, setQ] = useState("");
+  const [bukuFilter, setBukuFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const LIMIT = 20;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['bookings', { q, status, from, to, page }],
-    queryFn: () => api.get('/bookings', { params: { q, status, from, to, page, limit: LIMIT } }).then(r => r.data),
+    queryKey: ["bookings", { q, bukuFilter, page }],
+    queryFn: () => api.get("/bookings", { params: { q, buku_id: bukuFilter || undefined, page, limit: LIMIT } }).then((r) => r.data),
     placeholderData: (prev) => prev,
   });
 
-  const rows = data?.rows ?? [];
+  const { data: bukuList = [] } = useQuery({
+    queryKey: ["buku"],
+    queryFn: getBukuList,
+  });
+
+  const allRows = data?.rows ?? [];
+  const rows = allRows.filter((r) => !statusFilter || r.piutang_status === statusFilter);
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / LIMIT);
 
   function handleExport() {
-    const params = new URLSearchParams({ from, to });
-    window.location.href = `/api/bookings/export?${params}`;
+    window.location.href = `/api/bookings/export`;
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-800">Bookings</h2>
-        <div className="flex gap-2">
-          <button onClick={handleExport} className="text-sm border border-gray-300 rounded px-3 py-1.5 hover:bg-gray-50">
-            Export CSV
-          </button>
-          <Link to="/bookings/new" className="bg-blue-600 text-white text-sm rounded px-3 py-1.5 hover:bg-blue-700">
-            + New Booking
-          </Link>
+    <>
+      <PageHeader
+        title="Semua Bookings"
+        meta={`${total} shipment`}
+        actions={
+          <div className="row" style={{ gap: 8 }}>
+            <Button variant="default" icon={<IconDownload size={14} />} onClick={handleExport}>Export CSV</Button>
+            <Button variant="primary" icon={<IconPlus size={14} />} onClick={() => navigate("/bookings/new")}>Booking Baru</Button>
+          </div>
+        }
+      />
+
+      <div className="row" style={{ gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <div className="search" style={{ flex: 1, minWidth: 240 }}>
+          <IconSearch size={14} />
+          <Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            placeholder="Cari Job No, shipper, vessel, PEB, BON…" />
+        </div>
+        <Select value={bukuFilter} onChange={(e) => { setBukuFilter(e.target.value); setPage(1); }} style={{ width: 160 }}>
+          <option value="">Semua Buku</option>
+          {bukuList.map((b) => (
+            <option key={b.id} value={b.id}>{String(b.bulan).padStart(2, "0")}/{b.tahun}</option>
+          ))}
+        </Select>
+        <div className="seg">
+          {[["", "Semua"], ["belum_bayar", "Belum"], ["sebagian", "Sebagian"], ["lunas", "Lunas"]].map(([v, l]) => (
+            <button key={v} className={statusFilter === v ? "is-active" : ""} onClick={() => setStatusFilter(v)}>{l}</button>
+          ))}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <input
-          type="text" placeholder="Search job, shipper, container, vessel…"
-          value={q} onChange={e => { setQ(e.target.value); setPage(1); }}
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm w-72 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <select
-          value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none"
-        >
-          <option value="">All statuses</option>
-          <option value="in_progress">In Progress</option>
-          <option value="done">Done</option>
-        </select>
-        <input type="date" value={from} onChange={e => { setFrom(e.target.value); setPage(1); }}
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none" />
-        <input type="date" value={to} onChange={e => { setTo(e.target.value); setPage(1); }}
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none" />
-        {(q || status || from || to) && (
-          <button onClick={() => { setQ(''); setStatus(''); setFrom(''); setTo(''); setPage(1); }}
-            className="text-sm text-gray-500 hover:text-gray-700">Clear</button>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+      <Card pad={false}>
+        <table className="tbl">
+          <thead>
             <tr>
-              {['Job No', 'Shipper', 'Qty', 'Port', 'Feeder', 'Vessel', 'Container', 'Status', 'Created'].map(h => (
-                <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">{h}</th>
-              ))}
+              <th>Job No</th><th>Buku</th><th>Shipper</th><th>Commodity</th><th>Vessel</th>
+              <th>Out Date</th><th>Status</th>
+              <th className="right">Tagihan</th><th className="right">Sisa</th>
+              <th style={{ width: 20 }} />
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr><td colSpan={9} className="text-center py-12 text-gray-400">Loading…</td></tr>
-            )}
-            {!isLoading && rows.length === 0 && (
-              <tr><td colSpan={9} className="text-center py-12 text-gray-400">No bookings found.</td></tr>
-            )}
-            {rows.map(row => (
-              <tr key={row.id}
-                onClick={() => navigate(`/bookings/${row.id}`)}
-                className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
-              >
-                <td className="px-4 py-2.5 font-medium text-blue-700">{row.job_no}</td>
-                <td className="px-4 py-2.5">{row.shipper}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.qty}</td>
-                <td className="px-4 py-2.5">{row.port}</td>
-                <td className="px-4 py-2.5">{row.feeder}</td>
-                <td className="px-4 py-2.5">{row.vessel_name} {row.vessel_no}</td>
-                <td className="px-4 py-2.5 font-mono text-xs">
-                  {row.first_container}
-                  {row.extra_containers > 0 && <span className="text-gray-400"> +{row.extra_containers}</span>}
-                </td>
-                <td className="px-4 py-2.5">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[row.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                    {STATUS_LABELS[row.status] ?? row.status}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-gray-500 text-xs">{new Date(row.created_at).toLocaleDateString()}</td>
-              </tr>
-            ))}
+            {isLoading && <tr><td colSpan={10}><Empty title="Memuat…" /></td></tr>}
+            {!isLoading && rows.length === 0 && <tr><td colSpan={10}><Empty title="Tidak ada booking ditemukan." /></td></tr>}
+            {rows.map((row) => {
+              const buku = bukuList.find((b) => b.id === row.buku_id);
+              return (
+                <tr key={row.id} className="is-clickable" onClick={() => navigate(`/bookings/${row.id}`)}>
+                  <td className="strong mono">{row.job_no}</td>
+                  <td className="muted" style={{ fontSize: 12 }}>
+                    {buku ? `${String(buku.bulan).padStart(2, "0")}/${buku.tahun}` : row.buku_id ? `#${row.buku_id}` : "—"}
+                  </td>
+                  <td className="strong">{row.shipper}</td>
+                  <td>{row.commodity || "—"}</td>
+                  <td>{row.vessel_name || "—"}{row.vessel_no ? <span className="muted"> / {row.vessel_no}</span> : ""}</td>
+                  <td className={row.out_date ? "num" : "dim"} style={{ fontSize: 12 }}>
+                    {row.out_date ? fmtDate(row.out_date) : "Pending"}
+                  </td>
+                  <td><Badge status={row.piutang_status === "none" ? "muted" : row.piutang_status} label={row.piutang_status === "none" ? "—" : undefined} /></td>
+                  <td className="right num">{fmtRp(row.tagihan ?? 0)}</td>
+                  <td className="right num strong">{fmtRp(row.sisa_piutang ?? 0)}</td>
+                  <td><IconChevron size={12} style={{ color: "var(--fg-3)" }} /></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
-      </div>
+      </Card>
 
-      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-          <span>{total} total</span>
-          <div className="flex gap-2">
-            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-50">Prev</button>
-            <span className="px-3 py-1">{page} / {totalPages}</span>
-            <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-50">Next</button>
+        <div className="row mt-16" style={{ justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 13 }}>{total} total</span>
+          <div className="row" style={{ gap: 6 }}>
+            <Button variant="default" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>← Prev</Button>
+            <span className="muted" style={{ padding: "0 8px", fontSize: 13 }}>{page} / {totalPages}</span>
+            <Button variant="default" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next →</Button>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

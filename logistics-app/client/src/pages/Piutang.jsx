@@ -1,109 +1,120 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import api from '../api/client.js';
-
-const STATUS_LABELS = { belum_bayar: 'Belum Bayar', sebagian: 'Sebagian', lunas: 'Lunas' };
-const STATUS_COLORS = {
-  belum_bayar: 'bg-red-100 text-red-800',
-  sebagian: 'bg-yellow-100 text-yellow-800',
-  lunas: 'bg-green-100 text-green-800',
-};
-const IDR = (n) => `Rp ${(n ?? 0).toLocaleString('id-ID')}`;
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { getBukuList } from "../api/buku.js";
+import api from "../api/client.js";
+import { fmtRp, Badge, Button, Input, Select, PageHeader, Card, Empty, Stat, Progress } from "../components/ui.jsx";
+import { IconSearch } from "../components/Icons.jsx";
 
 export default function Piutang() {
-  const [status, setStatus] = useState('');
-  const [q, setQ] = useState('');
+  const navigate = useNavigate();
+  const [status, setStatus] = useState("");
+  const [q, setQ] = useState("");
+  const [bukuId, setBukuId] = useState("");
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['piutang-list', { q, page }],
-    queryFn: () => api.get('/piutang', { params: { q, page, limit: 20 } }).then(r => r.data),
+    queryKey: ["piutang-list", { q, page }],
+    queryFn: () => api.get("/piutang", { params: { q, page, limit: 20 } }).then((r) => r.data),
   });
 
-  const rows = (data?.rows ?? []).filter(r => !status || r.status === status);
+  const { data: bukuList = [] } = useQuery({
+    queryKey: ["buku"],
+    queryFn: getBukuList,
+  });
+
+  const allRows = data?.rows ?? [];
+  const rows = allRows
+    .filter((r) => !status || r.status === status)
+    .filter((r) => !bukuId || String(r.buku_id) === bukuId);
   const total = data?.total ?? 0;
 
+  const totalTagihan = allRows.reduce((a, r) => a + (r.jumlah ?? 0), 0);
+  const totalSisa = allRows.reduce((a, r) => a + (r.sisa ?? 0), 0);
+  const belumCount = allRows.filter((r) => r.status === "belum_bayar").length;
+  const sebagianCount = allRows.filter((r) => r.status === "sebagian").length;
+
   return (
-    <div className="max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800">Piutang</h2>
+    <>
+      <PageHeader title="Piutang" meta={`${total} tagihan`} />
+
+      <div className="grid grid-stats mb-12">
+        <Card pad={false}><Stat label="Total Tagihan" value={fmtRp(totalTagihan)} sub={`${allRows.length} entri`} /></Card>
+        <Card pad={false}><Stat label="Total Sisa" value={fmtRp(totalSisa)} tone={totalSisa > 0 ? "warn" : "ok"} sub="Belum tertagih" /></Card>
+        <Card pad={false}><Stat label="Belum Bayar" value={belumCount} tone="danger" sub="Tagihan outstanding" /></Card>
+        <Card pad={false}><Stat label="Sebagian" value={sebagianCount} tone="warn" sub="Bayar sebagian" /></Card>
       </div>
 
-      <div className="flex gap-3 mb-4">
-        <input
-          value={q}
-          onChange={e => { setQ(e.target.value); setPage(1); }}
-          placeholder="Cari job no / shipper…"
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-        />
-        <select
-          value={status}
-          onChange={e => setStatus(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none"
-        >
-          <option value="">Semua Status</option>
-          <option value="belum_bayar">Belum Bayar</option>
-          <option value="sebagian">Sebagian</option>
-          <option value="lunas">Lunas</option>
-        </select>
+      <div className="row-wrap mb-16" style={{ gap: 8 }}>
+        <div className="search" style={{ flex: 1, minWidth: 240 }}>
+          <IconSearch size={14} />
+          <Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            placeholder="Cari job no / shipper…" />
+        </div>
+        <Select value={bukuId} onChange={(e) => { setBukuId(e.target.value); setPage(1); }} style={{ width: 160 }}>
+          <option value="">Semua Buku</option>
+          {bukuList.map((b) => (
+            <option key={b.id} value={b.id}>
+              {String(b.bulan).padStart(2, "0")}/{b.tahun}
+            </option>
+          ))}
+        </Select>
+        <div className="seg">
+          {[["", "Semua"], ["belum_bayar", "Belum"], ["sebagian", "Sebagian"], ["lunas", "Lunas"]].map(([v, l]) => (
+            <button key={v} className={status === v ? "is-active" : ""} onClick={() => setStatus(v)}>{l}</button>
+          ))}
+        </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        {isLoading ? (
-          <div className="text-gray-400 py-12 text-center">Loading…</div>
-        ) : rows.length === 0 ? (
-          <div className="text-gray-400 py-12 text-center">Belum ada data piutang.</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">Job No</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">Shipper</th>
-                <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">Tagihan</th>
-                <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">Dibayar</th>
-                <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">Sisa</th>
-                <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">Tanggal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => (
-                <tr key={r.id} className="border-b border-gray-100 hover:bg-blue-50">
-                  <td className="px-4 py-2.5">
-                    <Link to={`/bookings/${r.booking_id}`} className="text-blue-600 hover:underline font-medium">
-                      {r.job_no}
-                    </Link>
+      <Card pad={false}>
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Job No</th><th>Shipper</th><th>Buku</th>
+              <th className="right">Tagihan</th><th className="right">Dibayar</th><th className="right">Sisa</th>
+              <th style={{ width: 140 }}>Progress</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && <tr><td colSpan={8}><Empty title="Memuat…" /></td></tr>}
+            {!isLoading && rows.length === 0 && <tr><td colSpan={8}><Empty title="Belum ada data piutang." /></td></tr>}
+            {rows.map((r) => {
+              const pct = r.jumlah ? Math.round(((r.total_paid ?? 0) / r.jumlah) * 100) : 0;
+              const buku = bukuList.find((b) => b.id === r.buku_id);
+              return (
+                <tr key={r.id} className="is-clickable" onClick={() => navigate(`/bookings/${r.booking_id}`)}>
+                  <td className="strong mono">{r.job_no}</td>
+                  <td className="strong">{r.shipper}</td>
+                  <td className="muted mono" style={{ fontSize: 12 }}>
+                    {buku ? `${String(buku.bulan).padStart(2, "0")}/${buku.tahun}` : r.buku_id ? `#${r.buku_id}` : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-gray-700">{r.shipper}</td>
-                  <td className="px-4 py-2.5 text-right font-mono">{IDR(r.jumlah)}</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-green-700">{IDR(r.total_paid)}</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-red-600">{IDR(r.sisa)}</td>
-                  <td className="px-4 py-2.5 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[r.status]}`}>
-                      {STATUS_LABELS[r.status]}
-                    </span>
+                  <td className="right num">{fmtRp(r.jumlah)}</td>
+                  <td className="right num" style={{ color: "var(--ok)" }}>{fmtRp(r.total_paid ?? 0)}</td>
+                  <td className="right num" style={{ color: r.sisa > 0 ? "var(--accent)" : "var(--ok)" }}>{fmtRp(r.sisa)}</td>
+                  <td>
+                    <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                      <Progress value={r.total_paid ?? 0} max={r.jumlah || 1} tone={pct === 100 ? "ok" : pct > 0 ? "warn" : "danger"} />
+                      <span className="muted num" style={{ fontSize: 11, minWidth: 30, textAlign: "right" }}>{pct}%</span>
+                    </div>
                   </td>
-                  <td className="px-4 py-2.5 text-gray-500 text-xs">{new Date(r.created_at).toLocaleDateString('id-ID')}</td>
+                  <td><Badge status={r.status} /></td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              );
+            })}
+          </tbody>
+        </table>
+      </Card>
 
       {total > 20 && (
-        <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-          <span>{total} total</span>
-          <div className="flex gap-2">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="border border-gray-300 rounded px-3 py-1 hover:bg-gray-50 disabled:opacity-40">← Prev</button>
-            <span className="px-3 py-1">Hal. {page}</span>
-            <button onClick={() => setPage(p => p + 1)} disabled={rows.length < 20}
-              className="border border-gray-300 rounded px-3 py-1 hover:bg-gray-50 disabled:opacity-40">Next →</button>
+        <div className="row mt-16" style={{ justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 13 }}>{total} total</span>
+          <div className="row" style={{ gap: 6 }}>
+            <Button variant="default" size="sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>← Prev</Button>
+            <span className="muted" style={{ padding: "0 8px", fontSize: 13 }}>Hal. {page}</span>
+            <Button variant="default" size="sm" disabled={rows.length < 20} onClick={() => setPage((p) => p + 1)}>Next →</Button>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

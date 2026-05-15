@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const containerSchema = z.object({
   container_no: z.string().min(1),
   seal_no: z.string().optional().default(''),
-  size: z.enum(['20', '40']),
+  size: z.enum(['20ft', '40ft', '40HC']),
 });
 
 export const bookingSchema = z.object({

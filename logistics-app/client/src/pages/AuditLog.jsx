@@ -1,73 +1,96 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import api from '../api/client.js';
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import api from "../api/client.js";
+import { Button, Input, PageHeader, Card, Empty } from "../components/ui.jsx";
+import { IconActivity, IconSearch } from "../components/Icons.jsx";
 
-const ACTION_COLORS = {
-  create: 'bg-green-100 text-green-700',
-  update: 'bg-blue-100 text-blue-700',
-  delete: 'bg-red-100 text-red-700',
-};
+const ACTION_TONE = { create: "var(--ok)", delete: "var(--danger)", update: "var(--warn)", login: "var(--accent)" };
+const ACTION_LABEL = { create: "buat", delete: "hapus", update: "ubah", login: "login" };
+
+function formatChanges(raw) {
+  try {
+    const obj = JSON.parse(raw);
+    return Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join(" · ");
+  } catch {
+    return raw;
+  }
+}
 
 export default function AuditLog() {
   const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
   const LIMIT = 50;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['audit', page],
-    queryFn: () => api.get('/audit', { params: { page, limit: LIMIT } }).then(r => r.data),
+    queryKey: ["audit", page],
+    queryFn: () => api.get("/audit", { params: { page, limit: LIMIT } }).then((r) => r.data),
     placeholderData: (prev) => prev,
   });
 
-  const rows = data?.rows ?? [];
+  const allRows = data?.rows ?? [];
+  const rows = q.trim()
+    ? allRows.filter((r) => {
+        const needle = q.toLowerCase();
+        return [r.username, r.action, r.entity_type, r.changes].some((v) => v?.toLowerCase().includes(needle));
+      })
+    : allRows;
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div>
-      <h2 className="text-xl font-bold text-gray-800 mb-4">Audit Log</h2>
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              {['Time', 'User', 'Action', 'Entity', 'ID', 'Changes'].map(h => (
-                <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading…</td></tr>}
-            {rows.map(row => (
-              <tr key={row.id} className="border-b border-gray-100">
-                <td className="px-4 py-2 text-xs text-gray-500 whitespace-nowrap">{new Date(row.timestamp).toLocaleString()}</td>
-                <td className="px-4 py-2 font-medium">{row.username ?? '—'}</td>
-                <td className="px-4 py-2">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${ACTION_COLORS[row.action] ?? 'bg-gray-100 text-gray-700'}`}>
-                    {row.action}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-gray-600">{row.entity_type}</td>
-                <td className="px-4 py-2 text-gray-500">{row.entity_id ?? '—'}</td>
-                <td className="px-4 py-2 text-xs text-gray-500 font-mono max-w-xs truncate">{row.changes ?? '—'}</td>
-              </tr>
-            ))}
-            {!isLoading && rows.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-8 text-gray-400">No audit entries.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+    <>
+      <PageHeader
+        title="Audit Log"
+        meta={`${total} entri`}
+        actions={
+          <div className="search" style={{ minWidth: 260 }}>
+            <IconSearch size={14} />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari user, target, atau action…" />
+          </div>
+        }
+      />
+
+      <Card pad={false}>
+        {isLoading && <Empty title="Memuat…" />}
+        {!isLoading && rows.length === 0 && <Empty title="Belum ada entri audit." />}
+        <div className="col" style={{ padding: 8, gap: 0 }}>
+          {rows.map((row) => (
+            <div key={row.id} className="row" style={{ gap: 14, padding: "12px 14px", borderRadius: 8, alignItems: "flex-start" }}>
+              <span style={{
+                width: 32, height: 32, borderRadius: "50%", background: "var(--surface-2)",
+                color: ACTION_TONE[row.action] ?? "var(--fg-2)",
+                display: "grid", placeItems: "center", flexShrink: 0,
+              }}>
+                <IconActivity size={14} />
+              </span>
+              <div style={{ flex: 1 }}>
+                <div className="row" style={{ gap: 8, marginBottom: 2 }}>
+                  <span className="strong">{row.username ?? "system"}</span>
+                  <span className="muted">{ACTION_LABEL[row.action] ?? row.action}</span>
+                  <span className="link mono" style={{ fontSize: 12 }}>{row.entity_type}{row.entity_id != null ? ` #${row.entity_id}` : ""}</span>
+                </div>
+                {row.changes && (
+                  <div className="muted" style={{ fontSize: 12 }}>{formatChanges(row.changes)}</div>
+                )}
+              </div>
+              <div className="muted num" style={{ fontSize: 11.5, flexShrink: 0 }}>
+                {new Date(row.timestamp).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-          <span>{total} total entries</span>
-          <div className="flex gap-2">
-            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-50">Prev</button>
-            <span className="px-3 py-1">{page} / {totalPages}</span>
-            <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-50">Next</button>
+        <div className="row mt-16" style={{ justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 13 }}>{total} total</span>
+          <div className="row" style={{ gap: 6 }}>
+            <Button variant="default" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>← Prev</Button>
+            <span className="muted" style={{ padding: "0 8px", fontSize: 13 }}>{page} / {totalPages}</span>
+            <Button variant="default" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next →</Button>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

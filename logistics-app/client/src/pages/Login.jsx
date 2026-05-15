@@ -1,57 +1,79 @@
-import { useState } from 'react';
-import { useLogin } from '../hooks/useAuth.js';
+import { useState } from "react";
+import { useLogin } from "../hooks/useAuth.js";
+import { LogoHero } from "../components/Icons.jsx";
+import { Button, Field, Input } from "../components/ui.jsx";
+import { IconArrow, IconRefresh } from "../components/Icons.jsx";
 
 export default function Login() {
   const login = useLogin();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
     try {
       await login(username, password);
     } catch {
-      setError('Invalid username or password.');
+      setError("Username atau password salah.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-gray-800 mb-1">TAS Logistics</h1>
-        <p className="text-gray-500 text-sm mb-6">Export Booking System</p>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-            <input
-              type="text" value={username} onChange={e => setUsername(e.target.value)}
-              required autoFocus
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+    <div className="auth">
+      <aside className="auth__brand">
+        <div className="auth__brand-inner">
+          <div className="auth__mark">
+            <LogoHero size={180} accent="var(--accent)" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password" value={password} onChange={e => setPassword(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="auth__wm">
+            <h1>TAS</h1>
+            <p className="auth__tag">Logistics Booking &amp; Finance</p>
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button
-            type="submit" disabled={loading}
-            className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
-          >
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
+          <div className="auth__divider" />
+          <p className="auth__copy">
+            Catat shipment ekspor, kelola piutang shipper, dan pantau hutang vendor — semua dalam satu sistem.
+          </p>
+        </div>
+        <div className="auth__legal">© 2026 PT TAS Logistics · <span className="muted">Belawan, Medan</span></div>
+      </aside>
+
+      <main className="auth__form-wrap">
+        <form className="auth__form" onSubmit={handleSubmit} autoComplete="off">
+          <div className="auth__form-hd">
+            <div className="auth__form-eyebrow">Welcome back</div>
+            <h2>Sign in to your workspace</h2>
+            <p className="muted">Masuk dengan akun yang diberikan admin.</p>
+          </div>
+
+          <div className="col" style={{ gap: 14 }}>
+            <Field label="Username" required>
+              <Input
+                value={username} onChange={(e) => setUsername(e.target.value)}
+                placeholder="username" autoFocus required
+              />
+            </Field>
+            <Field label="Password" required>
+              <Input
+                type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••" required
+              />
+            </Field>
+
+            {error && <div className="auth__err">{error}</div>}
+
+            <Button variant="primary" size="lg" full type="submit" disabled={loading}
+              icon={loading ? <IconRefresh size={14} /> : <IconArrow size={14} />}>
+              {loading ? "Signing in…" : "Sign in"}
+            </Button>
+          </div>
         </form>
-      </div>
+      </main>
     </div>
   );
 }

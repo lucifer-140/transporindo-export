@@ -2,17 +2,26 @@ import { getDb } from '../db.js';
 import { requireRole } from '../middleware/requireRole.js';
 
 export async function bukuRoutes(fastify) {
-  // List all buku with booking count
+  // List all buku with booking count + financial aggregates
   fastify.get('/api/buku', { preHandler: requireRole('worker') }, async () => {
     const db = getDb();
     const rows = db.prepare(`
-      SELECT b.*, COUNT(bk.id) AS booking_count
+      SELECT b.*,
+        COUNT(DISTINCT bk.id) AS booking_count,
+        COALESCE(SUM(p.jumlah), 0) AS tagihan,
+        COALESCE(SUM(pm_agg.total_paid), 0) AS dibayar
       FROM buku b
       LEFT JOIN bookings bk ON bk.buku_id = b.id AND bk.deleted_at IS NULL
+      LEFT JOIN piutang p ON p.booking_id = bk.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(jumlah) AS total_paid
+        FROM pembayaran WHERE entity_type = 'piutang'
+        GROUP BY entity_id
+      ) pm_agg ON pm_agg.entity_id = p.id
       GROUP BY b.id
       ORDER BY b.tahun DESC, b.bulan DESC
     `).all();
-    return rows;
+    return rows.map(r => ({ ...r, sisa: r.tagihan - r.dibayar }));
   });
 
   // Create buku
@@ -41,7 +50,8 @@ export async function bukuRoutes(fastify) {
     if (!buku) return reply.code(404).send({ error: 'Not found' });
 
     const bookings = db.prepare(`
-      SELECT bk.id, bk.job_no, bk.shipper, bk.status, bk.created_at,
+      SELECT bk.id, bk.job_no, bk.shipper, bk.commodity, bk.vessel_name, bk.vessel_no,
+             bk.in_date, bk.out_date, bk.peb, bk.bon, bk.trucking, bk.status, bk.created_at,
              p.jumlah AS tagihan, p.id AS piutang_id,
              COALESCE((
                SELECT SUM(pm.jumlah) FROM pembayaran pm
@@ -63,6 +73,13 @@ export async function bukuRoutes(fastify) {
       shipperMap[row.shipper].bookings.push({
         id: row.id,
         job_no: row.job_no,
+        commodity: row.commodity ?? null,
+        vessel_name: row.vessel_name ?? null,
+        vessel_no: row.vessel_no ?? null,
+        in_date: row.in_date ?? null,
+        out_date: row.out_date ?? null,
+        peb: row.peb ?? null,
+        trucking: row.trucking ?? null,
         status: row.status,
         created_at: row.created_at,
         tagihan: row.tagihan ?? 0,

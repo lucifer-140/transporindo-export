@@ -1,740 +1,538 @@
-import { useState } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../api/client.js';
-import { useAuth } from '../hooks/useAuth.js';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "../api/client.js";
+import { useAuth } from "../hooks/useAuth.js";
+import { Badge, Button, Card, PageHeader, Empty, Modal, Field, Input, Select, Stat, Progress, fmtRp, fmtDate } from "../components/ui.jsx";
+import { IconEdit, IconTrash, IconPlus, IconChevron, IconMore } from "../components/Icons.jsx";
 
-const STATUS_LABELS = { in_progress: 'In Progress', done: 'Done' };
-const STATUS_COLORS = {
-  in_progress: 'bg-yellow-100 text-yellow-800',
-  done: 'bg-green-100 text-green-800',
-};
+// ── Modals ────────────────────────────────────────────────────────────────────
 
-const STATUS_FINANCE_LABELS = { belum_bayar: 'Belum Bayar', sebagian: 'Sebagian', lunas: 'Lunas' };
-const STATUS_FINANCE_COLORS = {
-  belum_bayar: 'bg-red-100 text-red-800',
-  sebagian: 'bg-yellow-100 text-yellow-800',
-  lunas: 'bg-green-100 text-green-800',
-};
-const IDR = (n) => `Rp ${(n ?? 0).toLocaleString('id-ID')}`;
-
-const EMPTY_ITEM = { tipe: '', qty: 1, harga_satuan: '' };
-
-function InvoiceSection({ bookingId }) {
-  const queryClient = useQueryClient();
-  const qk = ['dokumen', bookingId];
-  const [form, setForm] = useState(null);
-
-  const { data: items = [] } = useQuery({
-    queryKey: qk,
-    queryFn: () => api.get(`/bookings/${bookingId}/dokumen`).then(r => r.data),
-  });
-
-  const addMutation = useMutation({
-    mutationFn: (body) => api.post(`/bookings/${bookingId}/dokumen`, body).then(r => r.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
-  });
-
-  const editMutation = useMutation({
-    mutationFn: ({ id, body }) => api.put(`/bookings/${bookingId}/dokumen/${id}`, body).then(r => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qk }); setForm(null); },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => api.delete(`/bookings/${bookingId}/dokumen/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
-  });
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    const body = {
-      tipe: form.tipe,
-      qty: parseInt(form.qty) || 1,
-      harga_satuan: parseInt(form.harga_satuan) || 0,
-    };
-    if (form.id) {
-      editMutation.mutate({ id: form.id, body });
-    } else {
-      addMutation.mutate(body);
-      setForm({ ...EMPTY_ITEM });
+function PaymentModal({ open, onClose, label, onSave, isPending, initialData }) {
+  const [tanggal, setTanggal] = useState(() => new Date().toISOString().slice(0, 10));
+  const [jumlah, setJumlah] = useState("");
+  const [metode, setMetode] = useState("transfer");
+  const [keterangan, setKeterangan] = useState("");
+  useEffect(() => {
+    if (open) {
+      setTanggal(initialData?.tanggal ?? new Date().toISOString().slice(0, 10));
+      setJumlah(initialData?.jumlah ?? "");
+      setMetode(initialData?.metode ?? "transfer");
+      setKeterangan(initialData?.keterangan ?? "");
     }
-  }
-
-  const isPending = addMutation.isPending || editMutation.isPending;
-  const total = items.reduce((s, d) => s + (d.biaya || 0), 0);
-
+  }, [open]);
   return (
-    <div className="mt-5 pt-5 border-t border-gray-100">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">
-          Invoice <span className="text-gray-400 font-normal">({items.length} item)</span>
-        </h3>
-        {!form && (
-          <button
-            onClick={() => setForm({ ...EMPTY_ITEM })}
-            className="text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50"
-          >
-            + Tambah Biaya
-          </button>
-        )}
+    <Modal open={open} onClose={onClose} title={label ?? "Tambah Pembayaran"}
+      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!jumlah || isPending} onClick={() => onSave({ tanggal, jumlah: +jumlah, metode, keterangan })}>Simpan</Button></>}>
+      <div className="grid grid-form-2">
+        <Field label="Tanggal" required><Input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} /></Field>
+        <Field label="Jumlah (Rp)" required><Input type="number" min={1} value={jumlah} onChange={(e) => setJumlah(e.target.value)} /></Field>
+        <Field label="Metode" required>
+          <Select value={metode} onChange={(e) => setMetode(e.target.value)}>
+            <option value="transfer">Transfer</option>
+            <option value="cash">Cash</option>
+            <option value="giro">Giro</option>
+            <option value="lainnya">Lainnya</option>
+          </Select>
+        </Field>
+        <Field label="Keterangan"><Input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="opsional" /></Field>
       </div>
-
-      {items.length === 0 && !form && (
-        <p className="text-gray-400 text-sm">Belum ada biaya.</p>
-      )}
-
-      {items.length > 0 && (
-        <table className="w-full text-sm mb-3">
-          <thead>
-            <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
-              <th className="text-left py-1.5 w-8">No.</th>
-              <th className="text-left py-1.5">Uraian</th>
-              <th className="text-right py-1.5 w-16">Qty</th>
-              <th className="text-right py-1.5">Harga Satuan</th>
-              <th className="text-right py-1.5">Jumlah</th>
-              <th className="py-1.5 w-16"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((d, i) => (
-              <tr key={d.id} className="border-b border-gray-50">
-                <td className="py-1.5 text-gray-400">{i + 1}</td>
-                <td className="py-1.5 font-medium">{d.tipe}</td>
-                <td className="py-1.5 text-right text-gray-600">{d.qty ?? 1}</td>
-                <td className="py-1.5 text-right font-mono text-gray-600">
-                  {d.harga_satuan > 0 ? IDR(d.harga_satuan) : '—'}
-                </td>
-                <td className="py-1.5 text-right font-mono">
-                  {d.biaya > 0 ? IDR(d.biaya) : '—'}
-                </td>
-                <td className="py-1.5 text-right">
-                  <button
-                    onClick={() => setForm({ id: d.id, tipe: d.tipe, qty: d.qty ?? 1, harga_satuan: d.harga_satuan ?? 0 })}
-                    className="text-xs text-gray-400 hover:text-gray-700 mr-2"
-                  >Edit</button>
-                  <button
-                    onClick={() => deleteMutation.mutate(d.id)}
-                    className="text-xs text-red-400 hover:text-red-600"
-                  >Hapus</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-gray-200">
-              <td colSpan={4} className="pt-2 text-sm font-semibold text-gray-700 text-right pr-4">Total</td>
-              <td className="pt-2 text-right font-mono font-semibold text-gray-900">{IDR(total)}</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      )}
-
-      {form && (
-        <form onSubmit={handleSubmit} onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.type !== 'submit') e.preventDefault(); }} className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2">
-          <div className="grid grid-cols-4 gap-3 mb-3">
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Uraian</label>
-              <input
-                required
-                value={form.tipe}
-                onChange={e => setForm(f => ({ ...f, tipe: e.target.value }))}
-                placeholder="Biaya Dokumen, Trucking, Storage…"
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Qty</label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={form.qty}
-                onChange={e => setForm(f => ({ ...f, qty: e.target.value }))}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Harga Satuan (Rp)</label>
-              <input
-                type="number"
-                min="0"
-                value={form.harga_satuan}
-                onChange={e => setForm(f => ({ ...f, harga_satuan: e.target.value }))}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-4 mb-3">
-            <span className="text-xs text-gray-500">
-              Jumlah: <span className="font-mono font-semibold text-gray-800">{IDR((parseInt(form.qty) || 0) * (parseInt(form.harga_satuan) || 0))}</span>
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={isPending}
-              className="bg-blue-600 text-white rounded px-3 py-1.5 text-sm hover:bg-blue-700 disabled:opacity-50">
-              {form.id ? 'Simpan' : 'Tambah'}
-            </button>
-            <button type="button" onClick={() => setForm(null)}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm hover:bg-gray-50">
-              Batal
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
+    </Modal>
   );
 }
 
-function Field({ label, value }) {
+function LineItemModal({ open, onClose, item, onSave, isPending }) {
+  const [tipe, setTipe] = useState("");
+  const [qty, setQty] = useState(1);
+  const [harga, setHarga] = useState("");
+  useEffect(() => { if (open && item) { setTipe(item.tipe || ""); setQty(item.qty || 1); setHarga(item.harga_satuan ?? ""); } }, [open, item]);
+  const subtotal = qty * harga;
   return (
-    <div>
-      <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</dt>
-      <dd className="mt-0.5 text-sm text-gray-900">{value || <span className="text-gray-400">—</span>}</dd>
-    </div>
-  );
-}
-
-const EMPTY_PAY = { jumlah: '', tanggal: new Date().toISOString().slice(0, 10), metode: 'transfer', keterangan: '' };
-const METODE_OPTIONS = [
-  { value: 'transfer', label: 'Transfer' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'giro', label: 'Giro' },
-  { value: 'lainnya', label: 'Lainnya' },
-];
-
-function PiutangSection({ bookingId }) {
-  const queryClient = useQueryClient();
-  const qk = ['piutang', bookingId];
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ jumlah: '', keterangan: '' });
-  const [payForm, setPayForm] = useState(null);
-
-  const { data: piutang } = useQuery({
-    queryKey: qk,
-    queryFn: () => api.get(`/bookings/${bookingId}/piutang`).then(r => r.data),
-  });
-
-  const { data: dokumen = [] } = useQuery({
-    queryKey: ['dokumen', bookingId],
-    queryFn: () => api.get(`/bookings/${bookingId}/dokumen`).then(r => r.data),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (body) => api.post(`/bookings/${bookingId}/piutang`, body).then(r => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qk }); setEditing(false); },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (body) => api.put(`/bookings/${bookingId}/piutang/${piutang.id}`, body).then(r => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qk }); setEditing(false); },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => api.delete(`/bookings/${bookingId}/piutang/${piutang.id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
-  });
-
-  const addPayMutation = useMutation({
-    mutationFn: (body) => api.post(`/bookings/${bookingId}/piutang/${piutang.id}/pembayaran`, body).then(r => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qk }); setPayForm(null); },
-  });
-
-  const deletePayMutation = useMutation({
-    mutationFn: (payId) => api.delete(`/bookings/${bookingId}/piutang/${piutang.id}/pembayaran/${payId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
-  });
-
-  function autoFill() {
-    const total = dokumen.reduce((s, d) => s + (d.biaya || 0), 0);
-    setForm(f => ({ ...f, jumlah: total }));
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    const body = { jumlah: parseInt(form.jumlah) || 0, keterangan: form.keterangan };
-    piutang ? updateMutation.mutate(body) : createMutation.mutate(body);
-  }
-
-  function handlePaySubmit(e) {
-    e.preventDefault();
-    addPayMutation.mutate({ jumlah: parseInt(payForm.jumlah) || 0, tanggal: payForm.tanggal, metode: payForm.metode, keterangan: payForm.keterangan });
-  }
-
-  return (
-    <div className="mt-5 pt-5 border-t border-gray-100">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">
-          Piutang
-          {piutang && (
-            <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_FINANCE_COLORS[piutang.status]}`}>
-              {STATUS_FINANCE_LABELS[piutang.status]}
-            </span>
-          )}
-        </h3>
-        {!editing && !piutang && (
-          <button onClick={() => { setForm({ jumlah: '', keterangan: '' }); setEditing(true); }}
-            className="text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">
-            + Buat Tagihan
-          </button>
-        )}
-        {!editing && piutang && (
-          <div className="flex gap-2">
-            <button onClick={() => { setForm({ jumlah: piutang.jumlah, keterangan: piutang.keterangan ?? '' }); setEditing(true); }}
-              className="text-xs text-gray-400 hover:text-gray-700">Edit</button>
-            <button onClick={() => deleteMutation.mutate()} className="text-xs text-red-400 hover:text-red-600">Hapus</button>
-          </div>
-        )}
-      </div>
-
-      {piutang && !editing && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div><span className="text-xs text-gray-500 uppercase tracking-wider block">Tagihan</span><span className="font-mono">{IDR(piutang.jumlah)}</span></div>
-            <div><span className="text-xs text-gray-500 uppercase tracking-wider block">Dibayar</span><span className="font-mono text-green-700">{IDR(piutang.total_paid)}</span></div>
-            <div><span className="text-xs text-gray-500 uppercase tracking-wider block">Sisa</span><span className="font-mono text-red-600">{IDR(piutang.sisa)}</span></div>
-          </div>
-          {piutang.keterangan && <p className="text-sm text-gray-600">{piutang.keterangan}</p>}
-
-          {piutang.pembayaran.length > 0 && (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
-                  <th className="text-left py-1">Tanggal</th>
-                  <th className="text-left py-1">Metode</th>
-                  <th className="text-left py-1">Keterangan</th>
-                  <th className="text-right py-1">Jumlah</th>
-                  <th className="py-1"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {piutang.pembayaran.map(p => (
-                  <tr key={p.id} className="border-b border-gray-50">
-                    <td className="py-1 text-gray-600">{p.tanggal}</td>
-                    <td className="py-1 text-gray-600 capitalize">{p.metode || 'transfer'}</td>
-                    <td className="py-1 text-gray-600">{p.keterangan || '—'}</td>
-                    <td className="py-1 text-right font-mono">{IDR(p.jumlah)}</td>
-                    <td className="py-1 text-right">
-                      <button onClick={() => deletePayMutation.mutate(p.id)} className="text-xs text-red-400 hover:text-red-600">Hapus</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {!payForm && piutang.status !== 'lunas' && (
-            <button onClick={() => setPayForm({ ...EMPTY_PAY })}
-              className="text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">
-              + Tambah Pembayaran
-            </button>
-          )}
-
-          {payForm && (
-            <form onSubmit={handlePaySubmit} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <div className="grid grid-cols-4 gap-3 mb-2">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Tanggal</label>
-                  <input type="date" required value={payForm.tanggal}
-                    onChange={e => setPayForm(f => ({ ...f, tanggal: e.target.value }))}
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Jumlah (Rp)</label>
-                  <input type="number" min="1" required value={payForm.jumlah}
-                    onChange={e => setPayForm(f => ({ ...f, jumlah: e.target.value }))}
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Metode</label>
-                  <select value={payForm.metode}
-                    onChange={e => setPayForm(f => ({ ...f, metode: e.target.value }))}
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400">
-                    {METODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Keterangan</label>
-                  <input value={payForm.keterangan}
-                    onChange={e => setPayForm(f => ({ ...f, keterangan: e.target.value }))}
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" disabled={addPayMutation.isPending}
-                  className="bg-blue-600 text-white rounded px-3 py-1.5 text-sm hover:bg-blue-700 disabled:opacity-50">Simpan</button>
-                <button type="button" onClick={() => setPayForm(null)}
-                  className="border border-gray-300 rounded px-3 py-1.5 text-sm hover:bg-gray-50">Batal</button>
-              </div>
-            </form>
-          )}
+    <Modal open={open} onClose={onClose} title={item?.id ? "Edit Line Item" : "Add Line Item"}
+      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!tipe || !harga || isPending} onClick={() => onSave({ tipe, qty, harga_satuan: harga })}>{item?.id ? "Save" : "Add"}</Button></>}>
+      <div className="col" style={{ gap: 14 }}>
+        <Field label="Uraian (Deskripsi biaya)" required><Input value={tipe} onChange={(e) => setTipe(e.target.value)} placeholder="Biaya Handling Container 40ft" /></Field>
+        <div className="grid grid-form-2">
+          <Field label="Qty" required><Input type="number" min={1} value={qty} onChange={(e) => setQty(+e.target.value)} /></Field>
+          <Field label="Harga Satuan (Rp)" required><Input type="number" min={0} value={harga} onChange={(e) => setHarga(+e.target.value)} /></Field>
         </div>
-      )}
-
-      {editing && (
-        <form onSubmit={handleSubmit} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Jumlah Tagihan (Rp)</label>
-              <div className="flex gap-2">
-                <input type="number" min="0" required value={form.jumlah}
-                  onChange={e => setForm(f => ({ ...f, jumlah: e.target.value }))}
-                  className="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-                <button type="button" onClick={autoFill}
-                  className="text-xs border border-gray-300 rounded px-2 py-1.5 hover:bg-gray-50 whitespace-nowrap">
-                  Auto dari Invoice
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Keterangan</label>
-              <input value={form.keterangan}
-                onChange={e => setForm(f => ({ ...f, keterangan: e.target.value }))}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={createMutation.isPending || updateMutation.isPending}
-              className="bg-blue-600 text-white rounded px-3 py-1.5 text-sm hover:bg-blue-700 disabled:opacity-50">
-              {piutang ? 'Simpan' : 'Buat'}
-            </button>
-            <button type="button" onClick={() => setEditing(false)}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm hover:bg-gray-50">Batal</button>
-          </div>
-        </form>
-      )}
-
-      {!piutang && !editing && <p className="text-gray-400 text-sm">Belum ada tagihan.</p>}
-    </div>
-  );
-}
-
-const EMPTY_HUTANG_FORM = { pihak: '', jumlah: '', keterangan: '' };
-
-function HutangSection({ bookingId }) {
-  const queryClient = useQueryClient();
-  const qk = ['hutang-booking', bookingId];
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ ...EMPTY_HUTANG_FORM });
-  const [expanded, setExpanded] = useState(null);
-  const [payForms, setPayForms] = useState({});
-
-  const { data: hutangList = [] } = useQuery({
-    queryKey: qk,
-    queryFn: () => api.get(`/bookings/${bookingId}/hutang`).then(r => r.data),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (body) => api.post('/hutang', body).then(r => r.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => api.delete(`/hutang/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
-  });
-
-  const addPayMutation = useMutation({
-    mutationFn: ({ id, body }) => api.post(`/hutang/${id}/pembayaran`, body).then(r => r.data),
-    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: qk }); setPayForms(f => ({ ...f, [id]: null })); },
-  });
-
-  const deletePayMutation = useMutation({
-    mutationFn: ({ hutangId, payId }) => api.delete(`/hutang/${hutangId}/pembayaran/${payId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
-  });
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    createMutation.mutate({ pihak: form.pihak, jumlah: parseInt(form.jumlah) || 0, keterangan: form.keterangan, booking_id: parseInt(bookingId) });
-    setForm({ ...EMPTY_HUTANG_FORM });
-  }
-
-  return (
-    <div className="mt-5 pt-5 border-t border-gray-100">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">
-          Hutang <span className="text-gray-400 font-normal">({hutangList.length})</span>
-        </h3>
-        {!showForm && (
-          <button onClick={() => setShowForm(true)}
-            className="text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">
-            + Tambah Hutang
-          </button>
-        )}
-      </div>
-
-      {hutangList.length === 0 && !showForm && <p className="text-gray-400 text-sm">Belum ada hutang.</p>}
-
-      {hutangList.length > 0 && (
-        <div className="space-y-2 mb-3">
-          {hutangList.map(h => (
-            <div key={h.id} className="border border-gray-200 rounded-lg">
-              <div
-                className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50"
-                onClick={() => setExpanded(expanded === h.id ? null : h.id)}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium">{h.pihak}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_FINANCE_COLORS[h.status]}`}>
-                    {STATUS_FINANCE_LABELS[h.status]}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-mono">{IDR(h.jumlah)}</span>
-                  <button onClick={e => { e.stopPropagation(); deleteMutation.mutate(h.id); }}
-                    className="text-xs text-red-400 hover:text-red-600">Hapus</button>
-                  <span className="text-gray-400 text-xs">{expanded === h.id ? '▲' : '▼'}</span>
-                </div>
-              </div>
-
-              {expanded === h.id && (
-                <div className="px-3 pb-3 border-t border-gray-100">
-                  <div className="grid grid-cols-3 gap-4 text-sm my-2">
-                    <div><span className="text-xs text-gray-500 uppercase tracking-wider block">Tagihan</span><span className="font-mono">{IDR(h.jumlah)}</span></div>
-                    <div><span className="text-xs text-gray-500 uppercase tracking-wider block">Dibayar</span><span className="font-mono text-green-700">{IDR(h.total_paid)}</span></div>
-                    <div><span className="text-xs text-gray-500 uppercase tracking-wider block">Sisa</span><span className="font-mono text-red-600">{IDR(h.sisa)}</span></div>
-                  </div>
-                  {h.keterangan && <p className="text-sm text-gray-600 mb-2">{h.keterangan}</p>}
-
-                  {h.pembayaran.length > 0 && (
-                    <table className="w-full text-sm mb-2">
-                      <thead>
-                        <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
-                          <th className="text-left py-1">Tanggal</th>
-                          <th className="text-left py-1">Metode</th>
-                          <th className="text-left py-1">Keterangan</th>
-                          <th className="text-right py-1">Jumlah</th>
-                          <th className="py-1"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {h.pembayaran.map(p => (
-                          <tr key={p.id} className="border-b border-gray-50">
-                            <td className="py-1 text-gray-600">{p.tanggal}</td>
-                            <td className="py-1 text-gray-600 capitalize">{p.metode || 'transfer'}</td>
-                            <td className="py-1 text-gray-600">{p.keterangan || '—'}</td>
-                            <td className="py-1 text-right font-mono">{IDR(p.jumlah)}</td>
-                            <td className="py-1 text-right">
-                              <button onClick={() => deletePayMutation.mutate({ hutangId: h.id, payId: p.id })}
-                                className="text-xs text-red-400 hover:text-red-600">Hapus</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-
-                  {!payForms[h.id] && h.status !== 'lunas' && (
-                    <button onClick={() => setPayForms(f => ({ ...f, [h.id]: { ...EMPTY_PAY } }))}
-                      className="text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">
-                      + Tambah Pembayaran
-                    </button>
-                  )}
-
-                  {payForms[h.id] && (
-                    <form onSubmit={e => { e.preventDefault(); addPayMutation.mutate({ id: h.id, body: { jumlah: parseInt(payForms[h.id].jumlah)||0, tanggal: payForms[h.id].tanggal, metode: payForms[h.id].metode, keterangan: payForms[h.id].keterangan } }); }}
-                      className="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-2">
-                      <div className="grid grid-cols-4 gap-3 mb-2">
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Tanggal</label>
-                          <input type="date" required value={payForms[h.id].tanggal}
-                            onChange={e => setPayForms(f => ({ ...f, [h.id]: { ...f[h.id], tanggal: e.target.value } }))}
-                            className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Jumlah (Rp)</label>
-                          <input type="number" min="1" required value={payForms[h.id].jumlah}
-                            onChange={e => setPayForms(f => ({ ...f, [h.id]: { ...f[h.id], jumlah: e.target.value } }))}
-                            className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Metode</label>
-                          <select value={payForms[h.id].metode}
-                            onChange={e => setPayForms(f => ({ ...f, [h.id]: { ...f[h.id], metode: e.target.value } }))}
-                            className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400">
-                            {METODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Keterangan</label>
-                          <input value={payForms[h.id].keterangan}
-                            onChange={e => setPayForms(f => ({ ...f, [h.id]: { ...f[h.id], keterangan: e.target.value } }))}
-                            className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button type="submit" disabled={addPayMutation.isPending}
-                          className="bg-blue-600 text-white rounded px-3 py-1.5 text-sm hover:bg-blue-700 disabled:opacity-50">Simpan</button>
-                        <button type="button" onClick={() => setPayForms(f => ({ ...f, [h.id]: null }))}
-                          className="border border-gray-300 rounded px-3 py-1.5 text-sm hover:bg-gray-50">Batal</button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--bg-2)", display: "flex", justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 12 }}>Subtotal</span>
+          <span className="num strong" style={{ fontSize: 16 }}>{fmtRp(subtotal)}</span>
         </div>
-      )}
-
-      {showForm && (
-        <form onSubmit={handleSubmit} onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.type !== 'submit') e.preventDefault(); }} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Pihak (Vendor)</label>
-              <input required value={form.pihak}
-                onChange={e => setForm(f => ({ ...f, pihak: e.target.value }))}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Jumlah (Rp)</label>
-              <input type="number" min="0" required value={form.jumlah}
-                onChange={e => setForm(f => ({ ...f, jumlah: e.target.value }))}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Keterangan</label>
-              <input value={form.keterangan}
-                onChange={e => setForm(f => ({ ...f, keterangan: e.target.value }))}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={createMutation.isPending}
-              className="bg-blue-600 text-white rounded px-3 py-1.5 text-sm hover:bg-blue-700 disabled:opacity-50">Tambah</button>
-            <button type="button" onClick={() => setShowForm(false)}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm hover:bg-gray-50">Batal</button>
-          </div>
-        </form>
-      )}
-    </div>
+      </div>
+    </Modal>
   );
 }
+
+function PiutangSetModal({ open, onClose, currentAmount, invoiceTotal, onSave, isPending }) {
+  const [jumlah, setJumlah] = useState("");
+  useEffect(() => { if (open) { setJumlah(currentAmount || ""); } }, [open, currentAmount]);
+  return (
+    <Modal open={open} onClose={onClose} title="Set Piutang Manual"
+      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={isPending || !jumlah} onClick={() => onSave({ jumlah: +jumlah })}>Simpan</Button></>}>
+      <div className="col" style={{ gap: 14 }}>
+        <Field label="Jumlah Piutang (Rp)" required><Input type="number" min={0} value={jumlah} onChange={(e) => setJumlah(e.target.value)} /></Field>
+        {invoiceTotal > 0 && <p className="muted" style={{ fontSize: 12 }}>Total invoice: <strong className="num">{fmtRp(invoiceTotal)}</strong>.</p>}
+      </div>
+    </Modal>
+  );
+}
+
+function HutangFormModal({ open, onClose, onSave, isPending }) {
+  const [pihak, setPihak] = useState("");
+  const [jumlah, setJumlah] = useState(0);
+  const [keterangan, setKeterangan] = useState("");
+  useEffect(() => { if (open) { setPihak(""); setJumlah(0); setKeterangan(""); } }, [open]);
+  return (
+    <Modal open={open} onClose={onClose} title="Tambah Hutang Vendor"
+      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!pihak || !jumlah || isPending} onClick={() => onSave({ pihak, jumlah, keterangan })}>Tambah</Button></>}>
+      <div className="grid grid-form-2">
+        <Field label="Pihak / Vendor" required span={2}><Input value={pihak} onChange={(e) => setPihak(e.target.value)} placeholder="Nama vendor" /></Field>
+        <Field label="Jumlah (Rp)" required><Input type="number" min={1} value={jumlah} onChange={(e) => setJumlah(+e.target.value)} /></Field>
+        <Field label="Keterangan"><Input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} /></Field>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { isFinance } = useAuth();
-  const { data, isLoading } = useQuery({
-    queryKey: ['booking', id],
-    queryFn: () => api.get(`/bookings/${id}`).then(r => r.data),
+  const { isFinance, isAdmin } = useAuth();
+
+  // Modal state
+  const [payModal, setPayModal] = useState(null); // { kind: 'piutang' } | { kind: 'hutang', hutangId, sisa }
+  const [itemModal, setItemModal] = useState(null); // null | { id?, tipe, qty, harga_satuan }
+  const [piutangModal, setPiutangModal] = useState(false);
+  const [hutangModal, setHutangModal] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+
+  // Queries
+  const { data: bookingData, isLoading } = useQuery({
+    queryKey: ["booking", id],
+    queryFn: () => api.get(`/bookings/${id}`).then((r) => r.data),
   });
 
-  const statusMutation = useMutation({
-    mutationFn: (status) => api.patch(`/bookings/${id}/status`, { status }).then(r => r.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['booking', id] }),
+  const { data: dokumen = [] } = useQuery({
+    queryKey: ["dokumen", id],
+    queryFn: () => api.get(`/bookings/${id}/dokumen`).then((r) => r.data),
+    enabled: isFinance,
   });
+
+  const { data: piutang } = useQuery({
+    queryKey: ["piutang", id],
+    queryFn: () => api.get(`/bookings/${id}/piutang`).then((r) => r.data),
+    enabled: isFinance,
+  });
+
+  const { data: hutangList = [] } = useQuery({
+    queryKey: ["hutang-booking", id],
+    queryFn: () => api.get(`/bookings/${id}/hutang`).then((r) => r.data),
+    enabled: isFinance,
+  });
+
+  // Mutations
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["booking", id] });
+    queryClient.invalidateQueries({ queryKey: ["dokumen", id] });
+    queryClient.invalidateQueries({ queryKey: ["piutang", id] });
+    queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] });
+  };
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/bookings/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      const bukuId = location.state?.buku_id;
-      navigate(bukuId ? `/buku/${bukuId}` : '/');
-    },
+    onSuccess: () => navigate(location.state?.buku_id ? `/buku/${location.state.buku_id}` : "/"),
   });
 
-  if (isLoading) return <div className="text-gray-400 py-12 text-center">Loading…</div>;
-  if (!data) return <div className="text-red-500 py-12 text-center">Booking not found.</div>;
+  const addItemMutation = useMutation({
+    mutationFn: (body) => api.post(`/bookings/${id}/dokumen`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); setItemModal(null); },
+  });
 
-  const { booking, containers } = data;
+  const editItemMutation = useMutation({
+    mutationFn: ({ itemId, body }) => api.put(`/bookings/${id}/dokumen/${itemId}`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dokumen", id] }); setItemModal(null); },
+  });
 
-  function handleDelete() {
-    if (window.confirm(`Delete booking ${booking.job_no}? This cannot be undone.`)) {
-      deleteMutation.mutate();
-    }
+  const deleteItemMutation = useMutation({
+    mutationFn: (itemId) => api.delete(`/bookings/${id}/dokumen/${itemId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dokumen", id] }),
+  });
+
+  const setPiutangMutation = useMutation({
+    mutationFn: (body) => piutang
+      ? api.put(`/bookings/${id}/piutang/${piutang.id}`, body).then((r) => r.data)
+      : api.post(`/bookings/${id}/piutang`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["piutang", id] }); setPiutangModal(false); },
+  });
+
+  const addPiutangPayMutation = useMutation({
+    mutationFn: (body) => api.post(`/bookings/${id}/piutang/${piutang.id}/pembayaran`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["piutang", id] }); setPayModal(null); },
+  });
+
+  const deletePiutangPayMutation = useMutation({
+    mutationFn: (payId) => api.delete(`/bookings/${id}/piutang/${piutang.id}/pembayaran/${payId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["piutang", id] }),
+  });
+
+  const editPiutangPayMutation = useMutation({
+    mutationFn: ({ payId, body }) => api.put(`/bookings/${id}/piutang/${piutang.id}/pembayaran/${payId}`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["piutang", id] }); setPayModal(null); },
+  });
+
+  const addHutangMutation = useMutation({
+    mutationFn: (body) => api.post("/hutang", { ...body, booking_id: parseInt(id) }).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setHutangModal(false); },
+  });
+
+  const deleteHutangMutation = useMutation({
+    mutationFn: (hutangId) => api.delete(`/hutang/${hutangId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }),
+  });
+
+  const addHutangPayMutation = useMutation({
+    mutationFn: ({ hutangId, body }) => api.post(`/hutang/${hutangId}/pembayaran`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setPayModal(null); },
+  });
+
+  const deleteHutangPayMutation = useMutation({
+    mutationFn: ({ hutangId, payId }) => api.delete(`/hutang/${hutangId}/pembayaran/${payId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }),
+  });
+
+  const editHutangPayMutation = useMutation({
+    mutationFn: ({ hutangId, payId, body }) => api.put(`/hutang/${hutangId}/pembayaran/${payId}`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setPayModal(null); },
+  });
+
+  if (isLoading) return <div className="empty"><div className="empty__title">Memuat…</div></div>;
+  if (!bookingData) return <div className="empty"><div className="empty__title" style={{ color: "var(--danger)" }}>Booking tidak ditemukan.</div></div>;
+
+  const { booking, containers } = bookingData;
+  const invoiceTotal = dokumen.reduce((s, d) => s + (d.biaya || 0), 0);
+  const piutangPaid = piutang?.total_paid ?? 0;
+  const piutangSisa = piutang ? Math.max(0, piutang.jumlah - piutangPaid) : 0;
+  const piutangSt = piutang?.status ?? "none";
+
+  const bukuState = location.state ?? {};
+  const crumbs = [
+    { label: "Buku", onClick: () => navigate("/") },
+    ...(bukuState.buku_id ? [{ label: `Buku ${bukuState.buku_periode ?? ""}`, onClick: () => navigate(`/buku/${bukuState.buku_id}`) }] : []),
+    { label: booking.job_no },
+  ];
+
+  function fmtCtr(ctrs) {
+    const counts = {};
+    for (const c of ctrs) counts[c.size] = (counts[c.size] ?? 0) + 1;
+    const parts = Object.entries(counts).map(([s, n]) => `${n}× ${s}`);
+    return `${ctrs.length} container${ctrs.length !== 1 ? "s" : ""}${parts.length ? ` (${parts.join(", ")})` : ""}`;
   }
 
-  const otherStatus = booking.status === 'in_progress' ? 'done' : 'in_progress';
-
   return (
-    <div className="max-w-3xl">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => { const bukuId = location.state?.buku_id; navigate(bukuId ? `/buku/${bukuId}` : '/'); }} className="text-gray-400 hover:text-gray-600">←</button>
-        <h2 className="text-xl font-bold text-gray-800">{booking.job_no}</h2>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[booking.status] ?? 'bg-gray-100 text-gray-600'}`}>
-          {STATUS_LABELS[booking.status] ?? booking.status}
-        </span>
-        <div className="ml-auto flex gap-2">
-          <button
-            onClick={() => statusMutation.mutate(otherStatus)}
-            disabled={statusMutation.isPending}
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm hover:bg-gray-50"
-          >
-            Mark {STATUS_LABELS[otherStatus]}
-          </button>
-          <Link to={`/bookings/${id}/edit`} className="border border-gray-300 rounded px-3 py-1.5 text-sm hover:bg-gray-50">
-            Edit
-          </Link>
-          <button onClick={handleDelete} disabled={deleteMutation.isPending}
-            className="border border-red-300 text-red-600 rounded px-3 py-1.5 text-sm hover:bg-red-50">
-            Delete
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <dl className="grid grid-cols-3 gap-x-6 gap-y-5">
-          <Field label="Job No" value={booking.job_no} />
-          <Field label="Shipper" value={booking.shipper} />
-          <Field label="PEB" value={booking.peb} />
-          <Field label="Port" value={booking.port} />
-          <Field label="Feeder" value={booking.feeder} />
-          <Field label="Vessel Name" value={booking.vessel_name} />
-          <Field label="Vessel No" value={booking.vessel_no} />
-          <Field label="BON" value={booking.bon} />
-          <Field label="In" value={booking.in_date} />
-          <Field label="Out" value={booking.out_date} />
-          <Field label="Trucking" value={booking.trucking} />
-          <Field label="Created" value={new Date(booking.created_at).toLocaleString()} />
-        </dl>
-
-        {booking.notes && (
-          <div className="mt-5 pt-5 border-t border-gray-100">
-            <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Notes</dt>
-            <dd className="text-sm text-gray-900 whitespace-pre-wrap">{booking.notes}</dd>
+    <>
+      <PageHeader
+        crumbs={crumbs}
+        title={<><span className="mono">{booking.job_no}</span><span className="muted" style={{ fontWeight: 400, fontSize: 18 }}> · {booking.commodity}</span></>}
+        meta={
+          <span className="row" style={{ gap: 10 }}>
+            <span>{booking.shipper || "—"}</span>
+            <span className="dim">•</span>
+            <span>{booking.vessel_name || "—"}{booking.vessel_no ? ` / ${booking.vessel_no}` : ""}</span>
+            <span className="dim">•</span>
+            <span>{fmtCtr(containers)}</span>
+          </span>
+        }
+        actions={
+          <div className="row" style={{ gap: 8 }}>
+            <Button variant="default" icon={<IconEdit size={14} />} onClick={() => navigate(`/bookings/${id}/edit`, { state: bukuState })}>Edit</Button>
+            {showDelete ? (
+              <>
+                <span className="muted" style={{ fontSize: 12, alignSelf: "center" }}>Hapus?</span>
+                <Button variant="danger" size="sm" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>Ya, Hapus</Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowDelete(false)}>Batal</Button>
+              </>
+            ) : (
+              <Button variant="ghost" icon={<IconMore size={14} />} onClick={() => setShowDelete(true)} />
+            )}
           </div>
-        )}
+        }
+      />
 
-        {/* Containers */}
-        <div className="mt-5 pt-5 border-t border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Containers <span className="text-gray-400 font-normal">({containers.length})</span>
-          </h3>
-          {containers.length === 0 ? (
-            <p className="text-gray-400 text-sm">No containers recorded.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
-                  <th className="text-left py-1.5">#</th>
-                  <th className="text-left py-1.5">Container No</th>
-                  <th className="text-left py-1.5">Seal No</th>
-                  <th className="text-left py-1.5">Size</th>
-                </tr>
-              </thead>
-              <tbody>
+      {isFinance && (
+        <div className="grid grid-stats mb-24">
+          <Card pad={false}><Stat label="Total Invoice" value={fmtRp(invoiceTotal)} sub={`${dokumen.length} line items`} /></Card>
+          <Card pad={false}><Stat label="Piutang" value={fmtRp(piutang?.jumlah ?? 0)} sub={<Badge status={piutangSt === "none" ? "muted" : piutangSt} dot={false} />} /></Card>
+          <Card pad={false}><Stat label="Dibayar" value={fmtRp(piutangPaid)} tone="ok" sub={`${piutang?.pembayaran?.length ?? 0} pembayaran`} /></Card>
+          <Card pad={false}><Stat label="Sisa Piutang" value={fmtRp(piutangSisa)} tone={piutangSisa > 0 ? "warn" : "ok"} sub={piutangSisa <= 0 ? "Sudah lunas" : "Belum tertagih"} /></Card>
+        </div>
+      )}
+
+      {!isFinance && (
+        <div className="grid grid-stats mb-24">
+          <Card pad={false}><Stat label="Status" value={<Badge status={booking.status} />} sub="Shipment status" /></Card>
+          <Card pad={false}><Stat label="Containers" value={containers.length} sub={fmtCtr(containers)} /></Card>
+          <Card pad={false}><Stat label="In Date" value={booking.in_date ? fmtDate(booking.in_date) : "—"} sub="Tanggal masuk" /></Card>
+          <Card pad={false}><Stat label="Out Date" value={booking.out_date ? fmtDate(booking.out_date) : "Pending"} tone={booking.out_date ? "ok" : "warn"} sub="Tanggal keluar" /></Card>
+        </div>
+      )}
+
+      <div className="grid" style={{ gridTemplateColumns: isFinance ? "minmax(0, 1.6fr) minmax(0, 1fr)" : "minmax(0, 1fr)", gap: 16 }}>
+        {/* LEFT column */}
+        <div className="col" style={{ gap: 16 }}>
+          {/* Shipment info */}
+          <Card title="Informasi Shipment" action={<Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => navigate(`/bookings/${id}/edit`, { state: bukuState })}>Edit</Button>}>
+            <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+              <dl className="dl">
+                <dt>Shipper</dt><dd>{booking.shipper || "—"}</dd>
+                <dt>Commodity</dt><dd>{booking.commodity || "—"}</dd>
+                <dt>PEB</dt><dd className="mono" style={{ fontSize: 12 }}>{booking.peb || "—"}</dd>
+                <dt>BON</dt><dd className="mono" style={{ fontSize: 12 }}>{booking.bon || "—"}</dd>
+                <dt>Port</dt><dd>{booking.port || "—"}</dd>
+              </dl>
+              <dl className="dl">
+                <dt>Feeder</dt><dd>{booking.feeder || "—"}</dd>
+                <dt>Vessel</dt><dd>{booking.vessel_name || "—"}{booking.vessel_no ? <span className="muted"> / {booking.vessel_no}</span> : ""}</dd>
+                <dt>In Date</dt><dd className="num">{booking.in_date ? fmtDate(booking.in_date) : <span className="dim">—</span>}</dd>
+                <dt>Out Date</dt><dd className={booking.out_date ? "num" : "dim"}>{booking.out_date ? fmtDate(booking.out_date) : "Pending"}</dd>
+                <dt>Trucking</dt><dd>{booking.trucking || "—"}</dd>
+              </dl>
+            </div>
+            {booking.notes && <div className="mt-16 muted" style={{ fontSize: 12.5, whiteSpace: "pre-wrap" }}>{booking.notes}</div>}
+          </Card>
+
+          {/* Containers */}
+          <Card title={`Containers — ${fmtCtr(containers)}`} action={<Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => navigate(`/bookings/${id}/edit`, { state: bukuState })}>Edit</Button>}>
+            {containers.length === 0 ? (
+              <Empty title="Belum ada container" />
+            ) : (
+              <div className="ctr-list">
+                <div className="ctr-list__hd">
+                  <div>#</div><div>Container No</div><div>Seal No</div><div>Size</div>
+                </div>
                 {containers.map((c, i) => (
-                  <tr key={c.id} className="border-b border-gray-50">
-                    <td className="py-1.5 text-gray-400">{i + 1}</td>
-                    <td className="py-1.5 font-mono">{c.container_no}</td>
-                    <td className="py-1.5">{c.seal_no || '—'}</td>
-                    <td className="py-1.5">{c.size}ft</td>
-                  </tr>
+                  <div className="ctr-row" key={c.id}>
+                    <div className="ctr-row__idx">{String(i + 1).padStart(2, "0")}</div>
+                    <div className="ctr-row__no">{c.container_no}</div>
+                    <div className="ctr-row__seal">{c.seal_no || "—"}</div>
+                    <div className={`ctr-row__size${c.size === "40" ? " is-40" : ""}${c.size === "40HC" ? " is-hc" : ""}`}>{c.size}</div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
+          </Card>
+
+          {/* Invoice — finance only */}
+          {isFinance && (
+            <Card title={`Invoice — ${dokumen.length} item`} action={<Button variant="ghost" size="sm" icon={<IconPlus size={12} />} onClick={() => setItemModal({ tipe: "", qty: 1, harga_satuan: 0 })}>Add Item</Button>} pad={false}>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Uraian</th>
+                    <th className="right" style={{ width: 70 }}>Qty</th>
+                    <th className="right" style={{ width: 140 }}>Harga Satuan</th>
+                    <th className="right" style={{ width: 140 }}>Subtotal</th>
+                    <th style={{ width: 60 }} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {dokumen.map((d) => (
+                    <tr key={d.id}>
+                      <td className="strong">{d.tipe}</td>
+                      <td className="right num">{d.qty}</td>
+                      <td className="right num">{fmtRp(d.harga_satuan ?? 0)}</td>
+                      <td className="right num strong">{fmtRp(d.biaya ?? 0)}</td>
+                      <td>
+                        <div className="row" style={{ gap: 2, justifyContent: "flex-end" }}>
+                          <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setItemModal({ id: d.id, tipe: d.tipe, qty: d.qty, harga_satuan: d.harga_satuan })} />
+                          <Button variant="ghost" size="sm" icon={<IconTrash size={12} />} onClick={() => deleteItemMutation.mutate(d.id)} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {dokumen.length === 0 && <tr><td colSpan={5}><Empty title="Belum ada line item" sub="Tambahkan biaya yang akan ditagih ke shipper." /></td></tr>}
+                </tbody>
+                {dokumen.length > 0 && (
+                  <tfoot>
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: "right", color: "var(--fg-3)", fontWeight: 500 }}>Total</td>
+                      <td className="right num strong" style={{ fontSize: 15 }}>{fmtRp(invoiceTotal)}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </Card>
           )}
         </div>
 
-        {/* Invoice, Piutang, Hutang — finance role only */}
-        {isFinance && <InvoiceSection bookingId={id} />}
-        {isFinance && <PiutangSection bookingId={id} />}
-        {isFinance && <HutangSection bookingId={id} />}
+        {/* RIGHT column — finance only */}
+        {isFinance && (
+          <div className="col" style={{ gap: 16 }}>
+            {/* Piutang card */}
+            <Card title={<span className="row" style={{ gap: 8 }}>Piutang <Badge status={piutangSt === "none" ? "muted" : piutangSt} /></span>}
+              action={
+                <div className="row" style={{ gap: 4 }}>
+                  <Button variant="ghost" size="sm" onClick={() => setPiutangMutation.mutate({ jumlah: invoiceTotal })} disabled={!invoiceTotal || setPiutangMutation.isPending}>Dari Invoice</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setPiutangModal(true)}>Set Manual</Button>
+                </div>
+              }>
+              {piutang ? (
+                <>
+                  <div className="row" style={{ alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div>
+                      <div className="muted" style={{ fontSize: 11 }}>Total piutang</div>
+                      <div className="num" style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>{fmtRp(piutang.jumlah)}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div className="muted" style={{ fontSize: 11 }}>Sisa</div>
+                      <div className="num" style={{ fontSize: 16, fontWeight: 600, color: piutangSisa > 0 ? "var(--accent)" : "var(--ok)" }}>{fmtRp(piutangSisa)}</div>
+                    </div>
+                  </div>
+                  <Progress value={piutangPaid} max={piutang.jumlah || 1} tone={piutangSt === "lunas" ? "ok" : piutangSt === "sebagian" ? "warn" : "danger"} />
+                  <div className="muted mt-8" style={{ fontSize: 11.5 }}>
+                    {fmtRp(piutangPaid)} dari {fmtRp(piutang.jumlah)} terbayar
+                    {piutang.jumlah > 0 && ` (${Math.round((piutangPaid / piutang.jumlah) * 100)}%)`}
+                  </div>
+
+                  <hr style={{ margin: "14px 0", borderColor: "var(--border)", borderTop: 0 }} />
+
+                  <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+                    <div className="field__lbl" style={{ margin: 0 }}>Riwayat Pembayaran</div>
+                    <Button variant="primary" size="sm" icon={<IconPlus size={12} />}
+                      onClick={() => setPayModal({ kind: "piutang", label: "Tambah Pembayaran Piutang", sisa: piutangSisa })}>
+                      Tambah
+                    </Button>
+                  </div>
+
+                  {piutang.pembayaran?.length > 0 ? (
+                    <div className="col" style={{ gap: 8 }}>
+                      {piutang.pembayaran.map((p) => (
+                        <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 6, padding: "10px 12px", borderRadius: 10, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+                          <div>
+                            <div className="strong num" style={{ fontSize: 14 }}>{fmtRp(p.jumlah)}</div>
+                            <div className="muted" style={{ fontSize: 11.5 }}>{fmtDate(p.tanggal)} · {p.metode}{p.keterangan ? ` — ${p.keterangan}` : ""}</div>
+                          </div>
+                          <div className="row" style={{ gap: 2 }}>
+                            <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setPayModal({ kind: "piutang", label: "Edit Pembayaran Piutang", editPayId: p.id, initialData: p })} />
+                            <Button variant="ghost" size="sm" icon={<IconTrash size={12} />} onClick={() => deletePiutangPayMutation.mutate(p.id)} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Empty title="Belum ada pembayaran" />
+                  )}
+                </>
+              ) : (
+                <Empty title="Belum ada piutang" sub="Klik 'Set Piutang' untuk membuat tagihan." />
+              )}
+            </Card>
+
+            {/* Hutang card */}
+            <Card title={`Hutang — ${hutangList.length} vendor`} action={<Button variant="ghost" size="sm" icon={<IconPlus size={12} />} onClick={() => setHutangModal(true)}>Add</Button>}>
+              {hutangList.length === 0 ? (
+                <Empty title="Belum ada hutang" sub="Catat tagihan dari vendor (trucking, pelabuhan, dll)." />
+              ) : (
+                <div className="col" style={{ gap: 10 }}>
+                  {hutangList.map((h) => {
+                    const paid = h.total_paid ?? 0;
+                    const sisa = h.sisa ?? 0;
+                    const st = h.status;
+                    return (
+                      <div key={h.id} style={{ padding: 12, borderRadius: 10, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+                        <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                          <div>
+                            <div className="strong">{h.pihak}</div>
+                            {h.keterangan && <div className="muted" style={{ fontSize: 11.5 }}>{h.keterangan}</div>}
+                          </div>
+                          <div className="row" style={{ gap: 4 }}>
+                            <Badge status={st} />
+                            <Button variant="ghost" size="sm" icon={<IconTrash size={12} />} onClick={() => deleteHutangMutation.mutate(h.id)} />
+                          </div>
+                        </div>
+                        <div className="row" style={{ justifyContent: "space-between", marginBottom: 6 }}>
+                          <span className="muted" style={{ fontSize: 11.5 }}>Total <span className="num strong" style={{ color: "var(--fg)" }}>{fmtRp(h.jumlah)}</span></span>
+                          <span className="muted" style={{ fontSize: 11.5 }}>Sisa <span className="num strong" style={{ color: sisa > 0 ? "var(--accent)" : "var(--ok)" }}>{fmtRp(sisa)}</span></span>
+                        </div>
+                        <Progress value={paid} max={h.jumlah || 1} tone={st === "lunas" ? "ok" : st === "sebagian" ? "warn" : "danger"} />
+                        <div className="row mt-8" style={{ justifyContent: "space-between" }}>
+                          <span className="muted" style={{ fontSize: 11 }}>{h.pembayaran?.length ?? 0} pembayaran</span>
+                          <Button variant="ghost" size="sm" icon={<IconPlus size={12} />}
+                            onClick={() => setPayModal({ kind: "hutang", label: "Tambah Pembayaran Hutang", hutangId: h.id, sisa })}>
+                            Bayar
+                          </Button>
+                        </div>
+                        {h.pembayaran?.length > 0 && (
+                          <div className="col mt-8" style={{ gap: 6 }}>
+                            {h.pembayaran.map((p) => (
+                              <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 6, padding: "8px 10px", borderRadius: 8, background: "var(--bg-3, var(--bg))", border: "1px solid var(--border)" }}>
+                                <div>
+                                  <div className="strong num" style={{ fontSize: 13 }}>{fmtRp(p.jumlah)}</div>
+                                  <div className="muted" style={{ fontSize: 11 }}>{fmtDate(p.tanggal)} · {p.metode}{p.keterangan ? ` — ${p.keterangan}` : ""}</div>
+                                </div>
+                                <div className="row" style={{ gap: 2 }}>
+                                  <Button variant="ghost" size="sm" icon={<IconEdit size={11} />}
+                                    onClick={() => setPayModal({ kind: "hutang", label: "Edit Pembayaran Hutang", hutangId: h.id, sisa, editPayId: p.id, initialData: p })} />
+                                  <Button variant="ghost" size="sm" icon={<IconTrash size={11} />}
+                                    onClick={() => deleteHutangPayMutation.mutate({ hutangId: h.id, payId: p.id })} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* Modals */}
+      <LineItemModal
+        open={!!itemModal} onClose={() => setItemModal(null)} item={itemModal}
+        isPending={addItemMutation.isPending || editItemMutation.isPending}
+        onSave={(data) => {
+          if (itemModal?.id) editItemMutation.mutate({ itemId: itemModal.id, body: data });
+          else addItemMutation.mutate(data);
+        }}
+      />
+
+      <PiutangSetModal
+        open={piutangModal} onClose={() => setPiutangModal(false)}
+        currentAmount={piutang?.jumlah ?? 0} invoiceTotal={invoiceTotal}
+        isPending={setPiutangMutation.isPending}
+        onSave={(data) => setPiutangMutation.mutate(data)}
+      />
+
+      <HutangFormModal
+        open={hutangModal} onClose={() => setHutangModal(false)}
+        isPending={addHutangMutation.isPending}
+        onSave={(data) => addHutangMutation.mutate(data)}
+      />
+
+      <PaymentModal
+        open={!!payModal} onClose={() => setPayModal(null)}
+        label={payModal?.label} initialData={payModal?.initialData}
+        isPending={addPiutangPayMutation.isPending || addHutangPayMutation.isPending || editPiutangPayMutation.isPending || editHutangPayMutation.isPending}
+        onSave={(pay) => {
+          if (payModal?.editPayId) {
+            if (payModal.kind === "piutang") editPiutangPayMutation.mutate({ payId: payModal.editPayId, body: pay });
+            else editHutangPayMutation.mutate({ hutangId: payModal.hutangId, payId: payModal.editPayId, body: pay });
+          } else {
+            if (payModal?.kind === "piutang") addPiutangPayMutation.mutate(pay);
+            else addHutangPayMutation.mutate({ hutangId: payModal.hutangId, body: pay });
+          }
+        }}
+      />
+    </>
   );
 }

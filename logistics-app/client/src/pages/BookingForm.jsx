@@ -2,27 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client.js';
-import ContainerInputRow from '../components/ContainerInputRow.jsx';
+import { Button, PageHeader, Card, Field, Input, Select, fmtDate, monthLabel } from '../components/ui.jsx';
+import { IconPlus, IconTrash, IconCheck } from '../components/Icons.jsx';
 
-const EMPTY_CONTAINER = () => ({ container_no: '', seal_no: '', size: '20' });
+const EMPTY_CONTAINER = () => ({ container_no: '', seal_no: '', size: '40ft' });
 
 function deriveQty(containers) {
   const counts = {};
   for (const c of containers) if (c.container_no) counts[c.size] = (counts[c.size] ?? 0) + 1;
-  return Object.entries(counts).map(([s, n]) => `${n}x${s}`).join(', ') || '—';
+  return Object.entries(counts).map(([s, n]) => `${n}× ${s}`).join(', ') || '—';
 }
-
-const TEXT_FIELDS = [
-  ['peb', 'PEB', false],
-  ['port', 'Port', false],
-  ['feeder', 'Feeder', false],
-  ['vessel_name', 'Vessel Name', false],
-  ['vessel_no', 'Vessel No', false],
-  ['bon', 'BON', false],
-  ['in_date', 'In', false, 'date'],
-  ['out_date', 'Out', false, 'date'],
-  ['trucking', 'Trucking', false],
-];
 
 export default function BookingForm() {
   const { id } = useParams();
@@ -32,7 +21,11 @@ export default function BookingForm() {
   const queryClient = useQueryClient();
 
   const bukuState = location.state ?? {};
-  const [form, setForm] = useState({ job_no: '', shipper: '', commodity: '', peb: '', port: '', feeder: '', vessel_name: '', vessel_no: '', bon: '', in_date: '', out_date: '', trucking: '', notes: '', buku_id: bukuState.buku_id ?? '' });
+  const [form, setForm] = useState({
+    job_no: '', shipper: '', commodity: '', peb: '', bon: '', port: '', feeder: '',
+    vessel_name: '', vessel_no: '', in_date: '', out_date: '', trucking: '', notes: '',
+    buku_id: bukuState.buku_id ?? '',
+  });
   const [containers, setContainers] = useState([EMPTY_CONTAINER()]);
   const [errors, setErrors] = useState({});
 
@@ -47,26 +40,28 @@ export default function BookingForm() {
     queryFn: () => api.get('/shippers').then(r => r.data),
   });
 
-  // Commodities for selected shipper
   const selectedShipper = shippers.find(s => s.name === form.shipper);
   const shipperCommodities = selectedShipper?.commodities ?? [];
 
-  // When shipper changes, auto-fill commodity if exactly 1, else clear
   function handleShipperChange(name) {
     const s = shippers.find(sh => sh.name === name);
     const commodities = s?.commodities ?? [];
-    setForm(f => ({
-      ...f,
-      shipper: name,
-      commodity: commodities.length === 1 ? commodities[0].name : '',
-    }));
+    setForm(f => ({ ...f, shipper: name, commodity: commodities.length === 1 ? commodities[0].name : '' }));
   }
 
   useEffect(() => {
     if (existing) {
       const b = existing.booking;
-      setForm({ job_no: b.job_no, shipper: b.shipper, commodity: b.commodity ?? '', peb: b.peb ?? '', port: b.port ?? '', feeder: b.feeder ?? '', vessel_name: b.vessel_name ?? '', vessel_no: b.vessel_no ?? '', bon: b.bon ?? '', in_date: b.in_date ?? '', out_date: b.out_date ?? '', trucking: b.trucking ?? '', notes: b.notes ?? '', buku_id: b.buku_id ?? '' });
-      setContainers(existing.containers.length ? existing.containers.map(c => ({ container_no: c.container_no, seal_no: c.seal_no ?? '', size: c.size })) : [EMPTY_CONTAINER()]);
+      setForm({
+        job_no: b.job_no, shipper: b.shipper, commodity: b.commodity ?? '',
+        peb: b.peb ?? '', bon: b.bon ?? '', port: b.port ?? '', feeder: b.feeder ?? '',
+        vessel_name: b.vessel_name ?? '', vessel_no: b.vessel_no ?? '',
+        in_date: b.in_date ?? '', out_date: b.out_date ?? '',
+        trucking: b.trucking ?? '', notes: b.notes ?? '', buku_id: b.buku_id ?? '',
+      });
+      setContainers(existing.containers.length
+        ? existing.containers.map(c => ({ container_no: c.container_no, seal_no: c.seal_no ?? '', size: c.size }))
+        : [EMPTY_CONTAINER()]);
     }
   }, [existing]);
 
@@ -83,20 +78,17 @@ export default function BookingForm() {
 
   function validate() {
     const errs = {};
-    if (!isEdit && !form.buku_id) errs.buku_id = 'Required';
-    if (!form.job_no.trim()) errs.job_no = 'Required';
-    if (!form.shipper.trim()) errs.shipper = 'Required';
-    const validContainers = containers.filter(c => c.container_no.trim());
-    validContainers.forEach((c, i) => {
-      if (!/^[A-Z]{4}[0-9]{7}$/.test(c.container_no)) {
-        errs[`container_${i}`] = `Row ${i + 1}: format should be ABCD1234567`;
-      }
+    if (!isEdit && !form.buku_id) errs.buku_id = 'Buku wajib dipilih';
+    if (!form.job_no.trim()) errs.job_no = 'Wajib diisi';
+    if (!form.shipper.trim()) errs.shipper = 'Wajib diisi';
+    containers.filter(c => c.container_no.trim()).forEach((c, i) => {
+      if (!/^[A-Z]{4}[0-9]{7}$/.test(c.container_no)) errs[`container_${i}`] = `Baris ${i + 1}: format ABCD1234567`;
     });
     return errs;
   }
 
   function handleSubmit(e) {
-    e.preventDefault();
+    e?.preventDefault();
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
@@ -104,141 +96,164 @@ export default function BookingForm() {
     mutation.mutate({ ...form, buku_id: parseInt(form.buku_id), containers: validContainers });
   }
 
-  function updateContainer(i, val) { setContainers(cs => cs.map((c, idx) => idx === i ? val : c)); }
-  function removeContainer(i) { setContainers(cs => cs.filter((_, idx) => idx !== i)); }
-  function addContainer() { setContainers(cs => [...cs, EMPTY_CONTAINER()]); }
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const setC = (i, k) => (e) => setContainers(cs => cs.map((c, idx) => idx === i ? { ...c, [k]: e.target.value } : c));
+  const removeContainer = (i) => setContainers(cs => cs.filter((_, idx) => idx !== i));
+  const addContainer = () => setContainers(cs => [...cs, EMPTY_CONTAINER()]);
 
-  const selectClass = (hasError) =>
-    `w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${hasError ? 'border-red-400' : 'border-gray-300'}`;
+  const buku = bukuState.buku_periode;
 
   return (
-    <div className="max-w-3xl">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600">←</button>
-        <h2 className="text-xl font-bold text-gray-800">{isEdit ? 'Edit Booking' : 'New Booking'}</h2>
-      </div>
+    <form onSubmit={handleSubmit} onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.type !== 'submit') e.preventDefault(); }}>
+      <PageHeader
+        crumbs={[
+          buku ? { label: buku, onClick: () => navigate(-1) } : { label: 'Bookings', onClick: () => navigate('/bookings') },
+          { label: isEdit ? 'Edit Booking' : 'Booking Baru' },
+        ]}
+        title={isEdit ? 'Edit Booking' : 'Booking Baru'}
+        meta={isEdit ? `Editing ${form.job_no}` : 'Catat shipment ekspor baru.'}
+        actions={
+          <>
+            <Button type="button" variant="ghost" onClick={() => navigate(-1)}>Batal</Button>
+            <Button type="submit" variant="primary" icon={<IconCheck size={14} />} disabled={mutation.isPending}>
+              {mutation.isPending ? 'Menyimpan…' : isEdit ? 'Save Changes' : 'Create Booking'}
+            </Button>
+          </>
+        }
+      />
 
-      {mutation.isPending && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg px-6 py-4 shadow-xl flex items-center gap-3">
-            <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full" />
-            <span className="text-sm font-medium text-gray-700">Menyimpan…</span>
-          </div>
-        </div>
-      )}
+      <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
+        <div className="col" style={{ gap: 16 }}>
 
-      <form
-        onSubmit={handleSubmit}
-        onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.type !== 'submit') e.preventDefault(); }}
-        className="bg-white border border-gray-200 rounded-lg p-6 flex flex-col gap-5"
-      >
-        <div className="grid grid-cols-2 gap-4">
-          {/* Buku — read-only label on new bookings */}
-          {!isEdit && (
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Buku (Periode)</label>
-              {bukuState.buku_periode ? (
-                <div className="flex items-center gap-2 h-[34px] px-3 border border-gray-200 rounded bg-gray-50 text-sm text-gray-700 font-mono">
-                  {bukuState.buku_periode}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 h-[34px] px-3 border border-red-300 rounded bg-red-50 text-sm text-red-600">
-                  Buku tidak dipilih —{' '}
-                  <button type="button" onClick={() => navigate('/buku')} className="underline hover:text-red-800">
-                    pilih dari halaman Buku
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Job No */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Job No<span className="text-red-500 ml-0.5">*</span></label>
-            <input
-              type="text" value={form.job_no} onChange={e => setForm(f => ({ ...f, job_no: e.target.value }))}
-              className={`w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.job_no ? 'border-red-400' : 'border-gray-300'}`}
-            />
-            {errors.job_no && <p className="text-red-500 text-xs mt-0.5">{errors.job_no}</p>}
-          </div>
-
-          {/* Shipper */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Shipper<span className="text-red-500 ml-0.5">*</span>
-            </label>
-            <select value={form.shipper} onChange={e => handleShipperChange(e.target.value)}
-              className={selectClass(errors.shipper)}>
-              <option value="">— Select shipper —</option>
-              {shippers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-            </select>
-            {errors.shipper && <p className="text-red-500 text-xs mt-0.5">{errors.shipper}</p>}
-          </div>
-
-          {/* Commodity */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Commodity</label>
-            {shipperCommodities.length === 1 ? (
-              <div className="flex items-center h-[34px] px-3 border border-gray-200 rounded bg-gray-50 text-sm text-gray-600">
-                {form.commodity}
+          {/* Identitas Booking */}
+          <Card title="Identitas Booking">
+            {!isEdit && (
+              <div style={{ marginBottom: 14 }}>
+                <div className="field__lbl">Buku (Periode)</div>
+                {buku ? (
+                  <div className="inp inp--readonly">{buku}</div>
+                ) : (
+                  <div className="inp inp--error">
+                    Buku tidak dipilih —{' '}
+                    <button type="button" className="btn-link" onClick={() => navigate('/buku')}>pilih dari halaman Buku</button>
+                  </div>
+                )}
+                {errors.buku_id && <p className="inp__error">{errors.buku_id}</p>}
               </div>
-            ) : (
-              <select value={form.commodity} onChange={e => setForm(f => ({ ...f, commodity: e.target.value }))}
-                disabled={!form.shipper || shipperCommodities.length === 0}
-                className={`${selectClass(false)} disabled:bg-gray-50 disabled:text-gray-400`}>
-                <option value="">— Select commodity —</option>
-                {shipperCommodities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
             )}
-          </div>
-
-          {/* Remaining text fields */}
-          {TEXT_FIELDS.map(([name, label, required, type = 'text']) => (
-            <div key={name}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-              <input
-                type={type} value={form[name]} onChange={e => setForm(f => ({ ...f, [name]: e.target.value }))}
-                className={`w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[name] ? 'border-red-400' : 'border-gray-300'}`}
-              />
-              {errors[name] && <p className="text-red-500 text-xs mt-0.5">{errors[name]}</p>}
+            <div className="grid grid-form-2">
+              <Field label="Job No" required error={errors.job_no}>
+                <Input value={form.job_no} onChange={set('job_no')} hasError={!!errors.job_no} />
+              </Field>
+              <Field label="Shipper" required error={errors.shipper}>
+                <Select value={form.shipper} onChange={e => handleShipperChange(e.target.value)} hasError={!!errors.shipper}>
+                  <option value="">— Pilih shipper —</option>
+                  {shippers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Commodity">
+                {shipperCommodities.length === 1 ? (
+                  <div className="inp inp--readonly">{form.commodity}</div>
+                ) : (
+                  <Select value={form.commodity} onChange={set('commodity')} disabled={!form.shipper || shipperCommodities.length === 0}>
+                    <option value="">— Pilih commodity —</option>
+                    {shipperCommodities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </Select>
+                )}
+              </Field>
             </div>
-          ))}
+          </Card>
+
+          {/* Dokumen & Pelayaran */}
+          <Card title="Dokumen & Pelayaran">
+            <div className="grid grid-form-2">
+              <Field label="PEB"><Input value={form.peb} onChange={set('peb')} placeholder="Nomor PEB" /></Field>
+              <Field label="BON"><Input value={form.bon} onChange={set('bon')} placeholder="Nomor BON" /></Field>
+              <Field label="Port (Pelabuhan Muat)"><Input value={form.port} onChange={set('port')} /></Field>
+              <Field label="Feeder"><Input value={form.feeder} onChange={set('feeder')} placeholder="Nama feeder vessel" /></Field>
+              <Field label="Vessel Name"><Input value={form.vessel_name} onChange={set('vessel_name')} placeholder="Nama kapal utama" /></Field>
+              <Field label="Vessel No / Voyage"><Input value={form.vessel_no} onChange={set('vessel_no')} placeholder="Nomor voyage" /></Field>
+            </div>
+          </Card>
+
+          {/* Jadwal & Trucking */}
+          <Card title="Jadwal & Trucking">
+            <div className="grid grid-form-2">
+              <Field label="In Date" hint="Kontainer masuk depot">
+                <Input type="date" value={form.in_date} onChange={set('in_date')} />
+              </Field>
+              <Field label="Out Date" hint="Kontainer keluar / loaded on board">
+                <Input type="date" value={form.out_date} onChange={set('out_date')} />
+              </Field>
+              <Field label="Trucking" span={2}>
+                <Input value={form.trucking} onChange={set('trucking')} placeholder="Nama perusahaan trucking" />
+              </Field>
+              <Field label="Notes" span={2}>
+                <textarea className="inp" rows={3} value={form.notes} onChange={set('notes')} placeholder="Catatan tambahan (opsional)" />
+              </Field>
+            </div>
+          </Card>
+
+          {/* Containers */}
+          <Card title={`Containers (${containers.length})`}
+            action={<Button type="button" variant="ghost" size="sm" icon={<IconPlus size={12} />} onClick={addContainer}>Add Container</Button>}>
+            <div className="col" style={{ gap: 10 }}>
+              {containers.map((c, i) => (
+                <div key={i}>
+                  <div className="grid" style={{ gridTemplateColumns: '24px 1fr 1fr 110px 32px', gap: 10, alignItems: 'end' }}>
+                    <div className="muted num" style={{ fontSize: 12, paddingBottom: 8 }}>{String(i + 1).padStart(2, '0')}</div>
+                    <Field label={i === 0 ? 'Container No' : ''}>
+                      <Input className="mono" value={c.container_no} onChange={setC(i, 'container_no')} placeholder="TGHU1234567" />
+                    </Field>
+                    <Field label={i === 0 ? 'Seal No' : ''}>
+                      <Input value={c.seal_no} onChange={setC(i, 'seal_no')} placeholder="SL-000000" />
+                    </Field>
+                    <Field label={i === 0 ? 'Size' : ''}>
+                      <Select value={c.size} onChange={setC(i, 'size')}>
+                        <option value="20ft">20ft</option>
+                        <option value="40ft">40ft</option>
+                        <option value="40HC">40HC</option>
+                      </Select>
+                    </Field>
+                    <Button type="button" variant="ghost" size="sm" icon={<IconTrash size={12} />}
+                      onClick={() => removeContainer(i)} disabled={containers.length === 1} />
+                  </div>
+                  {errors[`container_${i}`] && <p className="inp__error">{errors[`container_${i}`]}</p>}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {mutation.isError && (
+            <p className="inp__error">{mutation.error?.response?.data?.error ?? 'Gagal menyimpan.'}</p>
+          )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-          <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-            rows={2} className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-
-        {/* Containers */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-700">Containers <span className="text-gray-400 font-normal">— Qty: {deriveQty(containers)}</span></label>
-          </div>
-          <div className="flex flex-col gap-2">
-            {containers.map((c, i) => (
-              <div key={i}>
-                <ContainerInputRow container={c} index={i} onChange={updateContainer} onRemove={removeContainer} />
-                {errors[`container_${i}`] && <p className="text-amber-600 text-xs mt-0.5">{errors[`container_${i}`]}</p>}
-              </div>
-            ))}
-          </div>
-          <button type="button" onClick={addContainer} className="mt-2 text-sm text-blue-600 hover:text-blue-800">+ Add Container</button>
-        </div>
-
-        {mutation.isError && <p className="text-red-500 text-sm">{mutation.error?.response?.data?.error ?? 'Save failed.'}</p>}
-
-        <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={mutation.isPending}
-            className="bg-blue-600 text-white rounded px-5 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
-            {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Booking'}
-          </button>
-          <button type="button" onClick={() => navigate(-1)} className="border border-gray-300 rounded px-5 py-2 text-sm hover:bg-gray-50">
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
+        {/* Sidebar */}
+        <aside className="col" style={{ gap: 16, position: 'sticky', top: 16 }}>
+          <Card title="Summary" muted>
+            <dl className="dl" style={{ gridTemplateColumns: '110px 1fr' }}>
+              <dt>Periode</dt><dd>{buku ?? (isEdit ? `Buku #${form.buku_id}` : '—')}</dd>
+              <dt>Shipper</dt><dd>{form.shipper || <span className="dim">—</span>}</dd>
+              <dt>Commodity</dt><dd>{form.commodity || <span className="dim">—</span>}</dd>
+              <dt>Containers</dt><dd>{deriveQty(containers)}</dd>
+              <dt>In → Out</dt>
+              <dd className={form.in_date ? 'num' : 'dim'} style={{ fontSize: 12 }}>
+                {form.in_date ? fmtDate(form.in_date) : '—'} → {form.out_date ? fmtDate(form.out_date) : 'Pending'}
+              </dd>
+            </dl>
+          </Card>
+          <Card title="Apa selanjutnya?" muted>
+            <ol style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: 'var(--fg-2)', lineHeight: 1.7 }}>
+              <li>Setelah Create, kamu akan diarahkan ke halaman detail booking</li>
+              <li>Tambahkan <strong>line items</strong> di section Invoice</li>
+              <li>Set <strong>Piutang</strong> dari total invoice atau ketik manual</li>
+              <li>Catat <strong>Hutang</strong> ke vendor (trucking, pelabuhan)</li>
+              <li>Rekam <strong>pembayaran</strong> ketika masuk</li>
+            </ol>
+          </Card>
+        </aside>
+      </div>
+    </form>
   );
 }

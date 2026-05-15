@@ -42,7 +42,7 @@ export async function piutangRoutes(fastify) {
     }
 
     const rows = db.prepare(`
-      SELECT p.*, b.job_no, b.shipper FROM piutang p
+      SELECT p.*, b.job_no, b.shipper, b.buku_id FROM piutang p
       JOIN bookings b ON p.booking_id = b.id
       WHERE ${where}
       ORDER BY p.created_at DESC
@@ -134,6 +134,25 @@ export async function piutangRoutes(fastify) {
     ).run(row.id, jumlah, tanggal, metode, keterangan, request.session.user.id);
 
     return reply.code(201).send(buildPiutang(db, db.prepare('SELECT * FROM piutang WHERE id = ?').get(row.id)));
+  });
+
+  // Edit pembayaran on piutang
+  fastify.put('/api/bookings/:bookingId/piutang/:id/pembayaran/:payId', { preHandler: requireRole('finance') }, async (request, reply) => {
+    const db = getDb();
+    const row = db.prepare('SELECT * FROM piutang WHERE id = ? AND booking_id = ?').get(request.params.id, request.params.bookingId);
+    if (!row) return reply.code(404).send({ error: 'Not found' });
+
+    const pay = db.prepare("SELECT * FROM pembayaran WHERE id = ? AND entity_type='piutang' AND entity_id=?").get(request.params.payId, row.id);
+    if (!pay) return reply.code(404).send({ error: 'Payment not found' });
+
+    const parsed = pembayaranSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const { jumlah, tanggal, metode, keterangan } = parsed.data;
+    db.prepare('UPDATE pembayaran SET jumlah=?, tanggal=?, metode=?, keterangan=? WHERE id=?')
+      .run(jumlah, tanggal, metode, keterangan, pay.id);
+
+    return buildPiutang(db, db.prepare('SELECT * FROM piutang WHERE id = ?').get(row.id));
   });
 
   // Remove pembayaran from piutang

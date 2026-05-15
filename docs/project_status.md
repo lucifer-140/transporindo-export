@@ -1,7 +1,7 @@
 # Project Status
 
-**Version:** 0.7.0
-**Last Updated:** 2026-05-13
+**Version:** 0.8.0
+**Last Updated:** 2026-05-15
 **Stage:** Active Development
 
 ---
@@ -25,6 +25,8 @@
 | Finance Summary | Done | `/api/finance/summary` aggregate; finance+ access only |
 | BukuFinance page | Done | Finance view per buku; accessible to finance and admin roles |
 | System Flow Doc | Done | `docs/system-flow.md` — non-technical user guide |
+| Custom Design System | Done | CSS variable tokens; dark/light theme; `Icons.jsx`; `ui.jsx` primitives |
+| UI Redesign (all pages) | Done | All pages restyled with design system; sidebar nav with sectioned layout |
 
 ---
 
