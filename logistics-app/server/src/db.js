@@ -83,6 +83,12 @@ function runMigrations(db) {
   try { db.exec('ALTER TABLE bookings ADD COLUMN public_id TEXT'); } catch {}
   db.exec("UPDATE bookings SET public_id = lower(hex(randomblob(16))) WHERE public_id IS NULL");
   try { db.exec('CREATE UNIQUE INDEX idx_bookings_public_id ON bookings(public_id)'); } catch {}
+  // 011: buku closed_at/closed_by audit columns
+  try { db.exec('ALTER TABLE buku ADD COLUMN closed_at DATETIME'); } catch {}
+  try { db.exec('ALTER TABLE buku ADD COLUMN closed_by INTEGER REFERENCES users(id)'); } catch {}
+  // 012: app_settings, invoice_pajak, nota_reimbursement
+  const sql012 = readFileSync(join(__dirname, 'migrations/011_invoice_pajak_reimbursement.sql'), 'utf8');
+  db.exec(sql012);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
