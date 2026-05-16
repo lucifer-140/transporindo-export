@@ -5,6 +5,7 @@
 // Uses Node built-in SQLite (node:sqlite) — same as server
 
 import { DatabaseSync } from 'node:sqlite';
+import { randomBytes } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
@@ -43,12 +44,18 @@ const USERS = [
 ];
 
 const SHIPPERS = [
-  { name: 'PT Maju Jaya Ekspor',   commodities: ['Textiles', 'Garments'] },
-  { name: 'CV Global Nusantara',   commodities: ['Electronics', 'Spare Parts'] },
-  { name: 'PT Sinar Abadi',        commodities: ['Palm Oil', 'Coal'] },
-  { name: 'PT Karya Mandiri',      commodities: ['Furniture', 'Wood Products'] },
-  { name: 'CV Bintang Timur',      commodities: ['Chemicals', 'Fertilizer'] },
-  { name: 'PT Indo Makmur',        commodities: ['Rice', 'Coffee Beans'] },
+  { name: 'PT Maju Jaya Ekspor',      commodities: ['Textiles', 'Garments'] },
+  { name: 'CV Global Nusantara',      commodities: ['Electronics', 'Spare Parts'] },
+  { name: 'PT Sinar Abadi',           commodities: ['Palm Oil', 'Coal'] },
+  { name: 'PT Karya Mandiri',         commodities: ['Furniture', 'Wood Products'] },
+  { name: 'CV Bintang Timur',         commodities: ['Chemicals', 'Fertilizer'] },
+  { name: 'PT Indo Makmur',           commodities: ['Rice', 'Coffee Beans'] },
+  { name: 'PT Samudra Logistics',     commodities: ['Steel', 'Iron Ore'] },
+  { name: 'CV Nusa Perdana',          commodities: ['Rubber', 'Latex'] },
+  { name: 'PT Cahaya Ekspres',        commodities: ['Seafood', 'Frozen Goods'] },
+  { name: 'CV Mitra Bahari',          commodities: ['Cocoa', 'Spices'] },
+  { name: 'PT Angkasa Raya',          commodities: ['Machinery', 'Equipment'] },
+  { name: 'CV Tirta Kencana',         commodities: ['Crude Oil', 'Lubricants'] },
 ];
 
 const PORTS    = ['Tanjung Priok', 'Tanjung Perak', 'Belawan', 'Makassar', 'Semarang'];
@@ -92,7 +99,7 @@ const stmts = {
   shipper:    db.prepare('INSERT INTO shippers (name) VALUES (?)'),
   commodity:  db.prepare('INSERT INTO commodities (shipper_id, name) VALUES (?, ?)'),
   buku:       db.prepare('INSERT INTO buku (tahun, bulan, status, created_by) VALUES (?, ?, ?, ?)'),
-  booking:    db.prepare(`INSERT INTO bookings (job_no, shipper, commodity, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, status, notes, buku_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+  booking:    db.prepare(`INSERT INTO bookings (public_id, job_no, shipper, commodity, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, status, notes, buku_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
   container:  db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size, created_at) VALUES (?, ?, ?, ?, ?)'),
   dokumen:    db.prepare('INSERT INTO dokumen (booking_id, tipe, no_dokumen, qty, harga_satuan, biaya, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
   piutang:    db.prepare('INSERT INTO piutang (booking_id, jumlah, keterangan, created_by, created_at) VALUES (?, ?, ?, ?, ?)'),
@@ -161,6 +168,7 @@ async function main() {
       else status = rnd(['in_progress', 'done', 'in_progress']);
 
       const bRes = stmts.booking.run(
+        randomBytes(16).toString('hex'),
         jobNo, shipper.name, commodity,
         `PEB-${rndInt(100000, 999999)}`, port,
         `Feeder ${rndInt(1,5)}`, vessel, `V-${rndInt(100,999)}`,
@@ -216,7 +224,70 @@ async function main() {
     }
   }
 
-  console.log(`  Inserted ${bookingCount} bookings.`);
+  // Stress test: 100 bookings per shipper in May 2026 (tests tab UI with 12 shippers)
+  console.log('Seeding stress-test bookings (100 bookings × 12 shippers in May 2026)...');
+  const stressBukuId = bukuMap['2026-05'];
+  const LETTERS = 'ABCDEFGHJKLMNPRSTUVWXYZ';
+
+  function seedBooking(shipperObj, bukuId, year, month) {
+    bookingCount++;
+    const seq = pad(bookingCount, 4);
+    const jobNo = `TAS/${year}/${pad(month)}/${seq}`;
+    const commodity = rnd(shipperObj.commodities);
+    const port = rnd(PORTS);
+    const vessel = rnd(VESSELS);
+    const dateStr = randomDate(year, month);
+    const outDate = addDays(dateStr, rndInt(3, 10));
+    const createdBy = rnd(workerIds);
+    const createdAt = `${dateStr}T${pad(rndInt(8, 17))}:${pad(rndInt(0, 59))}:00`;
+    const status = rnd(['in_progress', 'done', 'done', 'in_progress']);
+
+    const bRes = stmts.booking.run(
+      randomBytes(16).toString('hex'),
+      jobNo, shipperObj.name, commodity,
+      `PEB-${rndInt(100000, 999999)}`, port,
+      `Feeder ${rndInt(1, 5)}`, vessel, `V-${rndInt(100, 999)}`,
+      `BON-${rndInt(10000, 99999)}`,
+      dateStr, outDate, rnd(TRUCKING),
+      status, status === 'done' ? 'Selesai tanpa kendala.' : null,
+      bukuId, createdBy, createdAt, createdAt
+    );
+    const bookingId = bRes.lastInsertRowid;
+
+    const cCount = rndInt(1, 3);
+    for (let c = 0; c < cCount; c++) {
+      const prefix = [0,1,2,3].map(() => LETTERS[rndInt(0, LETTERS.length-1)]).join('');
+      stmts.container.run(bookingId, `${prefix}${rndInt(1000000, 9999999)}`, `SEAL${rndInt(100000, 999999)}`, rnd(SIZES), createdAt);
+    }
+
+    let totalBiaya = 0;
+    for (let d = 0; d < rndInt(2, 4); d++) {
+      const qty = rndInt(1, cCount);
+      const harga = rndInt(5, 50) * 100_000;
+      const biaya = qty * harga;
+      totalBiaya += biaya;
+      stmts.dokumen.run(bookingId, rnd(DOK_TYPES), `DOC-${rndInt(10000, 99999)}`, qty, harga, biaya, financeId, createdAt);
+    }
+
+    if (Math.random() < 0.9) {
+      const pRes = stmts.piutang.run(bookingId, totalBiaya, `Tagihan ${jobNo}`, financeId, createdAt);
+      if (Math.random() < (status === 'done' ? 0.8 : 0.25)) {
+        const partial = Math.random() < 0.2;
+        const bayar = partial ? Math.floor(totalBiaya * rndInt(40, 80) / 100) : totalBiaya;
+        stmts.pembayaran.run('piutang', pRes.lastInsertRowid, bayar, addDays(dateStr, rndInt(5, 25)), rnd(METHODS), partial ? 'Pembayaran sebagian' : 'Lunas', financeId, createdAt);
+      }
+    }
+
+    stmts.audit.run(createdBy, 'CREATE', 'booking', bookingId, JSON.stringify({ job_no: jobNo, status }), createdAt);
+  }
+
+  for (const s of shipperList) {
+    for (let i = 0; i < 100; i++) seedBooking(s, stressBukuId, 2026, 5);
+    console.log(`  ✓ ${s.name} — 100 bookings`);
+  }
+  console.log(`  Inserted ${shipperList.length * 100} stress-test bookings.`);
+
+  console.log(`  Inserted ${bookingCount} bookings total.`);
   console.log('');
   console.log('Seed complete!');
   console.log('');

@@ -44,6 +44,7 @@ export default function BukuDetail() {
 
   const activeShipperName = selectedShipper ?? (shippers[0]?.shipper ?? null);
   const activeGroup = shippers.find((g) => g.shipper === activeShipperName) ?? null;
+  const activePct = activeGroup && activeGroup.total_tagihan ? Math.round((activeGroup.total_paid / activeGroup.total_tagihan) * 100) : 0;
 
   const totals = shippers.reduce((acc, g) => ({
     tagihan: acc.tagihan + g.total_tagihan,
@@ -150,131 +151,125 @@ export default function BukuDetail() {
               onClick={() => navigate("/bookings/new", { state: bukuState })}>Booking Baru</Button> : null} />
         </div>
       ) : (
-        <div className="buku-split">
-          {/* Sidebar — shipper list */}
-          <aside className="buku-split__sidebar">
-            {shippers.map((g) => {
-              const isActive = g.shipper === activeShipperName;
-              const pct = g.total_tagihan ? Math.round((g.total_paid / g.total_tagihan) * 100) : 0;
-              return (
-                <button
-                  key={g.shipper}
-                  className={`shipper-row${isActive ? " is-active" : ""}`}
-                  onClick={() => selectShipper(g.shipper)}
-                >
-                  <div className="shipper-row__name">{g.shipper}</div>
-                  <div className="shipper-row__count">{g.bookings.length} booking</div>
-                  {isFinance && (
+        <div className="buku-tabs-card">
+          {/* Tab strip — one tab per shipper */}
+          <div className="buku-tab-strip">
+            {shippers.map((g) => (
+              <button
+                key={g.shipper}
+                className={`buku-tab${g.shipper === activeShipperName ? " is-active" : ""}`}
+                onClick={() => selectShipper(g.shipper)}
+              >
+                {g.shipper}
+                <span className="buku-tab__count">{g.bookings.length}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Finance summary bar for active shipper */}
+          {isFinance && activeGroup && (
+            <div className="buku-finance-bar">
+              <div className="buku-finance-bar__stat">
+                <div className="buku-finance-bar__label">Tagihan</div>
+                <div className="buku-finance-bar__val">{fmtRp(activeGroup.total_tagihan)}</div>
+              </div>
+              <div className="buku-finance-bar__stat">
+                <div className="buku-finance-bar__label">Dibayar</div>
+                <div className="buku-finance-bar__val" style={{ color: "var(--ok)" }}>{fmtRp(activeGroup.total_paid)}</div>
+              </div>
+              <div className="buku-finance-bar__stat">
+                <div className="buku-finance-bar__label">Sisa</div>
+                <div className="buku-finance-bar__val" style={{ color: activeGroup.sisa > 0 ? "var(--accent)" : "var(--ok)" }}>{fmtRp(activeGroup.sisa)}</div>
+              </div>
+              <div className="buku-finance-bar__progress">
+                <span style={{ fontSize: 12, color: "var(--fg-3)" }}>{activePct}%</span>
+                <Progress value={activeGroup.total_paid} max={activeGroup.total_tagihan || 1} tone={activePct === 100 ? "ok" : activePct > 0 ? "warn" : "danger"} />
+              </div>
+            </div>
+          )}
+
+          {/* Toolbar */}
+          <div className="buku-tab-toolbar">
+            <input
+              className="inp"
+              placeholder="Cari job no / komoditi / kapal…"
+              value={detailSearch}
+              onChange={(e) => { setDetailSearch(e.target.value); setDetailPage(0); }}
+            />
+            {query && (
+              <span className="muted" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                {filtered.length} / {activeGroup?.bookings.length}
+              </span>
+            )}
+          </div>
+
+          {/* Table body */}
+          <div className="buku-tab-body">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Job No</th>
+                  <th>Commodity</th>
+                  <th>Vessel</th>
+                  {isFinance ? (
                     <>
-                      <div className="shipper-row__finance">
-                        <span className="shipper-row__val">{fmtRp(g.total_tagihan)}</span>
-                        <span className="shipper-row__sisa" style={{ color: g.sisa > 0 ? "var(--accent)" : "var(--ok)" }}>
-                          sisa {fmtRp(g.sisa)}
-                        </span>
-                      </div>
-                      <Progress value={g.total_paid} max={g.total_tagihan || 1} tone={pct === 100 ? "ok" : pct > 0 ? "warn" : "danger"} />
+                      <th>Status</th>
+                      <th className="right">Tagihan</th>
+                      <th className="right">Dibayar</th>
+                      <th className="right">Sisa</th>
+                    </>
+                  ) : (
+                    <>
+                      <th>Status</th>
+                      <th>In / Out</th>
+                      <th>PEB</th>
+                      <th>Trucking</th>
                     </>
                   )}
-                </button>
-              );
-            })}
-          </aside>
-
-          {/* Main panel — selected shipper bookings */}
-          <div className="buku-split__main">
-            {activeGroup ? (
-              <>
-                <div className="buku-split__toolbar">
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{activeGroup.shipper}</div>
-                    <div className="muted" style={{ fontSize: 12 }}>
-                      {activeGroup.bookings.length} booking
-                      {isFinance && ` · ${fmtRp(activeGroup.total_tagihan)} tagihan`}
-                    </div>
-                  </div>
-                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                    <input
-                      className="inp"
-                      placeholder="Cari job no / komoditi / kapal…"
-                      value={detailSearch}
-                      onChange={(e) => { setDetailSearch(e.target.value); setDetailPage(0); }}
-                      style={{ width: 240, fontSize: 13 }}
-                    />
-                    {query && (
-                      <span className="muted" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
-                        {filtered.length} / {activeGroup.bookings.length}
-                      </span>
+                  <th style={{ width: 20 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {pageData.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ textAlign: "center", padding: "32px 0", color: "var(--fg-3)" }}>
+                      Tidak ada booking yang cocok.
+                    </td>
+                  </tr>
+                ) : pageData.map((bk) => (
+                  <tr key={bk.id} className="is-clickable"
+                    onClick={() => navigate(`/bookings/${bk.public_id}`, { state: bukuState })}>
+                    <td className="strong mono">{bk.job_no}</td>
+                    <td>{bk.commodity || "—"}</td>
+                    <td>{bk.vessel_name || "—"}{bk.vessel_no ? <span className="muted"> / {bk.vessel_no}</span> : ""}</td>
+                    {isFinance ? (
+                      <>
+                        <td><Badge status={bk.piutang_status === "none" ? "muted" : bk.piutang_status} label={bk.piutang_status === "none" ? "—" : undefined} /></td>
+                        <td className="right num">{fmtRp(bk.tagihan)}</td>
+                        <td className="right num" style={{ color: bk.total_paid > 0 ? "var(--ok)" : "var(--fg-3)" }}>{fmtRp(bk.total_paid)}</td>
+                        <td className="right num strong">{fmtRp(bk.sisa)}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td><Badge status={bk.status} /></td>
+                        <td className="num">{fmtDate(bk.in_date)} → {bk.out_date ? fmtDate(bk.out_date) : <span className="dim">pending</span>}</td>
+                        <td className="mono" style={{ fontSize: 12 }}>{bk.peb || "—"}</td>
+                        <td>{bk.trucking || "—"}</td>
+                      </>
                     )}
-                  </div>
-                </div>
+                    <td><IconChevron size={12} style={{ color: "var(--fg-3)" }} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-                <table className="tbl">
-                  <thead>
-                    <tr>
-                      <th>Job No</th>
-                      <th>Commodity</th>
-                      <th>Vessel</th>
-                      {isFinance ? (
-                        <>
-                          <th>Status</th>
-                          <th className="right">Tagihan</th>
-                          <th className="right">Dibayar</th>
-                          <th className="right">Sisa</th>
-                        </>
-                      ) : (
-                        <>
-                          <th>Status</th>
-                          <th>In / Out</th>
-                          <th>PEB</th>
-                          <th>Trucking</th>
-                        </>
-                      )}
-                      <th style={{ width: 20 }} />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pageData.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} style={{ textAlign: "center", padding: "24px 0", color: "var(--fg-3)" }}>
-                          Tidak ada booking yang cocok.
-                        </td>
-                      </tr>
-                    ) : pageData.map((bk) => (
-                      <tr key={bk.id} className="is-clickable"
-                        onClick={() => navigate(`/bookings/${bk.public_id}`, { state: bukuState })}>
-                        <td className="strong mono">{bk.job_no}</td>
-                        <td>{bk.commodity || "—"}</td>
-                        <td>{bk.vessel_name || "—"}{bk.vessel_no ? <span className="muted"> / {bk.vessel_no}</span> : ""}</td>
-                        {isFinance ? (
-                          <>
-                            <td><Badge status={bk.piutang_status === "none" ? "muted" : bk.piutang_status} label={bk.piutang_status === "none" ? "—" : undefined} /></td>
-                            <td className="right num">{fmtRp(bk.tagihan)}</td>
-                            <td className="right num" style={{ color: bk.total_paid > 0 ? "var(--ok)" : "var(--fg-3)" }}>{fmtRp(bk.total_paid)}</td>
-                            <td className="right num strong">{fmtRp(bk.sisa)}</td>
-                          </>
-                        ) : (
-                          <>
-                            <td><Badge status={bk.status} /></td>
-                            <td className="num">{fmtDate(bk.in_date)} → {bk.out_date ? fmtDate(bk.out_date) : <span className="dim">pending</span>}</td>
-                            <td className="mono" style={{ fontSize: 12 }}>{bk.peb || "—"}</td>
-                            <td>{bk.trucking || "—"}</td>
-                          </>
-                        )}
-                        <td><IconChevron size={12} style={{ color: "var(--fg-3)" }} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {totalPages > 1 && (
-                  <div className="row" style={{ gap: 8, justifyContent: "center", padding: "14px 0 4px", alignItems: "center" }}>
-                    <button className="pill-tab" disabled={detailPage === 0} onClick={() => setDetailPage(detailPage - 1)}>‹ Prev</button>
-                    <span className="muted" style={{ fontSize: 12 }}>Hal {detailPage + 1} / {totalPages}</span>
-                    <button className="pill-tab" disabled={detailPage >= totalPages - 1} onClick={() => setDetailPage(detailPage + 1)}>Next ›</button>
-                  </div>
-                )}
-              </>
-            ) : null}
+            {totalPages > 1 && (
+              <div className="row" style={{ gap: 8, justifyContent: "center", padding: "14px 16px", alignItems: "center" }}>
+                <button className="pill-tab" disabled={detailPage === 0} onClick={() => setDetailPage(detailPage - 1)}>‹ Prev</button>
+                <span className="muted" style={{ fontSize: 12 }}>Hal {detailPage + 1} / {totalPages}</span>
+                <button className="pill-tab" disabled={detailPage >= totalPages - 1} onClick={() => setDetailPage(detailPage + 1)}>Next ›</button>
+              </div>
+            )}
           </div>
         </div>
       )}

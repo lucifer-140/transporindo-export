@@ -1,0 +1,2 @@
+ALTER TABLE buku ADD COLUMN closed_at DATETIME;
+ALTER TABLE buku ADD COLUMN closed_by INTEGER REFERENCES users(id);
