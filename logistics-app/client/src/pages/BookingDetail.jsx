@@ -398,6 +398,210 @@ function HutangTabPanel({ hutangList, setHutangModal, setPayModal, deleteHutangM
   );
 }
 
+function InvoicePajakItemModal({ open, onClose, item, onSave, isPending }) {
+  const [keterangan, setKeterangan] = useState(item?.keterangan ?? "");
+  const [harga, setHarga] = useState(item?.harga ?? "");
+  return (
+    <Modal open={open} onClose={onClose} title={item?.id ? "Edit Item Pajak" : "Tambah Item Pajak"}
+      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!keterangan || !harga || isPending} onClick={() => onSave({ keterangan, harga: +harga })}>{item?.id ? "Simpan" : "Tambah"}</Button></>}>
+      <div className="col" style={{ gap: 14 }}>
+        <Field label="Keterangan" required><Input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="FREIGHT CHARGES" /></Field>
+        <Field label="Harga (Rp)" required><Input type="number" min={0} value={harga} onChange={(e) => setHarga(e.target.value)} placeholder="0" /></Field>
+      </div>
+    </Modal>
+  );
+}
+
+function ReimbursementItemModal({ open, onClose, item, onSave, isPending }) {
+  const [description, setDescription] = useState(item?.description ?? "");
+  const [qty, setQty] = useState(item?.qty ?? 1);
+  const [price, setPrice] = useState(item?.price ?? "");
+  const amount = qty * (price || 0);
+  return (
+    <Modal open={open} onClose={onClose} title={item?.id ? "Edit Item Reimbursement" : "Tambah Item Reimbursement"}
+      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!description || !price || isPending} onClick={() => onSave({ description, qty: +qty, price: +price })}>{item?.id ? "Simpan" : "Tambah"}</Button></>}>
+      <div className="col" style={{ gap: 14 }}>
+        <Field label="Description" required><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Port Charges" /></Field>
+        <div className="grid grid-form-2">
+          <Field label="Qty" required><Input type="number" min={1} value={qty} onChange={(e) => setQty(+e.target.value)} /></Field>
+          <Field label="Price (Rp)" required><Input type="number" min={0} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" /></Field>
+        </div>
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--bg-2)", display: "flex", justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 12 }}>Amount</span>
+          <span className="num strong" style={{ fontSize: 16 }}>{fmtRp(amount)}</span>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ReconciliationBanner({ invoiceTotal, pajakTotal, reimbTotal }) {
+  const gabungan = pajakTotal + reimbTotal;
+  const ok = gabungan === invoiceTotal;
+  const selisih = Math.abs(gabungan - invoiceTotal);
+  return (
+    <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: 8, background: ok ? "var(--bg-2)" : "color-mix(in srgb, var(--warn) 10%, var(--bg-1))", border: `1px solid ${ok ? "var(--border)" : "var(--warn)"}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div className="col" style={{ gap: 4, fontSize: 12 }}>
+          <div className="row" style={{ gap: 8 }}><span className="muted">Total Invoice (tab Invoice)</span><span className="num">{fmtRp(invoiceTotal)}</span></div>
+          <div className="row" style={{ gap: 8 }}><span className="muted">Invoice Pajak (Nilai Penyerahan)</span><span className="num">{fmtRp(pajakTotal)}</span></div>
+          <div className="row" style={{ gap: 8 }}><span className="muted">Reimbursement</span><span className="num">{fmtRp(reimbTotal)}</span></div>
+          <div className="row" style={{ gap: 8, fontWeight: 600 }}><span>Gabungan</span><span className="num">{fmtRp(gabungan)}</span></div>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: ok ? "var(--ok)" : "var(--warn)" }}>
+          {ok ? "✓ Sesuai" : `⚠ Selisih ${fmtRp(selisih)}`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InvoicePajakTabPanel({ invoicePajak, invoiceTotal, reimbTotal, onCreate, onDelete, setPajakItemModal, deleteItemMutation }) {
+  const items = invoicePajak?.items ?? [];
+  const tvp = invoicePajak?.total_nilai_penyerahan ?? 0;
+  const ppn = invoicePajak?.ppn ?? 0;
+  const totalBayar = invoicePajak?.total_bayar ?? 0;
+  const ppnRate = invoicePajak?.ppn_rate ?? 11;
+
+  if (!invoicePajak) {
+    return (
+      <Card>
+        <Empty title="Belum ada Invoice Pajak" sub="Buat invoice pajak untuk booking ini." action={<Button variant="primary" icon={<IconPlus size={12} />} onClick={onCreate}>Buat Invoice Pajak</Button>} />
+        <ReconciliationBanner invoiceTotal={invoiceTotal} pajakTotal={0} reimbTotal={reimbTotal} />
+      </Card>
+    );
+  }
+
+  return (
+    <Card pad={false}>
+      <div className="bd-invoice-bar">
+        <div className="bd-invoice-bar__total">
+          <span>Invoice Pajak</span>
+          <b>{fmtRp(tvp)}</b>
+          <span className="muted" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400, fontSize: 12.5 }}>· {items.length} item · PPN {ppnRate}%</span>
+        </div>
+        <div className="row" style={{ gap: 6 }}>
+          <Button variant="danger" size="sm" icon={<IconTrash size={12} />} onClick={onDelete}>Hapus</Button>
+          <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setPajakItemModal({})}>Tambah Item</Button>
+        </div>
+      </div>
+
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th style={{ width: 50 }}>No.</th>
+            <th>Keterangan</th>
+            <th className="right" style={{ width: 180 }}>Harga</th>
+            <th style={{ width: 80 }} />
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, i) => (
+            <tr key={item.id}>
+              <td className="num muted">{String(i + 1).padStart(2, "0")}</td>
+              <td className="strong">{item.keterangan}</td>
+              <td className="right num">{fmtRp(item.harga)}</td>
+              <td>
+                <div className="row" style={{ gap: 2, justifyContent: "flex-end" }}>
+                  <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setPajakItemModal({ id: item.id, keterangan: item.keterangan, harga: item.harga })} />
+                  <Button variant="ghost" size="sm" icon={<IconTrash size={12} />} onClick={() => deleteItemMutation.mutate(item.id)} />
+                </div>
+              </td>
+            </tr>
+          ))}
+          {items.length === 0 && <tr><td colSpan={4}><Empty title="Belum ada item" sub="Tambahkan item biaya untuk invoice pajak." /></td></tr>}
+        </tbody>
+        {items.length > 0 && (
+          <tfoot>
+            <tr><td colSpan={2} className="right" style={{ color: "var(--fg-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>Total Nilai Penyerahan</td><td className="right num strong">{fmtRp(tvp)}</td><td /></tr>
+            <tr><td colSpan={2} className="right" style={{ color: "var(--fg-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>Dasar Pengenaan Pajak</td><td className="right num">{fmtRp(tvp)}</td><td /></tr>
+            <tr><td colSpan={2} className="right" style={{ color: "var(--fg-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>PPN ({ppnRate}%)</td><td className="right num">{fmtRp(ppn)}</td><td /></tr>
+            <tr><td colSpan={2} className="right" style={{ fontSize: 13, fontWeight: 600 }}>Total yang harus dibayar</td><td className="right num strong" style={{ fontSize: 16, color: "var(--fg)" }}>{fmtRp(totalBayar)}</td><td /></tr>
+          </tfoot>
+        )}
+      </table>
+
+      <div style={{ padding: "0 16px 16px" }}>
+        <ReconciliationBanner invoiceTotal={invoiceTotal} pajakTotal={tvp} reimbTotal={reimbTotal} />
+      </div>
+    </Card>
+  );
+}
+
+function ReimbursementTabPanel({ notaReimbursement, invoiceTotal, pajakTotal, onCreate, onDelete, setReimbItemModal, deleteItemMutation }) {
+  const items = notaReimbursement?.items ?? [];
+  const total = notaReimbursement?.total ?? 0;
+
+  if (!notaReimbursement) {
+    return (
+      <Card>
+        <Empty title="Belum ada Nota Reimbursement" sub="Buat nota reimbursement untuk booking ini." action={<Button variant="primary" icon={<IconPlus size={12} />} onClick={onCreate}>Buat Nota Reimbursement</Button>} />
+        <ReconciliationBanner invoiceTotal={invoiceTotal} pajakTotal={pajakTotal} reimbTotal={0} />
+      </Card>
+    );
+  }
+
+  return (
+    <Card pad={false}>
+      <div className="bd-invoice-bar">
+        <div className="bd-invoice-bar__total">
+          <span>Nota Reimbursement</span>
+          <b>{fmtRp(total)}</b>
+          <span className="muted" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400, fontSize: 12.5 }}>· {items.length} item</span>
+        </div>
+        <div className="row" style={{ gap: 6 }}>
+          <Button variant="danger" size="sm" icon={<IconTrash size={12} />} onClick={onDelete}>Hapus</Button>
+          <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setReimbItemModal({})}>Tambah Item</Button>
+        </div>
+      </div>
+
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th style={{ width: 50 }}>No.</th>
+            <th>Description</th>
+            <th className="right" style={{ width: 70 }}>Qty</th>
+            <th className="right" style={{ width: 160 }}>Price</th>
+            <th className="right" style={{ width: 160 }}>Amount</th>
+            <th style={{ width: 80 }} />
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, i) => (
+            <tr key={item.id}>
+              <td className="num muted">{String(i + 1).padStart(2, "0")}</td>
+              <td className="strong">{item.description}</td>
+              <td className="right num">{item.qty}</td>
+              <td className="right num">{fmtRp(item.price)}</td>
+              <td className="right num strong">{fmtRp(item.amount)}</td>
+              <td>
+                <div className="row" style={{ gap: 2, justifyContent: "flex-end" }}>
+                  <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setReimbItemModal({ id: item.id, description: item.description, qty: item.qty, price: item.price })} />
+                  <Button variant="ghost" size="sm" icon={<IconTrash size={12} />} onClick={() => deleteItemMutation.mutate(item.id)} />
+                </div>
+              </td>
+            </tr>
+          ))}
+          {items.length === 0 && <tr><td colSpan={6}><Empty title="Belum ada item" sub="Tambahkan item reimbursement." /></td></tr>}
+        </tbody>
+        {items.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={4} style={{ textAlign: "right", color: "var(--fg-3)", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 11 }}>Total</td>
+              <td className="right num strong" style={{ fontSize: 16, color: "var(--fg)" }}>{fmtRp(total)}</td>
+              <td />
+            </tr>
+          </tfoot>
+        )}
+      </table>
+
+      <div style={{ padding: "0 16px 16px" }}>
+        <ReconciliationBanner invoiceTotal={invoiceTotal} pajakTotal={pajakTotal} reimbTotal={total} />
+      </div>
+    </Card>
+  );
+}
+
 // ── Worker view ──────────────────────────────────────────────────────────────
 function WorkerView({ booking, containers, onEdit }) {
   function fmtCtr(ctrs) {
@@ -447,7 +651,7 @@ export default function BookingDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { isFinance, isAdmin } = useAuth();
+  const { isFinance } = useAuth();
   const toast = useToast();
 
   // Modal state
@@ -457,12 +661,14 @@ export default function BookingDetail() {
   const [hutangModal, setHutangModal] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [pajakItemModal, setPajakItemModal] = useState(null);
+  const [reimbItemModal, setReimbItemModal] = useState(null);
 
   // Finance tab state
   const [tab, setTab] = useState("shipment");
 
   // Queries
-  const { data: bookingData, isLoading, error: bookingError } = useQuery({
+  const { data: bookingData, isLoading } = useQuery({
     queryKey: ["booking", id],
     queryFn: () => api.get(`/bookings/${id}`).then((r) => r.data),
   });
@@ -482,6 +688,18 @@ export default function BookingDetail() {
   const { data: hutangList = [] } = useQuery({
     queryKey: ["hutang-booking", id],
     queryFn: () => api.get(`/bookings/${id}/hutang`).then((r) => r.data),
+    enabled: isFinance,
+  });
+
+  const { data: invoicePajak } = useQuery({
+    queryKey: ["invoice-pajak", id],
+    queryFn: () => api.get(`/bookings/${id}/invoice-pajak`).then((r) => r.data),
+    enabled: isFinance,
+  });
+
+  const { data: notaReimbursement } = useQuery({
+    queryKey: ["nota-reimbursement", id],
+    queryFn: () => api.get(`/bookings/${id}/nota-reimbursement`).then((r) => r.data),
     enabled: isFinance,
   });
 
@@ -569,6 +787,66 @@ export default function BookingDetail() {
     mutationFn: ({ hutangId, payId, body }) => api.put(`/hutang/${hutangId}/pembayaran/${payId}`, body).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setPayModal(null); },
     onError: (e) => toast(apiErrMsg(e, 'Gagal mengubah pembayaran.'), 'error'),
+  });
+
+  const createInvoicePajakMutation = useMutation({
+    mutationFn: () => api.post(`/bookings/${id}/invoice-pajak`, {}).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["invoice-pajak", id] }); toast('Invoice pajak dibuat.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal membuat invoice pajak.'), 'error'),
+  });
+
+  const deleteInvoicePajakMutation = useMutation({
+    mutationFn: () => api.delete(`/bookings/${id}/invoice-pajak/${invoicePajak?.id}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["invoice-pajak", id] }); toast('Invoice pajak dihapus.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus invoice pajak.'), 'error'),
+  });
+
+  const addPajakItemMutation = useMutation({
+    mutationFn: (body) => api.post(`/bookings/${id}/invoice-pajak/${invoicePajak?.id}/items`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["invoice-pajak", id] }); setPajakItemModal(null); toast('Item ditambahkan.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menambah item.'), 'error'),
+  });
+
+  const editPajakItemMutation = useMutation({
+    mutationFn: ({ itemId, body }) => api.put(`/bookings/${id}/invoice-pajak/${invoicePajak?.id}/items/${itemId}`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["invoice-pajak", id] }); setPajakItemModal(null); toast('Item diperbarui.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal memperbarui item.'), 'error'),
+  });
+
+  const deletePajakItemMutation = useMutation({
+    mutationFn: (itemId) => api.delete(`/bookings/${id}/invoice-pajak/${invoicePajak?.id}/items/${itemId}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["invoice-pajak", id] }); toast('Item dihapus.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus item.'), 'error'),
+  });
+
+  const createNotaMutation = useMutation({
+    mutationFn: () => api.post(`/bookings/${id}/nota-reimbursement`, {}).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["nota-reimbursement", id] }); toast('Nota reimbursement dibuat.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal membuat nota reimbursement.'), 'error'),
+  });
+
+  const deleteNotaMutation = useMutation({
+    mutationFn: () => api.delete(`/bookings/${id}/nota-reimbursement/${notaReimbursement?.id}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["nota-reimbursement", id] }); toast('Nota reimbursement dihapus.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus nota.'), 'error'),
+  });
+
+  const addReimbItemMutation = useMutation({
+    mutationFn: (body) => api.post(`/bookings/${id}/nota-reimbursement/${notaReimbursement?.id}/items`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["nota-reimbursement", id] }); setReimbItemModal(null); toast('Item ditambahkan.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menambah item.'), 'error'),
+  });
+
+  const editReimbItemMutation = useMutation({
+    mutationFn: ({ itemId, body }) => api.put(`/bookings/${id}/nota-reimbursement/${notaReimbursement?.id}/items/${itemId}`, body).then((r) => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["nota-reimbursement", id] }); setReimbItemModal(null); toast('Item diperbarui.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal memperbarui item.'), 'error'),
+  });
+
+  const deleteReimbItemMutation = useMutation({
+    mutationFn: (itemId) => api.delete(`/bookings/${id}/nota-reimbursement/${notaReimbursement?.id}/items/${itemId}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["nota-reimbursement", id] }); toast('Item dihapus.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus item.'), 'error'),
   });
 
   if (isLoading) return <BookingDetailSkeleton />;
@@ -694,12 +972,20 @@ export default function BookingDetail() {
               <IcUp size={13} style={{ transform: "rotate(180deg)" }} /> Hutang
               <span className="bd-tab__count">{hutangList.length}</span>
             </button>
+            <button role="tab" className={`bd-tab ${tab === "pajak" ? "is-active" : ""}`} onClick={() => setTab("pajak")}>
+              <IcList size={13} /> Inv. Pajak
+            </button>
+            <button role="tab" className={`bd-tab ${tab === "reimb" ? "is-active" : ""}`} onClick={() => setTab("reimb")}>
+              <IcList size={13} /> Reimb.
+            </button>
           </div>
 
           {tab === "shipment" && <ShipmentTabPanel booking={booking} containers={containers} onEdit={onEdit} />}
           {tab === "invoice"  && <InvoiceTabPanel  dokumen={dokumen} invoiceTotal={invoiceTotal} setItemModal={setItemModal} deleteItemMutation={deleteItemMutation} onExportInvoice={() => exportInvoiceOnly(booking, dokumen)} />}
           {tab === "piutang"  && <PiutangTabPanel  piutang={piutang} piutangPaid={piutangPaid} piutangSisa={piutangSisa} piutangSt={piutangSt} invoiceTotal={invoiceTotal} setPiutangMutation={setPiutangMutation} setPiutangModal={setPiutangModal} setPayModal={setPayModal} deletePiutangPayMutation={deletePiutangPayMutation} />}
           {tab === "hutang"   && <HutangTabPanel   hutangList={hutangList} setHutangModal={setHutangModal} setPayModal={setPayModal} deleteHutangMutation={deleteHutangMutation} deleteHutangPayMutation={deleteHutangPayMutation} />}
+          {tab === "pajak"   && <InvoicePajakTabPanel invoicePajak={invoicePajak} invoiceTotal={invoiceTotal} reimbTotal={notaReimbursement?.total ?? 0} onCreate={() => createInvoicePajakMutation.mutate()} onDelete={() => deleteInvoicePajakMutation.mutate()} setPajakItemModal={setPajakItemModal} deleteItemMutation={deletePajakItemMutation} />}
+          {tab === "reimb"   && <ReimbursementTabPanel notaReimbursement={notaReimbursement} invoiceTotal={invoiceTotal} pajakTotal={invoicePajak?.total_nilai_penyerahan ?? 0} onCreate={() => createNotaMutation.mutate()} onDelete={() => deleteNotaMutation.mutate()} setReimbItemModal={setReimbItemModal} deleteItemMutation={deleteReimbItemMutation} />}
         </>
       ) : (
         <WorkerView booking={booking} containers={containers} onEdit={onEdit} />
@@ -726,6 +1012,26 @@ export default function BookingDetail() {
         open={hutangModal} onClose={() => setHutangModal(false)}
         isPending={addHutangMutation.isPending}
         onSave={(data) => addHutangMutation.mutate(data)}
+      />
+
+      <InvoicePajakItemModal
+        key={pajakItemModal ? JSON.stringify(pajakItemModal) : "pajak-closed"}
+        open={!!pajakItemModal} onClose={() => setPajakItemModal(null)} item={pajakItemModal}
+        isPending={addPajakItemMutation.isPending || editPajakItemMutation.isPending}
+        onSave={(data) => {
+          if (pajakItemModal?.id) editPajakItemMutation.mutate({ itemId: pajakItemModal.id, body: data });
+          else addPajakItemMutation.mutate(data);
+        }}
+      />
+
+      <ReimbursementItemModal
+        key={reimbItemModal ? JSON.stringify(reimbItemModal) : "reimb-closed"}
+        open={!!reimbItemModal} onClose={() => setReimbItemModal(null)} item={reimbItemModal}
+        isPending={addReimbItemMutation.isPending || editReimbItemMutation.isPending}
+        onSave={(data) => {
+          if (reimbItemModal?.id) editReimbItemMutation.mutate({ itemId: reimbItemModal.id, body: data });
+          else addReimbItemMutation.mutate(data);
+        }}
       />
 
       <PaymentModal

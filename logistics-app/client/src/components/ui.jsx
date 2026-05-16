@@ -3,9 +3,10 @@ import { IconDown, IconX, IconChevron } from "./Icons.jsx";
 
 // ── Formatters ───────────────────────────────────────────────────────────────
 export const fmtRp = (n) => {
-  if (n === null || n === undefined || isNaN(n)) return "Rp 0";
-  const s = Math.round(Math.abs(n)).toLocaleString("id-ID");
-  return (n < 0 ? "-Rp " : "Rp ") + s;
+  if (n === null || n === undefined || isNaN(n)) return "Rp. 0.00";
+  const abs = Math.abs(n);
+  const formatted = abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (n < 0 ? "-Rp. " : "Rp. ") + formatted;
 };
 export const fmtRpShort = (n) => {
   if (!n) return "Rp 0";

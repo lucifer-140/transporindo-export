@@ -16,6 +16,7 @@ const Shippers = lazy(() => import('./pages/Shippers.jsx'));
 const BukuList = lazy(() => import('./pages/BukuList.jsx'));
 const BukuDetail = lazy(() => import('./pages/BukuDetail.jsx'));
 const BukuFinance = lazy(() => import('./pages/BukuFinance.jsx'));
+const Settings = lazy(() => import('./pages/Settings.jsx'));
 
 const PageLoader = () => (
   <div className="page-loader">
@@ -81,6 +82,11 @@ export default function App() {
         <Route path="audit" element={
           <ProtectedRoute minRole="admin">
             <Suspense fallback={<PageLoader />}><AuditLog /></Suspense>
+          </ProtectedRoute>
+        } />
+        <Route path="settings" element={
+          <ProtectedRoute minRole="admin">
+            <Suspense fallback={<PageLoader />}><Settings /></Suspense>
           </ProtectedRoute>
         } />
         <Route path="shippers" element={

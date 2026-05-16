@@ -20,6 +20,9 @@ import { shipperRoutes } from './routes/shippers.js';
 import { bukuRoutes } from './routes/buku.js';
 import { commodityRoutes } from './routes/commodities.js';
 import { eventsRoutes } from './routes/events.js';
+import { invoicePajakRoutes } from './routes/invoicePajak.js';
+import { notaReimbursementRoutes } from './routes/notaReimbursement.js';
+import { settingsRoutes } from './routes/settings.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT ?? '8080');
@@ -59,6 +62,9 @@ await fastify.register(shipperRoutes);
 await fastify.register(bukuRoutes);
 await fastify.register(commodityRoutes);
 await fastify.register(eventsRoutes);
+await fastify.register(invoicePajakRoutes);
+await fastify.register(notaReimbursementRoutes);
+await fastify.register(settingsRoutes);
 
 // Serve built React app in production
 const publicDir = join(__dirname, '..', 'public');

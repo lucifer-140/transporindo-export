@@ -35,8 +35,9 @@ export default function Layout() {
     {
       label: "Admin",
       links: [
-        { to: "/users", label: "Users",     icon: <IconUsers size={15} />,    adminOnly: true },
-        { to: "/audit", label: "Audit Log", icon: <IconActivity size={15} />, adminOnly: true },
+        { to: "/users",    label: "Users",      icon: <IconUsers size={15} />,    adminOnly: true },
+        { to: "/audit",    label: "Audit Log",  icon: <IconActivity size={15} />, adminOnly: true },
+        { to: "/settings", label: "Pengaturan", icon: <IconActivity size={15} />, adminOnly: true },
       ],
     },
   ];
