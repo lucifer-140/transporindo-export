@@ -2,7 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth, useLogout } from "../hooks/useAuth.js";
 import { useTheme } from "../hooks/useTheme.js";
 import { useSSE } from "../hooks/useSSE.js";
-import { IconBook, IconBox, IconUsers, IconActivity, IconShipper, IconArrow, IconExternal, LogoMark } from "./Icons.jsx";
+import { IconBook, IconBox, IconUsers, IconActivity, IconShipper, IconArrow, IconExternal, IconDownload, LogoMark } from "./Icons.jsx";
 
 export default function Layout() {
   const { user, isAdmin, isFinance } = useAuth();
@@ -38,6 +38,7 @@ export default function Layout() {
         { to: "/users",    label: "Users",      icon: <IconUsers size={15} />,    adminOnly: true },
         { to: "/audit",    label: "Audit Log",  icon: <IconActivity size={15} />, adminOnly: true },
         { to: "/settings", label: "Pengaturan", icon: <IconActivity size={15} />, adminOnly: true },
+        { to: "/backup",   label: "Backup",     icon: <IconDownload size={15} />, adminOnly: true },
       ],
     },
   ];
@@ -53,7 +54,8 @@ export default function Layout() {
           <LogoMark size={40} accent="var(--accent)" />
           <div className="sb-brand__wm">
             <b>TAS</b>
-            <small>Logistics</small>
+            <span className="sb-brand__legal">PT. Transporindo Agung Sejahtera</span>
+            <small>Export</small>
           </div>
         </NavLink>
 

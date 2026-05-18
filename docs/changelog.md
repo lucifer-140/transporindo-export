@@ -6,6 +6,15 @@ Format: [version] — date — description
 
 ---
 
+## [0.13.0] — 2026-05-18
+
+### Added
+- **Backup & Restore system** — `scripts/backup-db.js` (WAL checkpoint + file copy) and `scripts/restore-db.js` (validates SQLite magic bytes, checks port, confirmation prompt, removes stale WAL files); `npm run backup` / `npm run restore` scripts in server/package.json
+- **Backup admin UI** — `/backup` page (admin-only); create backup with one click, list all backups by date/size, download any backup via browser; restore section shows copy-paste command with dropdown to auto-fill filename
+- **Backup API** — `GET /api/backups`, `POST /api/backup`, `GET /api/backup/download/:filename`; all admin-only; path traversal protection on download; audit logs backup creation
+
+---
+
 ## [0.11.0] — 2026-05-15
 
 ### Changed

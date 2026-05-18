@@ -1,7 +1,7 @@
 # Project Status
 
-**Version:** 0.11.0
-**Last Updated:** 2026-05-15
+**Version:** 0.13.0
+**Last Updated:** 2026-05-18
 **Stage:** Active Development
 
 ---
@@ -25,6 +25,7 @@
 | Finance Summary | Done | `/api/finance/summary` aggregate; finance+ access only |
 | BukuFinance page | Done | Finance view per buku; accessible to finance and admin roles |
 | System Flow Doc | Done | `docs/system-flow.md` — non-technical user guide |
+| Backup & Restore | Done | CLI scripts (`backup-db.js`, `restore-db.js`) + admin web UI at `/backup`; create/download via browser, restore via CLI with guided instructions |
 | Custom Design System | Done | CSS variable tokens; dark/light theme; `Icons.jsx`; `ui.jsx` primitives |
 | UI Redesign (all pages) | Done | All pages restyled with design system; sidebar nav with sectioned layout |
 | Theme Toggle | Done | Light/dark switcher in sidebar; localStorage persistence; flash-free init script |

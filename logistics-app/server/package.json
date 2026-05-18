@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "migrate": "node src/db.js"
+    "migrate": "node src/db.js",
+    "backup": "node ../scripts/backup-db.js",
+    "restore": "node ../scripts/restore-db.js"
   },
   "dependencies": {
     "@fastify/cookie": "^9.0.0",
