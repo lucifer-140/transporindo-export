@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getBuku } from "../api/buku.js";
-import { Badge, Button, PageHeader, Card, Stat, Empty, fmtRp } from "../components/ui.jsx";
+import api from "../api/client.js";
+import { Badge, Button, PageHeader, Card, Stat, Empty, fmtRp, RpCell } from "../components/ui.jsx";
 import { IconPlus, IconChevron } from "../components/Icons.jsx";
 import { exportShipperInvoice } from "../utils/invoicePdf.js";
 
@@ -74,7 +75,7 @@ export default function BukuFinance() {
                 <button
                   className="btn btn--default btn--sm"
                   style={{ marginLeft: 4, flexShrink: 0 }}
-                  onClick={(e) => { e.stopPropagation(); exportShipperInvoice(s, buku); }}
+                  onClick={(e) => { e.stopPropagation(); exportShipperInvoice(s, buku); api.post('/audit/download', { documentType: 'shipper_invoice', entityId: buku?.id ?? null }).catch(() => {}); }}
                   title="Export Invoice PDF"
                 >
                   PDF
@@ -87,9 +88,9 @@ export default function BukuFinance() {
                     <thead>
                       <tr>
                         <th>Job No</th><th>Status</th>
-                        <th className="right">Tagihan</th>
-                        <th className="right">Dibayar</th>
-                        <th className="right">Sisa</th>
+                        <th>Tagihan</th>
+                        <th>Dibayar</th>
+                        <th>Sisa</th>
                         <th>Piutang</th>
                       </tr>
                     </thead>
@@ -99,9 +100,9 @@ export default function BukuFinance() {
                           onClick={() => navigate(`/bookings/${b.public_id}`, { state: { buku_id: buku.id, buku_periode: periode } })}>
                           <td className="strong mono">{b.job_no}</td>
                           <td><Badge status={b.status} /></td>
-                          <td className="right num">{fmtRp(b.tagihan)}</td>
-                          <td className="right num" style={{ color: "var(--ok)" }}>{fmtRp(b.total_paid)}</td>
-                          <td className="right num">{fmtRp(b.sisa)}</td>
+                          <RpCell value={b.tagihan} />
+                          <RpCell value={b.total_paid} style={{ color: "var(--ok)" }} />
+                          <RpCell value={b.sisa} />
                           <td><Badge status={b.piutang_status} /></td>
                         </tr>
                       ))}

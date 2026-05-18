@@ -144,9 +144,10 @@ export async function piutangRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     const { jumlah, tanggal, metode, keterangan } = parsed.data;
-    db.prepare(
+    const payResult = db.prepare(
       "INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, metode, keterangan, created_by) VALUES ('piutang', ?, ?, ?, ?, ?, ?)"
     ).run(row.id, jumlah, tanggal, metode, keterangan, request.session.user.id);
+    logAudit({ userId: request.session.user.id, action: 'create', entityType: 'piutang_payment', entityId: payResult.lastInsertRowid, changes: { piutang_id: row.id, jumlah, tanggal, metode } });
 
     return reply.code(201).send(buildPiutang(db, db.prepare('SELECT * FROM piutang WHERE id = ?').get(row.id)));
   });
@@ -167,6 +168,7 @@ export async function piutangRoutes(fastify) {
     const { jumlah, tanggal, metode, keterangan } = parsed.data;
     db.prepare('UPDATE pembayaran SET jumlah=?, tanggal=?, metode=?, keterangan=? WHERE id=?')
       .run(jumlah, tanggal, metode, keterangan, pay.id);
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'piutang_payment', entityId: pay.id, changes: { jumlah, tanggal, metode } });
 
     return buildPiutang(db, db.prepare('SELECT * FROM piutang WHERE id = ?').get(row.id));
   });
@@ -182,6 +184,7 @@ export async function piutangRoutes(fastify) {
     if (!pay) return reply.code(404).send({ error: 'Payment not found' });
 
     db.prepare('DELETE FROM pembayaran WHERE id = ?').run(pay.id);
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'piutang_payment', entityId: pay.id, changes: { piutang_id: row.id } });
     return buildPiutang(db, db.prepare('SELECT * FROM piutang WHERE id = ?').get(row.id));
   });
 }

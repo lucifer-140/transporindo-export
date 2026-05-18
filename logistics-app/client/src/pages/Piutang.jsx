@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getBukuList } from "../api/buku.js";
 import api from "../api/client.js";
-import { fmtRp, Badge, Button, Input, Select, PageHeader, Card, Empty, Stat, Progress } from "../components/ui.jsx";
+import { fmtRp, Badge, Button, Input, Select, PageHeader, Card, Empty, Stat, Progress, RpCell } from "../components/ui.jsx";
 import { IconSearch } from "../components/Icons.jsx";
 
 export default function Piutang() {
@@ -73,7 +73,7 @@ export default function Piutang() {
           <thead>
             <tr>
               <th>Job No</th><th>Shipper</th><th>Buku</th>
-              <th className="right">Tagihan</th><th className="right">Dibayar</th><th className="right">Sisa</th>
+              <th>Tagihan</th><th>Dibayar</th><th>Sisa</th>
               <th style={{ width: 140 }}>Progress</th><th>Status</th>
             </tr>
           </thead>
@@ -90,9 +90,9 @@ export default function Piutang() {
                   <td className="muted mono" style={{ fontSize: 12 }}>
                     {buku ? `${String(buku.bulan).padStart(2, "0")}/${buku.tahun}` : r.buku_id ? `#${r.buku_id}` : "—"}
                   </td>
-                  <td className="right num">{fmtRp(r.jumlah)}</td>
-                  <td className="right num" style={{ color: "var(--ok)" }}>{fmtRp(r.total_paid ?? 0)}</td>
-                  <td className="right num" style={{ color: r.sisa > 0 ? "var(--accent)" : "var(--ok)" }}>{fmtRp(r.sisa)}</td>
+                  <RpCell value={r.jumlah} />
+                  <RpCell value={r.total_paid ?? 0} style={{ color: "var(--ok)" }} />
+                  <RpCell value={r.sisa} style={{ color: r.sisa > 0 ? "var(--accent)" : "var(--ok)" }} />
                   <td>
                     <div className="row" style={{ gap: 6, alignItems: "center" }}>
                       <Progress value={r.total_paid ?? 0} max={r.jumlah || 1} tone={pct === 100 ? "ok" : pct > 0 ? "warn" : "danger"} />

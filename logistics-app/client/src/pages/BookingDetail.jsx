@@ -5,9 +5,9 @@ import api from "../api/client.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { BookingDetailSkeleton } from "../components/Skeleton.jsx";
 import { useToast } from "../components/Toast.jsx";
-import { Badge, Button, Card, PageHeader, Empty, Modal, Field, Input, Select, Progress, fmtRp, fmtDate, monthLabel } from "../components/ui.jsx";
+import { Badge, Button, Card, PageHeader, Empty, Modal, Field, Input, Select, Progress, fmtRp, fmtDate, monthLabel, RpCell } from "../components/ui.jsx";
 import { IconEdit, IconTrash, IconPlus, IconChevron, IconMore } from "../components/Icons.jsx";
-import { exportBookingInvoice, exportInvoiceOnly } from "../utils/invoicePdf.js";
+import { exportBookingInvoice, exportInvoiceOnly, exportInvoicePajak, exportNotaReimbursement } from "../utils/invoicePdf.js";
 
 function apiErrMsg(e, fallback) {
   const err = e?.response?.data?.error;
@@ -68,18 +68,24 @@ function PaymentModal({ open, onClose, label, onSave, isPending, initialData }) 
   return (
     <Modal open={open} onClose={onClose} title={label ?? "Tambah Pembayaran"}
       footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!jumlah || isPending} onClick={() => onSave({ tanggal, jumlah: +jumlah, metode, keterangan })}>Simpan</Button></>}>
-      <div className="grid grid-form-2">
-        <Field label="Tanggal" required><Input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} /></Field>
-        <Field label="Jumlah (Rp)" required><Input type="number" min={1} value={jumlah} onChange={(e) => setJumlah(e.target.value)} /></Field>
-        <Field label="Metode" required>
-          <Select value={metode} onChange={(e) => setMetode(e.target.value)}>
-            <option value="transfer">Transfer</option>
-            <option value="cash">Cash</option>
-            <option value="giro">Giro</option>
-            <option value="lainnya">Lainnya</option>
-          </Select>
-        </Field>
-        <Field label="Keterangan"><Input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="opsional" /></Field>
+      <div className="col" style={{ gap: 14 }}>
+        <div className="grid grid-form-2">
+          <Field label="Tanggal" required><Input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} /></Field>
+          <Field label="Jumlah (Rp)" required><Input type="number" min={1} value={jumlah} onChange={(e) => setJumlah(e.target.value)} /></Field>
+          <Field label="Metode" required>
+            <Select value={metode} onChange={(e) => setMetode(e.target.value)}>
+              <option value="transfer">Transfer</option>
+              <option value="cash">Cash</option>
+              <option value="giro">Giro</option>
+              <option value="lainnya">Lainnya</option>
+            </Select>
+          </Field>
+          <Field label="Keterangan"><Input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="opsional" /></Field>
+        </div>
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--bg-2)", display: "flex", justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 12 }}>Jumlah</span>
+          <span className="num strong" style={{ fontSize: 16 }}>{fmtRp(+(jumlah) || 0)}</span>
+        </div>
       </div>
     </Modal>
   );
@@ -117,7 +123,10 @@ function PiutangSetModal({ open, onClose, currentAmount, invoiceTotal, onSave, i
       footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={isPending || !jumlah} onClick={() => onSave({ jumlah: +jumlah })}>Simpan</Button></>}>
       <div className="col" style={{ gap: 14 }}>
         <Field label="Jumlah Piutang (Rp)" required><Input type="number" min={0} value={jumlah} onChange={(e) => setJumlah(e.target.value)} /></Field>
-        {invoiceTotal > 0 && <p className="muted" style={{ fontSize: 12 }}>Total invoice: <strong className="num">{fmtRp(invoiceTotal)}</strong>.</p>}
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--bg-2)", display: "flex", justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 12 }}>Jumlah{invoiceTotal > 0 ? <> · invoice: <strong className="num">{fmtRp(invoiceTotal)}</strong></> : null}</span>
+          <span className="num strong" style={{ fontSize: 16 }}>{fmtRp(+(jumlah) || 0)}</span>
+        </div>
       </div>
     </Modal>
   );
@@ -131,10 +140,16 @@ function HutangFormModal({ open, onClose, onSave, isPending }) {
   return (
     <Modal open={open} onClose={onClose} title="Tambah Hutang Vendor"
       footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!pihak || !jumlah || isPending} onClick={() => onSave({ pihak, jumlah: +jumlah, keterangan })}>Tambah</Button></>}>
-      <div className="grid grid-form-2">
-        <Field label="Pihak / Vendor" required span={2}><Input value={pihak} onChange={(e) => setPihak(e.target.value)} placeholder="Nama vendor" /></Field>
-        <Field label="Jumlah (Rp)" required><Input type="number" min={1} value={jumlah} onChange={(e) => setJumlah(e.target.value)} placeholder="0" /></Field>
-        <Field label="Keterangan"><Input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} /></Field>
+      <div className="col" style={{ gap: 14 }}>
+        <div className="grid grid-form-2">
+          <Field label="Pihak / Vendor" required span={2}><Input value={pihak} onChange={(e) => setPihak(e.target.value)} placeholder="Nama vendor" /></Field>
+          <Field label="Jumlah (Rp)" required><Input type="number" min={1} value={jumlah} onChange={(e) => setJumlah(e.target.value)} placeholder="0" /></Field>
+          <Field label="Keterangan"><Input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} /></Field>
+        </div>
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--bg-2)", display: "flex", justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 12 }}>Jumlah</span>
+          <span className="num strong" style={{ fontSize: 16 }}>{fmtRp(+(jumlah) || 0)}</span>
+        </div>
       </div>
     </Modal>
   );
@@ -186,15 +201,15 @@ function InvoiceTabPanel({ dokumen, invoiceTotal, setItemModal, deleteItemMutati
           <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setItemModal({ tipe: "", qty: 1, harga_satuan: "" })}>Tambah Line Item</Button>
         </div>
       </div>
-      <table className="tbl">
+      <div className="tbl-wrap"><table className="tbl">
         <thead>
           <tr>
             <th style={{ width: 50 }}>#</th>
             <th>Uraian</th>
-            <th className="right" style={{ width: 80 }}>Qty</th>
-            <th className="right" style={{ width: 160 }}>Harga Satuan</th>
-            <th className="right" style={{ width: 160 }}>Subtotal</th>
-            <th style={{ width: 80 }} />
+            <th style={{ width: 70 }}>Qty</th>
+            <th style={{ width: 130 }}>Harga Satuan</th>
+            <th style={{ width: 130 }}>Subtotal</th>
+            <th style={{ width: 70 }} />
           </tr>
         </thead>
         <tbody>
@@ -203,8 +218,8 @@ function InvoiceTabPanel({ dokumen, invoiceTotal, setItemModal, deleteItemMutati
               <td className="num muted">{String(i + 1).padStart(2, "0")}</td>
               <td className="strong">{d.tipe}</td>
               <td className="right num">{d.qty}</td>
-              <td className="right num">{fmtRp(d.harga_satuan ?? 0)}</td>
-              <td className="right num strong">{fmtRp(d.biaya ?? 0)}</td>
+              <RpCell value={d.harga_satuan ?? 0} />
+              <RpCell value={d.biaya ?? 0} strong />
               <td>
                 <div className="row" style={{ gap: 2, justifyContent: "flex-end" }}>
                   <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setItemModal({ id: d.id, tipe: d.tipe, qty: d.qty, harga_satuan: d.harga_satuan })} />
@@ -218,13 +233,13 @@ function InvoiceTabPanel({ dokumen, invoiceTotal, setItemModal, deleteItemMutati
         {dokumen.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={4} style={{ textAlign: "right", color: "var(--fg-3)", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 11 }}>Total</td>
-              <td className="right num strong" style={{ fontSize: 16, color: "var(--fg)" }}>{fmtRp(invoiceTotal)}</td>
+              <td colSpan={4} style={{ textAlign: "right", paddingRight: 24, color: "var(--fg-3)", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 11 }}>Total</td>
+              <RpCell value={invoiceTotal} strong style={{ fontSize: 16, color: "var(--fg)" }} />
               <td />
             </tr>
           </tfoot>
         )}
-      </table>
+      </table></div>
     </Card>
   );
 }
@@ -268,25 +283,25 @@ function PiutangTabPanel({ piutang, piutangPaid, piutangSisa, piutangSt, invoice
         </div>
 
         {piutang?.pembayaran?.length > 0 ? (
-          <table className="pay-tbl">
+          <div className="tbl-wrap"><table className="pay-tbl">
             <thead>
               <tr>
                 <th style={{ width: 50 }}>#</th>
-                <th style={{ width: 140 }}>Tanggal</th>
+                <th style={{ width: 120 }}>Tanggal</th>
                 <th>Metode</th>
                 <th>Keterangan</th>
-                <th className="right" style={{ width: 160 }}>Jumlah</th>
-                <th style={{ width: 80 }} />
+                <th style={{ width: 130 }}>Jumlah</th>
+                <th style={{ width: 70 }} />
               </tr>
             </thead>
             <tbody>
               {piutang.pembayaran.map((p, i) => (
                 <tr key={p.id}>
                   <td className="num muted">{String(i + 1).padStart(2, "0")}</td>
-                  <td className="num">{fmtDate(p.tanggal)}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{fmtDate(p.tanggal)}</td>
                   <td><span className="method-pill">{p.metode}</span></td>
                   <td className={p.keterangan ? "" : "muted"}>{p.keterangan || "—"}</td>
-                  <td className="right num strong">{fmtRp(p.jumlah)}</td>
+                  <RpCell value={p.jumlah} strong />
                   <td>
                     <div className="row" style={{ gap: 2, justifyContent: "flex-end" }}>
                       <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setPayModal({ kind: "piutang", label: "Edit Pembayaran Piutang", editPayId: p.id, initialData: p })} />
@@ -296,7 +311,7 @@ function PiutangTabPanel({ piutang, piutangPaid, piutangSisa, piutangSt, invoice
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : (
           <div style={{ padding: "32px 16px" }}>
             {piutang
@@ -407,6 +422,10 @@ function InvoicePajakItemModal({ open, onClose, item, onSave, isPending }) {
       <div className="col" style={{ gap: 14 }}>
         <Field label="Keterangan" required><Input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="FREIGHT CHARGES" /></Field>
         <Field label="Harga (Rp)" required><Input type="number" min={0} value={harga} onChange={(e) => setHarga(e.target.value)} placeholder="0" /></Field>
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--bg-2)", display: "flex", justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 12 }}>Amount</span>
+          <span className="num strong" style={{ fontSize: 16 }}>{fmtRp(+(harga) || 0)}</span>
+        </div>
       </div>
     </Modal>
   );
@@ -456,7 +475,7 @@ function ReconciliationBanner({ invoiceTotal, pajakTotal, reimbTotal }) {
   );
 }
 
-function InvoicePajakTabPanel({ invoicePajak, invoiceTotal, reimbTotal, onCreate, onDelete, setPajakItemModal, deleteItemMutation }) {
+function InvoicePajakTabPanel({ booking, invoicePajak, invoiceTotal, reimbTotal, onCreate, onDelete, setPajakItemModal, deleteItemMutation }) {
   const items = invoicePajak?.items ?? [];
   const tvp = invoicePajak?.total_nilai_penyerahan ?? 0;
   const ppn = invoicePajak?.ppn ?? 0;
@@ -467,7 +486,6 @@ function InvoicePajakTabPanel({ invoicePajak, invoiceTotal, reimbTotal, onCreate
     return (
       <Card>
         <Empty title="Belum ada Invoice Pajak" sub="Buat invoice pajak untuk booking ini." action={<Button variant="primary" icon={<IconPlus size={12} />} onClick={onCreate}>Buat Invoice Pajak</Button>} />
-        <ReconciliationBanner invoiceTotal={invoiceTotal} pajakTotal={0} reimbTotal={reimbTotal} />
       </Card>
     );
   }
@@ -481,18 +499,19 @@ function InvoicePajakTabPanel({ invoicePajak, invoiceTotal, reimbTotal, onCreate
           <span className="muted" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400, fontSize: 12.5 }}>· {items.length} item · PPN {ppnRate}%</span>
         </div>
         <div className="row" style={{ gap: 6 }}>
+          <Button variant="default" size="sm" onClick={() => { exportInvoicePajak(booking, invoicePajak); api.post('/audit/download', { documentType: 'invoice_pajak', bookingId: booking?.id }).catch(() => {}); }}>Download PDF</Button>
           <Button variant="danger" size="sm" icon={<IconTrash size={12} />} onClick={onDelete}>Hapus</Button>
           <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setPajakItemModal({})}>Tambah Item</Button>
         </div>
       </div>
 
-      <table className="tbl">
+      <div className="tbl-wrap"><table className="tbl">
         <thead>
           <tr>
             <th style={{ width: 50 }}>No.</th>
             <th>Keterangan</th>
-            <th className="right" style={{ width: 180 }}>Harga</th>
-            <th style={{ width: 80 }} />
+            <th style={{ width: 150 }}>Harga</th>
+            <th style={{ width: 70 }} />
           </tr>
         </thead>
         <tbody>
@@ -500,7 +519,7 @@ function InvoicePajakTabPanel({ invoicePajak, invoiceTotal, reimbTotal, onCreate
             <tr key={item.id}>
               <td className="num muted">{String(i + 1).padStart(2, "0")}</td>
               <td className="strong">{item.keterangan}</td>
-              <td className="right num">{fmtRp(item.harga)}</td>
+              <RpCell value={item.harga} />
               <td>
                 <div className="row" style={{ gap: 2, justifyContent: "flex-end" }}>
                   <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setPajakItemModal({ id: item.id, keterangan: item.keterangan, harga: item.harga })} />
@@ -513,22 +532,19 @@ function InvoicePajakTabPanel({ invoicePajak, invoiceTotal, reimbTotal, onCreate
         </tbody>
         {items.length > 0 && (
           <tfoot>
-            <tr><td colSpan={2} className="right" style={{ color: "var(--fg-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>Total Nilai Penyerahan</td><td className="right num strong">{fmtRp(tvp)}</td><td /></tr>
-            <tr><td colSpan={2} className="right" style={{ color: "var(--fg-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>Dasar Pengenaan Pajak</td><td className="right num">{fmtRp(tvp)}</td><td /></tr>
-            <tr><td colSpan={2} className="right" style={{ color: "var(--fg-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>PPN ({ppnRate}%)</td><td className="right num">{fmtRp(ppn)}</td><td /></tr>
-            <tr><td colSpan={2} className="right" style={{ fontSize: 13, fontWeight: 600 }}>Total yang harus dibayar</td><td className="right num strong" style={{ fontSize: 16, color: "var(--fg)" }}>{fmtRp(totalBayar)}</td><td /></tr>
+            <tr><td colSpan={2} className="right" style={{ paddingRight: 24, color: "var(--fg-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>Total Nilai Penyerahan</td><RpCell value={tvp} strong /><td /></tr>
+            <tr><td colSpan={2} className="right" style={{ paddingRight: 24, color: "var(--fg-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>Dasar Pengenaan Pajak</td><RpCell value={tvp} /><td /></tr>
+            <tr><td colSpan={2} className="right" style={{ paddingRight: 24, color: "var(--fg-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>PPN ({ppnRate}%)</td><RpCell value={ppn} /><td /></tr>
+            <tr><td colSpan={2} className="right" style={{ paddingRight: 24, fontSize: 13, fontWeight: 600 }}>Total yang harus dibayar</td><RpCell value={totalBayar} strong style={{ fontSize: 16, color: "var(--fg)" }} /><td /></tr>
           </tfoot>
         )}
-      </table>
+      </table></div>
 
-      <div style={{ padding: "0 16px 16px" }}>
-        <ReconciliationBanner invoiceTotal={invoiceTotal} pajakTotal={tvp} reimbTotal={reimbTotal} />
-      </div>
     </Card>
   );
 }
 
-function ReimbursementTabPanel({ notaReimbursement, invoiceTotal, pajakTotal, onCreate, onDelete, setReimbItemModal, deleteItemMutation }) {
+function ReimbursementTabPanel({ booking, notaReimbursement, invoiceTotal, pajakTotal, onCreate, onDelete, setReimbItemModal, deleteItemMutation }) {
   const items = notaReimbursement?.items ?? [];
   const total = notaReimbursement?.total ?? 0;
 
@@ -536,7 +552,6 @@ function ReimbursementTabPanel({ notaReimbursement, invoiceTotal, pajakTotal, on
     return (
       <Card>
         <Empty title="Belum ada Nota Reimbursement" sub="Buat nota reimbursement untuk booking ini." action={<Button variant="primary" icon={<IconPlus size={12} />} onClick={onCreate}>Buat Nota Reimbursement</Button>} />
-        <ReconciliationBanner invoiceTotal={invoiceTotal} pajakTotal={pajakTotal} reimbTotal={0} />
       </Card>
     );
   }
@@ -550,20 +565,21 @@ function ReimbursementTabPanel({ notaReimbursement, invoiceTotal, pajakTotal, on
           <span className="muted" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400, fontSize: 12.5 }}>· {items.length} item</span>
         </div>
         <div className="row" style={{ gap: 6 }}>
+          <Button variant="default" size="sm" onClick={() => { exportNotaReimbursement(booking, notaReimbursement); api.post('/audit/download', { documentType: 'nota_reimbursement', bookingId: booking?.id }).catch(() => {}); }}>Download PDF</Button>
           <Button variant="danger" size="sm" icon={<IconTrash size={12} />} onClick={onDelete}>Hapus</Button>
           <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setReimbItemModal({})}>Tambah Item</Button>
         </div>
       </div>
 
-      <table className="tbl">
+      <div className="tbl-wrap"><table className="tbl">
         <thead>
           <tr>
             <th style={{ width: 50 }}>No.</th>
             <th>Description</th>
-            <th className="right" style={{ width: 70 }}>Qty</th>
-            <th className="right" style={{ width: 160 }}>Price</th>
-            <th className="right" style={{ width: 160 }}>Amount</th>
-            <th style={{ width: 80 }} />
+            <th style={{ width: 70 }}>Qty</th>
+            <th style={{ width: 130 }}>Price</th>
+            <th style={{ width: 130 }}>Amount</th>
+            <th style={{ width: 70 }} />
           </tr>
         </thead>
         <tbody>
@@ -572,8 +588,8 @@ function ReimbursementTabPanel({ notaReimbursement, invoiceTotal, pajakTotal, on
               <td className="num muted">{String(i + 1).padStart(2, "0")}</td>
               <td className="strong">{item.description}</td>
               <td className="right num">{item.qty}</td>
-              <td className="right num">{fmtRp(item.price)}</td>
-              <td className="right num strong">{fmtRp(item.amount)}</td>
+              <RpCell value={item.price} />
+              <RpCell value={item.amount} strong />
               <td>
                 <div className="row" style={{ gap: 2, justifyContent: "flex-end" }}>
                   <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setReimbItemModal({ id: item.id, description: item.description, qty: item.qty, price: item.price })} />
@@ -587,17 +603,14 @@ function ReimbursementTabPanel({ notaReimbursement, invoiceTotal, pajakTotal, on
         {items.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={4} style={{ textAlign: "right", color: "var(--fg-3)", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 11 }}>Total</td>
-              <td className="right num strong" style={{ fontSize: 16, color: "var(--fg)" }}>{fmtRp(total)}</td>
+              <td colSpan={4} style={{ textAlign: "right", paddingRight: 24, color: "var(--fg-3)", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 11 }}>Total</td>
+              <RpCell value={total} strong style={{ fontSize: 16, color: "var(--fg)" }} />
               <td />
             </tr>
           </tfoot>
         )}
-      </table>
+      </table></div>
 
-      <div style={{ padding: "0 16px 16px" }}>
-        <ReconciliationBanner invoiceTotal={invoiceTotal} pajakTotal={pajakTotal} reimbTotal={total} />
-      </div>
     </Card>
   );
 }
@@ -913,7 +926,7 @@ export default function BookingDetail() {
                         <IconEdit size={13} /> Edit Booking
                       </button>
                       {isFinance && (
-                        <button className="action-menu__item" onClick={() => { setShowMenu(false); exportBookingInvoice(booking, containers, dokumen, piutang); }}>
+                        <button className="action-menu__item" onClick={() => { setShowMenu(false); exportBookingInvoice(booking, containers, dokumen, piutang); api.post('/audit/download', { documentType: 'booking_invoice', bookingId: booking?.id }).catch(() => {}); }}>
                           <IcDown size={13} /> Export Booking PDF
                         </button>
                       )}
@@ -973,19 +986,21 @@ export default function BookingDetail() {
               <span className="bd-tab__count">{hutangList.length}</span>
             </button>
             <button role="tab" className={`bd-tab ${tab === "pajak" ? "is-active" : ""}`} onClick={() => setTab("pajak")}>
-              <IcList size={13} /> Inv. Pajak
-            </button>
-            <button role="tab" className={`bd-tab ${tab === "reimb" ? "is-active" : ""}`} onClick={() => setTab("reimb")}>
-              <IcList size={13} /> Reimb.
+              <IcList size={13} /> Pajak &amp; Reimb.
             </button>
           </div>
 
           {tab === "shipment" && <ShipmentTabPanel booking={booking} containers={containers} onEdit={onEdit} />}
-          {tab === "invoice"  && <InvoiceTabPanel  dokumen={dokumen} invoiceTotal={invoiceTotal} setItemModal={setItemModal} deleteItemMutation={deleteItemMutation} onExportInvoice={() => exportInvoiceOnly(booking, dokumen)} />}
+          {tab === "invoice"  && <InvoiceTabPanel  dokumen={dokumen} invoiceTotal={invoiceTotal} setItemModal={setItemModal} deleteItemMutation={deleteItemMutation} onExportInvoice={() => { exportInvoiceOnly(booking, dokumen); api.post('/audit/download', { documentType: 'invoice', bookingId: booking?.id }).catch(() => {}); }} />}
           {tab === "piutang"  && <PiutangTabPanel  piutang={piutang} piutangPaid={piutangPaid} piutangSisa={piutangSisa} piutangSt={piutangSt} invoiceTotal={invoiceTotal} setPiutangMutation={setPiutangMutation} setPiutangModal={setPiutangModal} setPayModal={setPayModal} deletePiutangPayMutation={deletePiutangPayMutation} />}
           {tab === "hutang"   && <HutangTabPanel   hutangList={hutangList} setHutangModal={setHutangModal} setPayModal={setPayModal} deleteHutangMutation={deleteHutangMutation} deleteHutangPayMutation={deleteHutangPayMutation} />}
-          {tab === "pajak"   && <InvoicePajakTabPanel invoicePajak={invoicePajak} invoiceTotal={invoiceTotal} reimbTotal={notaReimbursement?.total ?? 0} onCreate={() => createInvoicePajakMutation.mutate()} onDelete={() => deleteInvoicePajakMutation.mutate()} setPajakItemModal={setPajakItemModal} deleteItemMutation={deletePajakItemMutation} />}
-          {tab === "reimb"   && <ReimbursementTabPanel notaReimbursement={notaReimbursement} invoiceTotal={invoiceTotal} pajakTotal={invoicePajak?.total_nilai_penyerahan ?? 0} onCreate={() => createNotaMutation.mutate()} onDelete={() => deleteNotaMutation.mutate()} setReimbItemModal={setReimbItemModal} deleteItemMutation={deleteReimbItemMutation} />}
+          {tab === "pajak"   && (
+            <div className="col" style={{ gap: 16 }}>
+              <InvoicePajakTabPanel booking={booking} invoicePajak={invoicePajak} invoiceTotal={invoiceTotal} reimbTotal={notaReimbursement?.total ?? 0} onCreate={() => createInvoicePajakMutation.mutate()} onDelete={() => deleteInvoicePajakMutation.mutate()} setPajakItemModal={setPajakItemModal} deleteItemMutation={deletePajakItemMutation} />
+              <ReimbursementTabPanel booking={booking} notaReimbursement={notaReimbursement} invoiceTotal={invoiceTotal} pajakTotal={invoicePajak?.total_nilai_penyerahan ?? 0} onCreate={() => createNotaMutation.mutate()} onDelete={() => deleteNotaMutation.mutate()} setReimbItemModal={setReimbItemModal} deleteItemMutation={deleteReimbItemMutation} />
+              <ReconciliationBanner invoiceTotal={invoiceTotal} pajakTotal={invoicePajak?.total_nilai_penyerahan ?? 0} reimbTotal={notaReimbursement?.total ?? 0} />
+            </div>
+          )}
         </>
       ) : (
         <WorkerView booking={booking} containers={containers} onEdit={onEdit} />

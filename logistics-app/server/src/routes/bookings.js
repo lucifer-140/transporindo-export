@@ -227,4 +227,30 @@ export async function bookingRoutes(fastify) {
     const { total } = db.prepare('SELECT COUNT(*) AS total FROM audit_log').get();
     return { rows, total };
   });
+
+  // Audit log CSV export (admin only)
+  fastify.get('/api/audit/export', { preHandler: requireRole('admin') }, async (request, reply) => {
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT a.id, u.username, a.action, a.entity_type, a.entity_id, a.changes, a.timestamp
+      FROM audit_log a
+      LEFT JOIN users u ON a.user_id = u.id
+      ORDER BY a.timestamp DESC
+    `).all();
+
+    const escape = (v) => {
+      if (v == null) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    const header = 'id,username,action,entity_type,entity_id,changes,timestamp';
+    const body = rows.map(r =>
+      [r.id, r.username, r.action, r.entity_type, r.entity_id, r.changes, r.timestamp].map(escape).join(',')
+    ).join('\n');
+
+    reply.header('Content-Type', 'text/csv');
+    reply.header('Content-Disposition', 'attachment; filename="audit-log.csv"');
+    return reply.send(`${header}\n${body}`);
+  });
 }

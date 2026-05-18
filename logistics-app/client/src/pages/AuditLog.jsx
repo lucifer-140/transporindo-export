@@ -43,9 +43,12 @@ export default function AuditLog() {
         title="Audit Log"
         meta={`${total} entri`}
         actions={
-          <div className="search" style={{ minWidth: 260 }}>
-            <IconSearch size={14} />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari user, target, atau action…" />
+          <div className="row" style={{ gap: 8 }}>
+            <div className="search" style={{ minWidth: 260 }}>
+              <IconSearch size={14} />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari user, target, atau action…" />
+            </div>
+            <Button variant="default" size="sm" onClick={() => { window.location.href = '/api/audit/export'; }}>Export CSV</Button>
           </div>
         }
       />

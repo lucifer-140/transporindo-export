@@ -1,5 +1,6 @@
 import { getDb } from '../db.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { logAudit } from '../utils/audit.js';
 
 export async function shipperRoutes(fastify) {
   // List all shippers with their commodities and booking count
@@ -52,14 +53,17 @@ export async function shipperRoutes(fastify) {
     }
     const shipper = db.prepare('SELECT * FROM shippers WHERE id = ?').get(shipperId);
     const newCommodities = db.prepare('SELECT * FROM commodities WHERE shipper_id = ? ORDER BY name ASC').all(shipperId);
+    logAudit({ userId: request.session.user.id, action: 'create', entityType: 'shipper', entityId: shipperId, changes: { name: name.trim() } });
     return reply.code(201).send({ ...shipper, commodities: newCommodities });
   });
 
   // Delete shipper (cascades to commodities)
   fastify.delete('/api/shippers/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
     const db = getDb();
-    const result = db.prepare('DELETE FROM shippers WHERE id = ?').run(request.params.id);
-    if (result.changes === 0) return reply.code(404).send({ error: 'Not found' });
+    const existing = db.prepare('SELECT id, name FROM shippers WHERE id = ?').get(request.params.id);
+    if (!existing) return reply.code(404).send({ error: 'Not found' });
+    db.prepare('DELETE FROM shippers WHERE id = ?').run(existing.id);
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'shipper', entityId: existing.id, changes: { name: existing.name } });
     return { ok: true };
   });
 
@@ -92,6 +96,7 @@ export async function shipperRoutes(fastify) {
     }
     const updated = db.prepare('SELECT * FROM shippers WHERE id = ?').get(shipper.id);
     const newCommodities = db.prepare('SELECT * FROM commodities WHERE shipper_id = ? ORDER BY name ASC').all(shipper.id);
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'shipper', entityId: shipper.id, changes: { name: name.trim() } });
     return { ...updated, commodities: newCommodities };
   });
 
@@ -104,6 +109,7 @@ export async function shipperRoutes(fastify) {
     if (!shipper) return reply.code(404).send({ error: 'Shipper not found' });
     try {
       const result = db.prepare('INSERT INTO commodities (shipper_id, name) VALUES (?, ?)').run(shipper.id, name.trim());
+      logAudit({ userId: request.session.user.id, action: 'create', entityType: 'commodity', entityId: result.lastInsertRowid, changes: { shipper_id: shipper.id, name: name.trim() } });
       return reply.code(201).send(db.prepare('SELECT * FROM commodities WHERE id = ?').get(result.lastInsertRowid));
     } catch {
       return reply.code(409).send({ error: 'Commodity already exists for this shipper' });
@@ -113,8 +119,10 @@ export async function shipperRoutes(fastify) {
   // Remove commodity
   fastify.delete('/api/commodities/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
     const db = getDb();
-    const result = db.prepare('DELETE FROM commodities WHERE id = ?').run(request.params.id);
-    if (result.changes === 0) return reply.code(404).send({ error: 'Not found' });
+    const existing = db.prepare('SELECT id, name, shipper_id FROM commodities WHERE id = ?').get(request.params.id);
+    if (!existing) return reply.code(404).send({ error: 'Not found' });
+    db.prepare('DELETE FROM commodities WHERE id = ?').run(existing.id);
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'commodity', entityId: existing.id, changes: { name: existing.name, shipper_id: existing.shipper_id } });
     return { ok: true };
   });
 }

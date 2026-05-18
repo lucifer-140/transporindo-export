@@ -67,6 +67,22 @@ const HUTANG_PIHAK = ['CV Cepat Laju', 'PT Kargo Nusa', 'Pelindo II', 'Biro Jasa
 const SIZES    = ['20ft', '40ft', 'HC'];
 const METHODS  = ['transfer', 'cash', 'giro'];
 
+const PAJAK_ITEMS = [
+  'Jasa Pengurusan Dokumen', 'Biaya Administrasi', 'Jasa Forwarding',
+  'Biaya THC', 'Jasa Kepabeanan', 'Biaya Handling', 'Jasa Trucking',
+  'Biaya Lift On/Off', 'Jasa Stuffing', 'Biaya Seal',
+];
+const REIMB_ITEMS = [
+  { desc: 'Biaya Parkir Pelabuhan', minQty: 1, maxQty: 3, minPrice: 50_000,  maxPrice: 150_000 },
+  { desc: 'Biaya Tol',              minQty: 1, maxQty: 5, minPrice: 20_000,  maxPrice: 80_000  },
+  { desc: 'Biaya Makan Supir',      minQty: 1, maxQty: 3, minPrice: 30_000,  maxPrice: 75_000  },
+  { desc: 'Materai',                minQty: 1, maxQty: 4, minPrice: 10_000,  maxPrice: 10_000  },
+  { desc: 'Fotokopi Dokumen',       minQty: 1, maxQty: 5, minPrice: 5_000,   maxPrice: 25_000  },
+  { desc: 'Biaya Jasa Bongkar',     minQty: 1, maxQty: 2, minPrice: 200_000, maxPrice: 500_000 },
+  { desc: 'Biaya BBM',              minQty: 1, maxQty: 2, minPrice: 100_000, maxPrice: 300_000 },
+  { desc: 'Biaya Keamanan',         minQty: 1, maxQty: 3, minPrice: 50_000,  maxPrice: 150_000 },
+];
+
 function buildBukuList() {
   const list = [];
   for (let m = 1; m <= 12; m++) list.push({ tahun: 2024, bulan: m, status: 'closed' });
@@ -83,12 +99,15 @@ db.exec('PRAGMA foreign_keys = OFF');
 db.exec('PRAGMA journal_mode = WAL');
 
 const tables = ['audit_log', 'pembayaran', 'hutang', 'piutang', 'dokumen',
+                'invoice_pajak_items', 'invoice_pajak',
+                'nota_reimbursement_items', 'nota_reimbursement',
                 'containers', 'bookings', 'commodities', 'shippers', 'buku',
                 'sessions', 'users'];
 for (const t of tables) {
   try { db.exec(`DELETE FROM ${t}`); } catch {}
   try { db.exec(`DELETE FROM sqlite_sequence WHERE name = '${t}'`); } catch {}
 }
+db.exec("UPDATE app_settings SET value = '1.1' WHERE key = 'ppn_rate'");
 db.exec('PRAGMA foreign_keys = ON');
 console.log('Wiped existing data.');
 
@@ -106,6 +125,10 @@ const stmts = {
   hutang:     db.prepare('INSERT INTO hutang (booking_id, pihak, keterangan, jumlah, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
   pembayaran: db.prepare('INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, metode, keterangan, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
   audit:      db.prepare('INSERT INTO audit_log (user_id, action, entity_type, entity_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?)'),
+  pajak:      db.prepare('INSERT INTO invoice_pajak (booking_id, ppn_rate, keterangan, created_by, created_at) VALUES (?, ?, ?, ?, ?)'),
+  pajakItem:  db.prepare('INSERT INTO invoice_pajak_items (invoice_pajak_id, keterangan, harga, urutan) VALUES (?, ?, ?, ?)'),
+  reimb:      db.prepare('INSERT INTO nota_reimbursement (booking_id, keterangan, created_by, created_at) VALUES (?, ?, ?, ?)'),
+  reimbItem:  db.prepare('INSERT INTO nota_reimbursement_items (nota_reimbursement_id, description, qty, price, urutan) VALUES (?, ?, ?, ?, ?)'),
 };
 
 // ── main (async for bcrypt) ───────────────────────────────────────────────────
@@ -219,6 +242,9 @@ async function main() {
         }
       }
 
+      // Invoice Pajak + Reimbursement
+      seedPajakReimb(bookingId, totalBiaya, jobNo, createdAt);
+
       // Audit
       stmts.audit.run(createdBy, 'CREATE', 'booking', bookingId, JSON.stringify({ job_no: jobNo, status }), createdAt);
     }
@@ -278,7 +304,61 @@ async function main() {
       }
     }
 
+    seedPajakReimb(bookingId, totalBiaya, jobNo, createdAt);
     stmts.audit.run(createdBy, 'CREATE', 'booking', bookingId, JSON.stringify({ job_no: jobNo, status }), createdAt);
+  }
+
+  function insertPajakItems(pajakId, target) {
+    if (target <= 0) return;
+    const n = rndInt(2, 4);
+    const keys = [...PAJAK_ITEMS].sort(() => Math.random() - 0.5).slice(0, n);
+    let remaining = target;
+    for (let i = 0; i < keys.length - 1; i++) {
+      const max = Math.floor(remaining / (keys.length - i) / 100_000) * 100_000;
+      const harga = max > 0 ? rndInt(1, Math.max(1, max / 100_000)) * 100_000 : 100_000;
+      stmts.pajakItem.run(pajakId, keys[i], harga, i);
+      remaining -= harga;
+    }
+    if (remaining > 0) stmts.pajakItem.run(pajakId, keys[keys.length - 1], remaining, keys.length - 1);
+  }
+
+  function insertReimbItems(reimbId, target) {
+    if (target <= 0) return;
+    const m = rndInt(2, 4);
+    const picks = [...REIMB_ITEMS].sort(() => Math.random() - 0.5).slice(0, m);
+    let remaining = target;
+    for (let i = 0; i < picks.length - 1; i++) {
+      const max = Math.floor(remaining / (picks.length - i) / 1000) * 1000;
+      const price = max > 0 ? rndInt(1, Math.max(1, max / 1000)) * 1000 : 1000;
+      stmts.reimbItem.run(reimbId, picks[i].desc, 1, price, i);
+      remaining -= price;
+    }
+    if (remaining > 0) stmts.reimbItem.run(reimbId, picks[picks.length - 1].desc, 1, remaining, picks.length - 1);
+  }
+
+  function seedPajakReimb(bookingId, totalBiaya, jobNo, createdAt) {
+    const roll = Math.random();
+    if (roll < 0.20) return; // 20% neither
+
+    const splitFraction = rndInt(40, 70) / 100;
+    const pajakTarget = Math.round(totalBiaya * splitFraction / 100_000) * 100_000;
+    const reimbTarget = totalBiaya - pajakTarget;
+
+    if (roll < 0.60) {
+      // 40% pajak only — full totalBiaya in pajak
+      const pRes = stmts.pajak.run(bookingId, 1.1, `Invoice PPN ${jobNo}`, financeId, createdAt);
+      insertPajakItems(pRes.lastInsertRowid, totalBiaya);
+    } else if (roll < 0.90) {
+      // 30% pajak + reimb — split
+      const pRes = stmts.pajak.run(bookingId, 1.1, `Invoice PPN ${jobNo}`, financeId, createdAt);
+      insertPajakItems(pRes.lastInsertRowid, pajakTarget);
+      const rRes = stmts.reimb.run(bookingId, `Reimbursement ${jobNo}`, financeId, createdAt);
+      insertReimbItems(rRes.lastInsertRowid, reimbTarget);
+    } else {
+      // 10% reimb only — full totalBiaya in reimb
+      const rRes = stmts.reimb.run(bookingId, `Reimbursement ${jobNo}`, financeId, createdAt);
+      insertReimbItems(rRes.lastInsertRowid, totalBiaya);
+    }
   }
 
   for (const s of shipperList) {

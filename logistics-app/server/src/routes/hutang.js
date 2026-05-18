@@ -150,9 +150,10 @@ export async function hutangRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     const { jumlah, tanggal, metode, keterangan } = parsed.data;
-    db.prepare(
+    const payResult = db.prepare(
       "INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, metode, keterangan, created_by) VALUES ('hutang', ?, ?, ?, ?, ?, ?)"
     ).run(existing.id, jumlah, tanggal, metode, keterangan, request.session.user.id);
+    logAudit({ userId: request.session.user.id, action: 'create', entityType: 'hutang_payment', entityId: payResult.lastInsertRowid, changes: { hutang_id: existing.id, jumlah, tanggal, metode } });
 
     const row = db.prepare('SELECT h.*, b.job_no FROM hutang h LEFT JOIN bookings b ON h.booking_id = b.id WHERE h.id = ?').get(existing.id);
     return reply.code(201).send(buildHutang(db, row));
@@ -177,6 +178,7 @@ export async function hutangRoutes(fastify) {
     const { jumlah, tanggal, metode, keterangan } = parsed.data;
     db.prepare('UPDATE pembayaran SET jumlah=?, tanggal=?, metode=?, keterangan=? WHERE id=?')
       .run(jumlah, tanggal, metode, keterangan, pay.id);
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'hutang_payment', entityId: pay.id, changes: { jumlah, tanggal, metode } });
 
     const row = db.prepare('SELECT h.*, b.job_no FROM hutang h LEFT JOIN bookings b ON h.booking_id = b.id WHERE h.id = ?').get(existing.id);
     return buildHutang(db, row);
@@ -196,6 +198,7 @@ export async function hutangRoutes(fastify) {
     if (!pay) return reply.code(404).send({ error: 'Payment not found' });
 
     db.prepare('DELETE FROM pembayaran WHERE id = ?').run(pay.id);
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'hutang_payment', entityId: pay.id, changes: { hutang_id: existing.id } });
     const row = db.prepare('SELECT h.*, b.job_no FROM hutang h LEFT JOIN bookings b ON h.booking_id = b.id WHERE h.id = ?').get(existing.id);
     return buildHutang(db, row);
   });

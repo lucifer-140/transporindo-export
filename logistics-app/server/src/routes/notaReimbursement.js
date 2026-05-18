@@ -97,7 +97,8 @@ export async function notaReimbursementRoutes(fastify) {
     const parsed = itemSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    db.prepare('INSERT INTO nota_reimbursement_items (nota_reimbursement_id, description, qty, price, urutan) VALUES (?, ?, ?, ?, ?)').run(row.id, parsed.data.description, parsed.data.qty, parsed.data.price, parsed.data.urutan);
+    const itemResult = db.prepare('INSERT INTO nota_reimbursement_items (nota_reimbursement_id, description, qty, price, urutan) VALUES (?, ?, ?, ?, ?)').run(row.id, parsed.data.description, parsed.data.qty, parsed.data.price, parsed.data.urutan);
+    logAudit({ userId: request.session.user.id, action: 'create', entityType: 'nota_reimbursement_item', entityId: itemResult.lastInsertRowid, changes: { nota_reimbursement_id: row.id, description: parsed.data.description, qty: parsed.data.qty, price: parsed.data.price } });
 
     return reply.code(201).send(buildNota(db, db.prepare('SELECT * FROM nota_reimbursement WHERE id = ?').get(row.id)));
   });
@@ -116,6 +117,7 @@ export async function notaReimbursementRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     db.prepare('UPDATE nota_reimbursement_items SET description = ?, qty = ?, price = ?, urutan = ? WHERE id = ?').run(parsed.data.description, parsed.data.qty, parsed.data.price, parsed.data.urutan, item.id);
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'nota_reimbursement_item', entityId: item.id, changes: { description: parsed.data.description, qty: parsed.data.qty, price: parsed.data.price } });
 
     return buildNota(db, db.prepare('SELECT * FROM nota_reimbursement WHERE id = ?').get(row.id));
   });
@@ -131,6 +133,7 @@ export async function notaReimbursementRoutes(fastify) {
     if (!item) return reply.code(404).send({ error: 'Item not found' });
 
     db.prepare('DELETE FROM nota_reimbursement_items WHERE id = ?').run(item.id);
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'nota_reimbursement_item', entityId: item.id, changes: { nota_reimbursement_id: row.id } });
     return buildNota(db, db.prepare('SELECT * FROM nota_reimbursement WHERE id = ?').get(row.id));
   });
 }

@@ -37,6 +37,7 @@ export async function bukuRoutes(fastify) {
       const result = db.prepare(
         'INSERT INTO buku (tahun, bulan, created_by) VALUES (?, ?, ?)'
       ).run(tahun, bulan, userId);
+      logAudit({ userId, action: 'create', entityType: 'buku', entityId: result.lastInsertRowid, changes: { tahun, bulan } });
       return reply.code(201).send(db.prepare('SELECT * FROM buku WHERE id = ?').get(result.lastInsertRowid));
     } catch (e) {
       if (e.message?.includes('UNIQUE')) return reply.code(409).send({ error: 'Buku for this month already exists' });
@@ -157,6 +158,7 @@ export async function bukuRoutes(fastify) {
     // Detach soft-deleted bookings so FK doesn't block
     db.prepare('UPDATE bookings SET buku_id = NULL WHERE buku_id = ? AND deleted_at IS NOT NULL').run(buku.id);
     db.prepare('DELETE FROM buku WHERE id = ?').run(buku.id);
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'buku', entityId: buku.id });
     return reply.code(204).send();
   });
 }

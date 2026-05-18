@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBukuList } from "../api/buku.js";
 import api from "../api/client.js";
-import { fmtRp, Badge, Button, Field, Input, Modal, PageHeader, Card, Empty, Stat } from "../components/ui.jsx";
+import { fmtRp, Badge, Button, Field, Input, Modal, PageHeader, Card, Empty, Stat, RpCell } from "../components/ui.jsx";
 import { IconPlus, IconSearch, IconChevron } from "../components/Icons.jsx";
 import { useToast } from "../components/Toast.jsx";
 
@@ -124,7 +124,7 @@ export default function Hutang() {
           <thead>
             <tr>
               <th>Vendor</th><th>Job No</th><th>Shipper</th><th>Buku</th><th>Keterangan</th>
-              <th>Status</th><th className="right">Jumlah</th><th className="right">Sisa</th>
+              <th>Status</th><th>Jumlah</th><th>Sisa</th>
               <th style={{ width: 20 }} />
             </tr>
           </thead>
@@ -144,8 +144,8 @@ export default function Hutang() {
                   </td>
                   <td className="muted" style={{ fontSize: 13 }}>{h.keterangan || "—"}</td>
                   <td><Badge status={h.status} /></td>
-                  <td className="right num">{fmtRp(h.jumlah)}</td>
-                  <td className="right num strong">{fmtRp(h.sisa)}</td>
+                  <RpCell value={h.jumlah} />
+                  <RpCell value={h.sisa} strong />
                   <td><IconChevron size={12} style={{ color: "var(--fg-3)" }} /></td>
                 </tr>
               );

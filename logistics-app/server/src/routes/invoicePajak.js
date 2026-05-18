@@ -5,7 +5,7 @@ import { requireRole } from '../middleware/requireRole.js';
 import { isBukuClosed } from '../utils/bukuGuard.js';
 
 const headerSchema = z.object({
-  ppn_rate:   z.number().int().min(0).max(100).optional(),
+  ppn_rate:   z.number().min(0).max(100).optional(),
   keterangan: z.string().optional().default(''),
 });
 
@@ -54,7 +54,7 @@ export async function invoicePajakRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     const setting = db.prepare("SELECT value FROM app_settings WHERE key = 'ppn_rate'").get();
-    const ppn_rate = parsed.data.ppn_rate ?? parseInt(setting?.value ?? '11');
+    const ppn_rate = parsed.data.ppn_rate ?? parseFloat(setting?.value ?? '11');
 
     const result = db.prepare(
       'INSERT INTO invoice_pajak (booking_id, ppn_rate, keterangan, created_by) VALUES (?, ?, ?, ?)'
@@ -105,7 +105,8 @@ export async function invoicePajakRoutes(fastify) {
     const parsed = itemSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    db.prepare('INSERT INTO invoice_pajak_items (invoice_pajak_id, keterangan, harga, urutan) VALUES (?, ?, ?, ?)').run(row.id, parsed.data.keterangan, parsed.data.harga, parsed.data.urutan);
+    const itemResult = db.prepare('INSERT INTO invoice_pajak_items (invoice_pajak_id, keterangan, harga, urutan) VALUES (?, ?, ?, ?)').run(row.id, parsed.data.keterangan, parsed.data.harga, parsed.data.urutan);
+    logAudit({ userId: request.session.user.id, action: 'create', entityType: 'invoice_pajak_item', entityId: itemResult.lastInsertRowid, changes: { invoice_pajak_id: row.id, keterangan: parsed.data.keterangan, harga: parsed.data.harga } });
 
     return reply.code(201).send(buildInvoice(db, db.prepare('SELECT * FROM invoice_pajak WHERE id = ?').get(row.id)));
   });
@@ -124,6 +125,7 @@ export async function invoicePajakRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     db.prepare('UPDATE invoice_pajak_items SET keterangan = ?, harga = ?, urutan = ? WHERE id = ?').run(parsed.data.keterangan, parsed.data.harga, parsed.data.urutan, item.id);
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'invoice_pajak_item', entityId: item.id, changes: { keterangan: parsed.data.keterangan, harga: parsed.data.harga } });
 
     return buildInvoice(db, db.prepare('SELECT * FROM invoice_pajak WHERE id = ?').get(row.id));
   });
@@ -139,6 +141,7 @@ export async function invoicePajakRoutes(fastify) {
     if (!item) return reply.code(404).send({ error: 'Item not found' });
 
     db.prepare('DELETE FROM invoice_pajak_items WHERE id = ?').run(item.id);
+    logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'invoice_pajak_item', entityId: item.id, changes: { invoice_pajak_id: row.id } });
     return buildInvoice(db, db.prepare('SELECT * FROM invoice_pajak WHERE id = ?').get(row.id));
   });
 }

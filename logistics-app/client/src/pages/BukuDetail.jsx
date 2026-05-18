@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBuku, updateBukuStatus } from "../api/buku.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { useToast } from "../components/Toast.jsx";
-import { Badge, Button, Modal, PageHeader, Empty, Progress, fmtRp, fmtDate, monthLabel } from "../components/ui.jsx";
+import { Badge, Button, Modal, PageHeader, Empty, Progress, fmtRp, fmtDate, monthLabel, RpCell } from "../components/ui.jsx";
 import { IconPlus, IconChevron, IconDownload } from "../components/Icons.jsx";
 
 const PAGE_SIZE = 20;
@@ -214,9 +214,9 @@ export default function BukuDetail() {
                   {isFinance ? (
                     <>
                       <th>Status</th>
-                      <th className="right">Tagihan</th>
-                      <th className="right">Dibayar</th>
-                      <th className="right">Sisa</th>
+                      <th>Tagihan</th>
+                      <th>Dibayar</th>
+                      <th>Sisa</th>
                     </>
                   ) : (
                     <>
@@ -245,14 +245,14 @@ export default function BukuDetail() {
                     {isFinance ? (
                       <>
                         <td><Badge status={bk.piutang_status === "none" ? "muted" : bk.piutang_status} label={bk.piutang_status === "none" ? "—" : undefined} /></td>
-                        <td className="right num">{fmtRp(bk.tagihan)}</td>
-                        <td className="right num" style={{ color: bk.total_paid > 0 ? "var(--ok)" : "var(--fg-3)" }}>{fmtRp(bk.total_paid)}</td>
-                        <td className="right num strong">{fmtRp(bk.sisa)}</td>
+                        <RpCell value={bk.tagihan} />
+                        <RpCell value={bk.total_paid} style={{ color: bk.total_paid > 0 ? "var(--ok)" : "var(--fg-3)" }} />
+                        <RpCell value={bk.sisa} strong />
                       </>
                     ) : (
                       <>
                         <td><Badge status={bk.status} /></td>
-                        <td className="num">{fmtDate(bk.in_date)} → {bk.out_date ? fmtDate(bk.out_date) : <span className="dim">pending</span>}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>{fmtDate(bk.in_date)} → {bk.out_date ? fmtDate(bk.out_date) : <span className="dim">pending</span>}</td>
                         <td className="mono" style={{ fontSize: 12 }}>{bk.peb || "—"}</td>
                         <td>{bk.trucking || "—"}</td>
                       </>

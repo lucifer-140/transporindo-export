@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { getBukuList } from "../api/buku.js";
 import api from "../api/client.js";
-import { fmtRp, fmtDate, Badge, Button, Input, Select, PageHeader, Card, Empty } from "../components/ui.jsx";
+import { fmtRp, fmtDate, Badge, Button, Input, Select, PageHeader, Card, Empty, RpCell } from "../components/ui.jsx";
 import { IconPlus, IconSearch, IconDownload, IconChevron } from "../components/Icons.jsx";
 
 export default function BookingsList() {
@@ -50,12 +50,12 @@ export default function BookingsList() {
       />
 
       <div className="row" style={{ gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-        <div className="search" style={{ flex: 1, minWidth: 240 }}>
+        <div className="search" style={{ flex: 1, minWidth: 200 }}>
           <IconSearch size={14} />
           <Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }}
             placeholder="Cari Job No, shipper, vessel, PEB, BON…" />
         </div>
-        <Select value={bukuFilter} onChange={(e) => { setBukuFilter(e.target.value); setPage(1); }} style={{ width: 160 }}>
+        <Select value={bukuFilter} onChange={(e) => { setBukuFilter(e.target.value); setPage(1); }} style={{ width: 140 }}>
           <option value="">Semua Buku</option>
           {bukuList.map((b) => (
             <option key={b.id} value={b.id}>{String(b.bulan).padStart(2, "0")}/{b.tahun}</option>
@@ -74,7 +74,7 @@ export default function BookingsList() {
             <tr>
               <th>Job No</th><th>Buku</th><th>Shipper</th><th>Commodity</th><th>Vessel</th>
               <th>Out Date</th><th>Status</th>
-              <th className="right">Tagihan</th><th className="right">Sisa</th>
+              <th>Tagihan</th><th>Sisa</th>
               <th style={{ width: 20 }} />
             </tr>
           </thead>
@@ -92,12 +92,12 @@ export default function BookingsList() {
                   <td className="strong">{row.shipper}</td>
                   <td>{row.commodity || "—"}</td>
                   <td>{row.vessel_name || "—"}{row.vessel_no ? <span className="muted"> / {row.vessel_no}</span> : ""}</td>
-                  <td className={row.out_date ? "num" : "dim"} style={{ fontSize: 12 }}>
+                  <td className={!row.out_date ? "dim" : undefined} style={{ fontSize: 12, whiteSpace: "nowrap" }}>
                     {row.out_date ? fmtDate(row.out_date) : "Pending"}
                   </td>
                   <td><Badge status={row.piutang_status === "none" ? "muted" : row.piutang_status} label={row.piutang_status === "none" ? "—" : undefined} /></td>
-                  <td className="right num">{fmtRp(row.tagihan ?? 0)}</td>
-                  <td className="right num strong">{fmtRp(row.sisa_piutang ?? 0)}</td>
+                  <RpCell value={row.tagihan ?? 0} />
+                  <RpCell value={row.sisa_piutang ?? 0} strong />
                   <td><IconChevron size={12} style={{ color: "var(--fg-3)" }} /></td>
                 </tr>
               );

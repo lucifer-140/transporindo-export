@@ -309,3 +309,102 @@ export function exportBookingInvoice(booking, containers, dokumen, piutang) {
   const shipperSlug = (booking.shipper || "").replace(/\s+/g, "_");
   doc.save(`Booking_${booking.job_no}_${shipperSlug}.pdf`);
 }
+
+export function exportInvoicePajak(booking, invoicePajak) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const today = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+
+  addHeader(
+    doc,
+    "INVOICE PAJAK",
+    `Kepada Yth: ${booking.shipper}`,
+    [`Job No: ${booking.job_no}`, `Tanggal: ${today}`]
+  );
+
+  const items = invoicePajak?.items ?? [];
+  const tvp = invoicePajak?.total_nilai_penyerahan ?? 0;
+  const ppn = invoicePajak?.ppn ?? 0;
+  const totalBayar = invoicePajak?.total_bayar ?? 0;
+  const ppnRate = invoicePajak?.ppn_rate ?? 11;
+
+  autoTable(doc, {
+    startY: 47,
+    styles: { textColor: [0, 0, 0] },
+    head: [["No", "Keterangan", "Harga"]],
+    body: items.map((item, i) => [
+      String(i + 1).padStart(2, "0"),
+      item.keterangan,
+      fmtRp(item.harga),
+    ]),
+    foot: [
+      ["", "Total Nilai Penyerahan", fmtRp(tvp)],
+      ["", `PPN (${ppnRate}%)`, fmtRp(ppn)],
+      ["", "Total yang Harus Dibayar", fmtRp(totalBayar)],
+    ],
+    headStyles: DARK_HEAD,
+    footStyles: LIGHT_FOOT,
+    bodyStyles: BODY,
+    columnStyles: {
+      0: { halign: "center", cellWidth: 18 },
+      1: { fontStyle: "bold" },
+      2: { halign: "right", cellWidth: 50 },
+    },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+  });
+
+  const finalY = doc.lastAutoTable.finalY + 8;
+  doc.setTextColor(100, 100, 100);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(`Digenerate otomatis pada ${today}`, 14, finalY);
+
+  doc.save(`InvoicePajak_${booking.job_no}.pdf`);
+}
+
+export function exportNotaReimbursement(booking, notaReimbursement) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const today = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+
+  addHeader(
+    doc,
+    "NOTA REIMBURSEMENT",
+    `Kepada Yth: ${booking.shipper}`,
+    [`Job No: ${booking.job_no}`, `Tanggal: ${today}`]
+  );
+
+  const items = notaReimbursement?.items ?? [];
+  const total = notaReimbursement?.total ?? 0;
+
+  autoTable(doc, {
+    startY: 47,
+    styles: { textColor: [0, 0, 0] },
+    head: [["No", "Description", "Qty", "Price", "Amount"]],
+    body: items.map((item, i) => [
+      String(i + 1).padStart(2, "0"),
+      item.description,
+      item.qty,
+      fmtRp(item.price),
+      fmtRp(item.amount),
+    ]),
+    foot: [["", "", "", "Total", fmtRp(total)]],
+    headStyles: DARK_HEAD,
+    footStyles: LIGHT_FOOT,
+    bodyStyles: BODY,
+    columnStyles: {
+      0: { halign: "center", cellWidth: 18 },
+      1: { fontStyle: "bold" },
+      2: { halign: "right", cellWidth: 20 },
+      3: { halign: "right", cellWidth: 45 },
+      4: { halign: "right", cellWidth: 45 },
+    },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+  });
+
+  const finalY = doc.lastAutoTable.finalY + 8;
+  doc.setTextColor(100, 100, 100);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(`Digenerate otomatis pada ${today}`, 14, finalY);
+
+  doc.save(`NotaReimb_${booking.job_no}.pdf`);
+}

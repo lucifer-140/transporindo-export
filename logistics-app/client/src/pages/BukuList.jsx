@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBukuList, createBuku, deleteBuku } from "../api/buku.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { useToast } from "../components/Toast.jsx";
-import { Badge, Button, Field, Input, Select, Modal, PageHeader, Empty, Card, Stat, Progress, fmtRp, monthLabel } from "../components/ui.jsx";
+import { Badge, Button, Field, Input, Select, Modal, PageHeader, Empty, Card, Stat, Progress, fmtRp, monthLabel, RpCell } from "../components/ui.jsx";
 import { IconPlus, IconTrash, IconChevron } from "../components/Icons.jsx";
 
 export default function BukuList() {
@@ -165,9 +165,9 @@ export default function BukuList() {
                 <th>Status</th>
                 <th>Bookings</th>
                 {isFinance && <>
-                  <th className="right">Tagihan</th>
-                  <th className="right">Dibayar</th>
-                  <th className="right">Sisa</th>
+                  <th>Tagihan</th>
+                  <th>Dibayar</th>
+                  <th>Sisa</th>
                   <th style={{ width: 140 }}>Progress</th>
                 </>}
                 <th style={{ width: 50 }} />
@@ -198,9 +198,9 @@ export default function BukuList() {
                     <td><Badge status={b.status} /></td>
                     <td className="num">{b.booking_count}</td>
                     {isFinance && <>
-                      <td className="right num">{fmtRp(b.tagihan ?? 0)}</td>
-                      <td className="right num" style={{ color: "var(--ok)" }}>{fmtRp(b.dibayar ?? 0)}</td>
-                      <td className="right num strong">{fmtRp(b.sisa ?? 0)}</td>
+                      <RpCell value={b.tagihan ?? 0} />
+                      <RpCell value={b.dibayar ?? 0} style={{ color: "var(--ok)" }} />
+                      <RpCell value={b.sisa ?? 0} strong />
                       <td>
                         <div className="row" style={{ gap: 8, alignItems: "center" }}>
                           <Progress value={b.dibayar ?? 0} max={b.tagihan || 1} tone={pct === 100 ? "ok" : pct > 0 ? "warn" : "danger"} />

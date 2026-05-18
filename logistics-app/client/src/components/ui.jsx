@@ -3,11 +3,16 @@ import { IconDown, IconX, IconChevron } from "./Icons.jsx";
 
 // ── Formatters ───────────────────────────────────────────────────────────────
 export const fmtRp = (n) => {
-  if (n === null || n === undefined || isNaN(n)) return "Rp. 0.00";
+  if (n === null || n === undefined || isNaN(n)) return "Rp. 0.00";
   const abs = Math.abs(n);
   const formatted = abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return (n < 0 ? "-Rp. " : "Rp. ") + formatted;
+  return (n < 0 ? "-Rp. " : "Rp. ") + formatted;
 };
+export const RpCell = ({ value, strong, style }) => (
+  <td className={`num${strong ? " strong" : ""}`} style={style}>
+    {fmtRp(value)}
+  </td>
+);
 export const fmtRpShort = (n) => {
   if (!n) return "Rp 0";
   if (n >= 1_000_000_000) return "Rp " + (n / 1_000_000_000).toFixed(1).replace(/\.0$/, "") + "M";
