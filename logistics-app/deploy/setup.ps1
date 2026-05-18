@@ -54,15 +54,16 @@ if (-not (Test-Path ".env")) {
     Write-Host "[SKIP] .env already exists" -ForegroundColor DarkGray
 }
 
-# --- Run database migration ---
-Write-Host "`nRunning database migration..." -ForegroundColor Yellow
-npm run migrate
-Write-Host "[OK] Database ready" -ForegroundColor Green
-
 # --- Create data directory if missing ---
 if (-not (Test-Path "$AppRoot\server\data")) {
     New-Item -ItemType Directory -Force -Path "$AppRoot\server\data" | Out-Null
 }
+
+# --- Run database migration ---
+Write-Host "`nRunning database migration..." -ForegroundColor Yellow
+Set-Location "$AppRoot\server"
+npm run migrate
+Write-Host "[OK] Database ready" -ForegroundColor Green
 
 # --- Register Windows Task Scheduler (auto-start on boot) ---
 Write-Host "`nRegistering auto-start task..." -ForegroundColor Yellow
