@@ -41,7 +41,7 @@ await fastify.register(fastifyCookie);
 await fastify.register(fastifySession, {
   secret: process.env.SESSION_SECRET,
   cookie: {
-    secure: IS_PROD,
+    secure: false,
     httpOnly: true,
     sameSite: 'lax',
     maxAge: 8 * 60 * 60 * 1000, // 8 hours
