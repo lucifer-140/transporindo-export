@@ -33,54 +33,14 @@ export const IconArrow    = (p) => <I {...p}><path d="M5 12h14M12 5l7 7-7 7" /><
 export const IconFilter   = (p) => <I {...p}><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" /></I>;
 export const IconRefresh  = (p) => <I {...p}><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /><path d="M3 21v-5h5" /></I>;
 
-export const LogoMark = ({ size = 28, accent = "#DC2626", sw, containerFill = true, surface = "var(--surface, #fff)" }) => {
-  const stroke = sw ?? 5;
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none"
-         style={{ display: "block", flexShrink: 0 }} role="img" aria-label="TAS Logistics">
-      {/* Ship — back plane */}
-      <path d="M16 48 L86 48 L92 56 L84 66 L26 66 Z"
-            stroke="currentColor" strokeWidth={stroke} strokeLinejoin="round" fill="none"/>
-      <path d="M66 48 L66 32 L84 32 L84 48"
-            stroke="currentColor" strokeWidth={stroke * 0.9} strokeLinejoin="round" fill="none"/>
-      <circle cx="72" cy="40" r="1.6" fill="currentColor"/>
-      <circle cx="78" cy="40" r="1.6" fill="currentColor"/>
-      <path d="M75 32 L75 20" stroke="currentColor" strokeWidth={stroke * 0.6} strokeLinecap="round"/>
-      <circle cx="75" cy="18" r="1.6" fill="currentColor"/>
-      <rect x="30" y="38" width="14" height="10"
-            fill={containerFill ? accent : "none"}
-            stroke={accent} strokeWidth={containerFill ? 0 : stroke * 0.7}/>
-      <rect x="44" y="38" width="14" height="10"
-            stroke="currentColor" strokeWidth={stroke * 0.7} fill="none"/>
-      {containerFill && (
-        <g stroke={surface} strokeWidth={stroke * 0.22} strokeLinecap="round" opacity="0.55">
-          <path d="M34 41 L34 45"/>
-          <path d="M37 41 L37 45"/>
-          <path d="M40 41 L40 45"/>
-        </g>
-      )}
-      {/* Truck — front plane */}
-      <rect x="4" y="60" width="42" height="22" fill={surface}/>
-      <rect x="6" y="62" width="38" height="20" fill={accent}/>
-      <g stroke="rgba(0,0,0,0.22)" strokeWidth={stroke * 0.22} strokeLinecap="round">
-        <path d="M15 64 L15 80"/>
-        <path d="M24 64 L24 80"/>
-        <path d="M33 64 L33 80"/>
-      </g>
-      <path d="M44 66 L62 66 L62 82 L44 82 Z" fill={surface}/>
-      <path d="M44 66 L54 66 L60 74 L60 80 L44 80 Z" fill="currentColor" strokeLinejoin="round"/>
-      <path d="M46.5 68 L53 68 L57 73 L46.5 73 Z" fill={surface} opacity="0.85"/>
-      <circle cx="58" cy="77" r="1.2" fill={surface} opacity="0.75"/>
-      <circle cx="14" cy="84" r="3.6" fill="currentColor"/>
-      <circle cx="14" cy="84" r="1.4" fill={surface}/>
-      <circle cx="32" cy="84" r="3.6" fill="currentColor"/>
-      <circle cx="32" cy="84" r="1.4" fill={surface}/>
-      <circle cx="52" cy="84" r="3.6" fill="currentColor"/>
-      <circle cx="52" cy="84" r="1.4" fill={surface}/>
-    </svg>
-  );
-};
+export const LogoMark = ({ size = 28 }) => (
+  <img src="/logo.svg" width={size} height={size}
+    style={{ display: "block", flexShrink: 0, objectFit: "contain" }}
+    alt="TAS Logistics" />
+);
 
-export const LogoHero = ({ size = 120, accent = "#DC2626", surface }) => (
-  <LogoMark size={size} accent={accent} sw={4.5} surface={surface}/>
+export const LogoHero = ({ size = 120 }) => (
+  <img src="/logo-dark.svg" width={size} height={size}
+    style={{ display: "block", flexShrink: 0, objectFit: "contain" }}
+    alt="TAS Logistics" />
 );

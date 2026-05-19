@@ -24,7 +24,7 @@ export default function BookingForm() {
 
   const bukuState = location.state ?? {};
   const [form, setForm] = useState({
-    job_no: '', shipper: '', commodity: '', peb: '', bon: '', port: '', feeder: '',
+    job_no: '', shipper: '', commodity: '', port: 'Belawan', port_discharge: '', feeder: '',
     vessel_name: '', vessel_no: '', in_date: '', out_date: '', trucking: '', notes: '',
     buku_id: bukuState.buku_id ?? '',
   });
@@ -56,7 +56,7 @@ export default function BookingForm() {
       const b = existing.booking;
       setForm({
         job_no: b.job_no, shipper: b.shipper, commodity: b.commodity ?? '',
-        peb: b.peb ?? '', bon: b.bon ?? '', port: b.port ?? '', feeder: b.feeder ?? '',
+        port: b.port ?? '', port_discharge: b.port_discharge ?? '', feeder: b.feeder ?? '',
         vessel_name: b.vessel_name ?? '', vessel_no: b.vessel_no ?? '',
         in_date: b.in_date ?? '', out_date: b.out_date ?? '',
         trucking: b.trucking ?? '', notes: b.notes ?? '', buku_id: b.buku_id ?? '',
@@ -172,12 +172,11 @@ export default function BookingForm() {
             </div>
           </Card>
 
-          {/* Dokumen & Pelayaran */}
-          <Card title="Dokumen & Pelayaran">
+          {/* Pelayaran */}
+          <Card title="Pelayaran">
             <div className="grid grid-form-2">
-              <Field label="PEB"><Input value={form.peb} onChange={set('peb')} placeholder="Nomor PEB" /></Field>
-              <Field label="BON"><Input value={form.bon} onChange={set('bon')} placeholder="Nomor BON" /></Field>
-              <Field label="Port (Pelabuhan Muat)"><Input value={form.port} onChange={set('port')} /></Field>
+              <Field label="Port Muat (Pelabuhan Muat)"><Input value={form.port} onChange={set('port')} /></Field>
+              <Field label="Port Discharge"><Input value={form.port_discharge} onChange={set('port_discharge')} /></Field>
               <Field label="Feeder"><Input value={form.feeder} onChange={set('feeder')} placeholder="Nama feeder vessel" /></Field>
               <Field label="Vessel Name"><Input value={form.vessel_name} onChange={set('vessel_name')} placeholder="Nama kapal utama" /></Field>
               <Field label="Vessel No / Voyage"><Input value={form.vessel_no} onChange={set('vessel_no')} placeholder="Nomor voyage" /></Field>

@@ -6,6 +6,19 @@ Format: [version] — date — description
 
 ---
 
+## [0.15.0] — 2026-05-19
+
+### Added
+- **Booking Documents tab** — new `BookingDocuments.jsx` tab in BookingDetail (Info/Finance/Docs); stores PEB & Phyto document numbers, SI, invoice, dates, and pelunasan info; migration `013_booking_documents.sql`; route `bookingDocuments.js`
+- **Archive script** — `scripts/archive-data.js` dumps buku/shippers/commodities/bookings/containers to `server/data/archive-dump.json`
+- **Mei 2026 seed script** — `scripts/seed-mei2026.js` archives existing data, wipes tables (keeps users), seeds real Buku Mei 2026 data with 6 shippers and 9 bookings
+
+### Changed
+- **BookingForm** — Port Muat (Pelabuhan Muat) now defaults to `Belawan`
+- **LAN deploy** — session cookie `secure=false` for HTTP LAN deploy; `setup.ps1` creates data dir before migration
+
+---
+
 ## [0.13.0] — 2026-05-18
 
 ### Added

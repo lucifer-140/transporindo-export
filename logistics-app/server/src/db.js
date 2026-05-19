@@ -89,6 +89,17 @@ function runMigrations(db) {
   // 012: app_settings, invoice_pajak, nota_reimbursement
   const sql012 = readFileSync(join(__dirname, 'migrations/011_invoice_pajak_reimbursement.sql'), 'utf8');
   db.exec(sql012);
+  // 013: booking_documents table + port_discharge on bookings
+  const sql013 = readFileSync(join(__dirname, 'migrations/013_booking_documents.sql'), 'utf8');
+  db.exec(sql013);
+  try { db.exec('ALTER TABLE bookings ADD COLUMN port_discharge TEXT'); } catch {}
+  // Migrate existing peb data (runs once — skips bookings already migrated)
+  db.exec(`
+    INSERT INTO booking_documents (booking_id, doc_type, no_peb, created_by)
+    SELECT id, 'peb', peb, created_by FROM bookings
+    WHERE peb IS NOT NULL AND peb != ''
+    AND id NOT IN (SELECT DISTINCT booking_id FROM booking_documents WHERE doc_type = 'peb')
+  `);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

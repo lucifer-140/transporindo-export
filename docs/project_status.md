@@ -1,7 +1,7 @@
 # Project Status
 
-**Version:** 0.13.0
-**Last Updated:** 2026-05-18
+**Version:** 0.15.0
+**Last Updated:** 2026-05-19
 **Stage:** Active Development
 
 ---
@@ -35,6 +35,7 @@
 | Toast Notifications | Done | `Toast.jsx` + `useToast`; all mutations show success/error feedback |
 | Skeleton Loaders | Done | `Skeleton.jsx`; BookingDetail uses skeleton while loading |
 | PDF Export | Done | `exportBookingInvoice` + `exportInvoiceOnly`; invoice download in BookingDetail (finance+) |
+| Booking Documents | Done | PEB & Phyto doc numbers, SI, invoice, pelunasan info; Docs tab in BookingDetail; migration 013 |
 | DB Indexes | Done | `008_indexes.sql` performance indexes |
 | Code Splitting | Done | All pages lazy-loaded via `React.lazy` + `Suspense` |
 

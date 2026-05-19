@@ -8,6 +8,7 @@ import { useToast } from "../components/Toast.jsx";
 import { Badge, Button, Card, PageHeader, Empty, Modal, Field, Input, Select, Progress, fmtRp, fmtDate, monthLabel, RpCell } from "../components/ui.jsx";
 import { IconEdit, IconTrash, IconPlus, IconChevron, IconMore } from "../components/Icons.jsx";
 import { exportBookingInvoice, exportInvoiceOnly, exportInvoicePajak, exportNotaReimbursement } from "../utils/invoicePdf.js";
+import BookingDocuments from "./BookingDocuments.jsx";
 
 function apiErrMsg(e, fallback) {
   const err = e?.response?.data?.error;
@@ -163,9 +164,8 @@ function ShipmentTabPanel({ booking, containers, onEdit }) {
         <div className="kv-grid">
           <div className="kv-grid__item"><div className="kv-grid__lbl">Shipper</div><div className="kv-grid__val">{booking.shipper || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Commodity</div><div className="kv-grid__val">{booking.commodity || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Port</div><div className="kv-grid__val">{booking.port || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">PEB</div><div className={`kv-grid__val mono${booking.peb ? "" : " dim"}`}>{booking.peb || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">BON</div><div className={`kv-grid__val mono${booking.bon ? "" : " dim"}`}>{booking.bon || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Muat</div><div className="kv-grid__val">{booking.port || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Discharge</div><div className={`kv-grid__val${booking.port_discharge ? "" : " dim"}`}>{booking.port_discharge || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Feeder</div><div className="kv-grid__val">{booking.feeder || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Vessel</div><div className="kv-grid__val">{booking.vessel_name || "—"} {booking.vessel_no && <span className="muted">/ {booking.vessel_no}</span>}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">In Date</div><div className={`kv-grid__val${booking.in_date ? "" : " dim"}`}>{booking.in_date ? fmtDate(booking.in_date) : "—"}</div></div>
@@ -634,11 +634,10 @@ function WorkerView({ booking, containers, onEdit }) {
           <div className="kv-grid__item"><div className="kv-grid__lbl">Shipper</div><div className="kv-grid__val">{booking.shipper || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Commodity</div><div className="kv-grid__val">{booking.commodity || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Port Muat</div><div className="kv-grid__val">{booking.port || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Discharge</div><div className={`kv-grid__val${booking.port_discharge ? "" : " dim"}`}>{booking.port_discharge || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Trucking</div><div className="kv-grid__val">{booking.trucking || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Feeder</div><div className="kv-grid__val">{booking.feeder || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Vessel</div><div className="kv-grid__val">{booking.vessel_name || "—"}{booking.vessel_no ? <span className="muted"> / {booking.vessel_no}</span> : ""}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">PEB</div><div className={`kv-grid__val mono${booking.peb ? "" : " dim"}`}>{booking.peb || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">BON</div><div className={`kv-grid__val mono${booking.bon ? "" : " dim"}`}>{booking.bon || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">In Date</div><div className={`kv-grid__val${booking.in_date ? "" : " dim"}`}>{booking.in_date ? fmtDate(booking.in_date) : "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Out Date</div><div className={`kv-grid__val${booking.out_date ? "" : " warn"}`}>{booking.out_date ? fmtDate(booking.out_date) : "Pending"}</div></div>
         </div>
@@ -974,6 +973,9 @@ export default function BookingDetail() {
             <button role="tab" className={`bd-tab ${tab === "shipment" ? "is-active" : ""}`} onClick={() => setTab("shipment")}>
               <IcBox size={13} /> Shipment
             </button>
+            <button role="tab" className={`bd-tab ${tab === "dokumen" ? "is-active" : ""}`} onClick={() => setTab("dokumen")}>
+              <IcList size={13} /> Dokumen
+            </button>
             <button role="tab" className={`bd-tab ${tab === "invoice" ? "is-active" : ""}`} onClick={() => setTab("invoice")}>
               <IcList size={13} /> Invoice
               <span className="bd-tab__count">{dokumen.length}</span>
@@ -991,6 +993,7 @@ export default function BookingDetail() {
           </div>
 
           {tab === "shipment" && <ShipmentTabPanel booking={booking} containers={containers} onEdit={onEdit} />}
+          {tab === "dokumen"  && <BookingDocuments bookingId={id} canEdit={true} />}
           {tab === "invoice"  && <InvoiceTabPanel  dokumen={dokumen} invoiceTotal={invoiceTotal} setItemModal={setItemModal} deleteItemMutation={deleteItemMutation} onExportInvoice={() => { exportInvoiceOnly(booking, dokumen); api.post('/audit/download', { documentType: 'invoice', bookingId: booking?.id }).catch(() => {}); }} />}
           {tab === "piutang"  && <PiutangTabPanel  piutang={piutang} piutangPaid={piutangPaid} piutangSisa={piutangSisa} piutangSt={piutangSt} invoiceTotal={invoiceTotal} setPiutangMutation={setPiutangMutation} setPiutangModal={setPiutangModal} setPayModal={setPayModal} deletePiutangPayMutation={deletePiutangPayMutation} />}
           {tab === "hutang"   && <HutangTabPanel   hutangList={hutangList} setHutangModal={setHutangModal} setPayModal={setPayModal} deleteHutangMutation={deleteHutangMutation} deleteHutangPayMutation={deleteHutangPayMutation} />}

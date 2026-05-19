@@ -25,6 +25,7 @@ import { notaReimbursementRoutes } from './routes/notaReimbursement.js';
 import { settingsRoutes } from './routes/settings.js';
 import { auditDownloadRoutes } from './routes/auditDownload.js';
 import { backupRoutes } from './routes/backup.js';
+import { bookingDocumentRoutes } from './routes/bookingDocuments.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT ?? '8080');
@@ -69,6 +70,7 @@ await fastify.register(notaReimbursementRoutes);
 await fastify.register(settingsRoutes);
 await fastify.register(auditDownloadRoutes);
 await fastify.register(backupRoutes);
+await fastify.register(bookingDocumentRoutes);
 
 // Serve built React app in production
 const publicDir = join(__dirname, '..', 'public');

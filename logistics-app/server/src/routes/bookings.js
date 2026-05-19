@@ -34,11 +34,10 @@ export async function bookingRoutes(fastify) {
     if (from)    { where += ' AND b.created_at >= ?'; params.push(from); }
     if (to)      { where += ' AND b.created_at <= ?'; params.push(to + 'T23:59:59'); }
     if (q) {
-      where += ` AND (b.job_no LIKE ? OR b.shipper LIKE ? OR b.peb LIKE ?
-        OR b.bon LIKE ? OR b.vessel_name LIKE ?
+      where += ` AND (b.job_no LIKE ? OR b.shipper LIKE ? OR b.vessel_name LIKE ?
         OR EXISTS (SELECT 1 FROM containers c WHERE c.booking_id = b.id AND c.container_no LIKE ?))`;
       const like = `%${q}%`;
-      params.push(like, like, like, like, like, like);
+      params.push(like, like, like, like);
     }
 
     const rows = db.prepare(`
@@ -99,9 +98,9 @@ export async function bookingRoutes(fastify) {
 
     const rows = db.prepare(`SELECT * FROM bookings WHERE ${where} ORDER BY created_at DESC`).all(...params);
 
-    const header = 'id,job_no,shipper,peb,port,feeder,vessel_name,vessel_no,bon,status,notes,created_at\n';
+    const header = 'id,job_no,shipper,port,port_discharge,feeder,vessel_name,vessel_no,status,notes,created_at\n';
     const csv = rows.map(r =>
-      [r.id, r.job_no, r.shipper, r.peb, r.port, r.feeder, r.vessel_name, r.vessel_no, r.bon, r.status, r.notes, r.created_at]
+      [r.id, r.job_no, r.shipper, r.port, r.port_discharge, r.feeder, r.vessel_name, r.vessel_no, r.status, r.notes, r.created_at]
         .map(v => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
         .join(',')
     ).join('\n');
@@ -135,8 +134,8 @@ export async function bookingRoutes(fastify) {
 
     const publicId = randomBytes(16).toString('hex');
     const result = db.prepare(`
-      INSERT INTO bookings (job_no, shipper, commodity, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, notes, status, buku_id, created_by, public_id)
-      VALUES (@job_no, @shipper, @commodity, @peb, @port, @feeder, @vessel_name, @vessel_no, @bon, @in_date, @out_date, @trucking, @notes, 'in_progress', @buku_id, @created_by, @public_id)
+      INSERT INTO bookings (job_no, shipper, commodity, port, port_discharge, feeder, vessel_name, vessel_no, in_date, out_date, trucking, notes, status, buku_id, created_by, public_id)
+      VALUES (@job_no, @shipper, @commodity, @port, @port_discharge, @feeder, @vessel_name, @vessel_no, @in_date, @out_date, @trucking, @notes, 'in_progress', @buku_id, @created_by, @public_id)
     `).run({ ...fields, created_by: userId, public_id: publicId });
 
     const bookingId = result.lastInsertRowid;
@@ -166,8 +165,8 @@ export async function bookingRoutes(fastify) {
     const userId = request.session.user.id;
 
     db.prepare(`
-      UPDATE bookings SET job_no=@job_no, shipper=@shipper, commodity=@commodity, peb=@peb, port=@port,
-        feeder=@feeder, vessel_name=@vessel_name, vessel_no=@vessel_no, bon=@bon,
+      UPDATE bookings SET job_no=@job_no, shipper=@shipper, commodity=@commodity, port=@port,
+        port_discharge=@port_discharge, feeder=@feeder, vessel_name=@vessel_name, vessel_no=@vessel_no,
         in_date=@in_date, out_date=@out_date, trucking=@trucking, notes=@notes, buku_id=@buku_id
       WHERE id = @id
     `).run({ ...fields, id: existing.id });

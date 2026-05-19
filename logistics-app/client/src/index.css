@@ -1116,6 +1116,18 @@ hr.div { border: 0; border-top: 1px solid var(--border); margin: 0; }
 
 /* Hutang vendor cards */
 .bd-hutang-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+.doc-table { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.doc-table__hdr { display: grid; grid-template-columns: 72px 1fr 1fr 110px 68px; gap: 12px; padding: 7px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.doc-table__hdr span { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--fg-3); text-transform: uppercase; }
+.doc-table__row { display: grid; grid-template-columns: 72px 1fr 1fr 110px 68px; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--fg); transition: background 0.1s; }
+.doc-table__row:last-child { border-bottom: none; }
+.doc-table__row:hover { background: var(--surface-2); }
+.doc-table__cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-table__cell.mono { font-family: "Geist Mono", ui-monospace, monospace; font-size: 12px; }
+.doc-table__cell.dim { color: var(--fg-4); }
+.doc-type-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: var(--surface-2); color: var(--accent); border: 1px solid var(--accent); border-radius: 5px; padding: 2px 7px; display: inline-block; }
+.doc-table__row.is-expanded { background: var(--surface-2); }
+.doc-table__detail { padding: 12px 14px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
 .bd-vendor-card { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow: hidden; display: flex; flex-direction: column; }
 .bd-vendor-card__hd { padding: 14px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; border-bottom: 1px solid var(--border); }
 .bd-vendor-card__name { font-size: 14px; font-weight: 600; color: var(--fg); }
@@ -1191,6 +1203,28 @@ hr.div { border: 0; border-top: 1px solid var(--border); margin: 0; }
 }
 @keyframes page-loader-spin { to { transform: rotate(360deg) } }
 .page-loader__label { font-size: 13px; color: var(--fg-3); }
+
+/* ── Common office monitor 1366×768 ───────────────────────────────────────── */
+@media (max-width: 1366px) {
+  .app { grid-template-columns: clamp(148px, 13vw, 180px) 1fr; }
+  .main { padding: 12px 18px 24px; }
+  .phdr { padding-bottom: 14px; margin-bottom: 14px; }
+  .phdr__title { font-size: 18px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .card { padding: 14px; }
+  .tbl thead th { padding: 7px 10px; font-size: 11px; }
+  .tbl tbody td { padding: 8px 10px; font-size: 13px; }
+  .modal { max-width: 420px; }
+}
+
+@media (max-height: 768px) {
+  .sidebar { gap: 12px; padding: 10px 10px; }
+  .sb-brand { padding: 4px 6px 10px; }
+  .sb-section { gap: 2px; }
+  .sb-link { padding: 6px 10px; font-size: 13px; }
+  .sb-user { padding-top: 8px; }
+}
 
 /* ── Laptop / sub-24" responsive (1280px–1440px) ──────────────────────────── */
 @media (max-width: 1440px) {

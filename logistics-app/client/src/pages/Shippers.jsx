@@ -13,91 +13,84 @@ import {
   Stat,
   fmtRp,
 } from "../components/ui.jsx";
-import { IconPlus, IconEdit } from "../components/Icons.jsx";
+import { IconPlus, IconEdit, IconTrash } from "../components/Icons.jsx";
 
-// ── Commodity tag input ──────────────────────────────────────────────────────
-// Enter (or Tambah button) adds a tag. Backspace on an empty input pops the
-// last tag — matches the affordance users expect from chip inputs.
+// ── Commodity list editor ────────────────────────────────────────────────────
+// commodities: [{id: number|null, name: string}]
+// Each commodity is a labeled row with a text input and remove button.
+// "Tambah Komoditas" button appends a new empty row and focuses it.
 function CommodityTagInput({ commodities, onChange }) {
-  const [input, setInput] = useState("");
+  const lastInputRef = { current: null };
 
-  function add() {
-    const val = input.trim();
-    if (!val || commodities.includes(val)) {
-      setInput("");
-      return;
-    }
-    onChange([...commodities, val]);
-    setInput("");
+  function update(idx, val) {
+    onChange(commodities.map((c, i) => (i === idx ? { ...c, name: val } : c)));
   }
 
   function remove(idx) {
     onChange(commodities.filter((_, i) => i !== idx));
   }
 
-  function onKeyDown(e) {
+  function addRow() {
+    onChange([...commodities, { id: null, name: "" }]);
+    // focus happens via autoFocus on the new input
+  }
+
+  function onKeyDown(e, idx) {
     if (e.key === "Enter") {
       e.preventDefault();
-      add();
-    } else if (e.key === "Backspace" && !input && commodities.length) {
-      e.preventDefault();
-      remove(commodities.length - 1);
+      addRow();
     }
   }
 
   return (
-    <div className="col" style={{ gap: 8 }}>
-      <div className="row" style={{ gap: 8 }}>
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="e.g. Palm Oil RBD"
-          style={{ flex: 1 }}
-        />
-        <Button
-          type="button"
-          variant="default"
-          onClick={add}
-          disabled={!input.trim()}
-        >
-          Tambah
-        </Button>
-      </div>
-      {commodities.length > 0 && (
-        <div className="row-wrap" style={{ gap: 6 }}>
-          {commodities.map((c, i) => (
-            <span
-              key={i}
-              className="badge badge--muted"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-            >
-              {c}
-              <button
-                type="button"
-                onClick={() => remove(i)}
-                aria-label={`Hapus ${c}`}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  width: 14,
-                  height: 14,
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: 3,
-                  color: "var(--fg-3)",
-                  fontSize: 13,
-                  lineHeight: 1,
-                }}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
+    <div className="col" style={{ gap: 6 }}>
+      {commodities.length === 0 && (
+        <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+          Belum ada komoditas. Klik tombol di bawah untuk menambahkan.
+        </p>
       )}
+      {commodities.map((c, i) => (
+        <div key={i} className="row" style={{ gap: 8, alignItems: "center" }}>
+          <Input
+            autoFocus={c.id === null && i === commodities.length - 1}
+            value={c.name}
+            onChange={(e) => update(i, e.target.value)}
+            onKeyDown={(e) => onKeyDown(e, i)}
+            placeholder="Nama komoditas"
+            style={{ flex: 1 }}
+          />
+          <button
+            type="button"
+            onClick={() => remove(i)}
+            aria-label={`Hapus ${c.name || "komoditas"}`}
+            style={{
+              flexShrink: 0,
+              background: "none",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              cursor: "pointer",
+              width: 32,
+              height: 32,
+              display: "grid",
+              placeItems: "center",
+              color: "var(--danger)",
+              fontSize: 16,
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        icon={<IconPlus size={12} />}
+        onClick={addRow}
+        style={{ alignSelf: "flex-start", marginTop: 2 }}
+      >
+        Tambah Komoditas
+      </Button>
     </div>
   );
 }
@@ -126,7 +119,7 @@ export default function Shippers() {
   function openEdit(sh) {
     setEditing(sh);
     setName(sh.name);
-    setCommodities(sh.commodities.map((c) => c.name));
+    setCommodities(sh.commodities.map((c) => ({ id: c.id, name: c.name })));
     setError("");
     setOpenModal(true);
   }
@@ -160,15 +153,30 @@ export default function Shippers() {
       setError("Nama wajib diisi");
       return;
     }
+    const cleanCommodities = commodities.filter((c) => c.name.trim());
     if (editing) {
       updateMutation.mutate({
         id: editing.id,
         name: name.trim(),
-        commodities,
+        commodities: cleanCommodities,
       });
     } else {
-      addMutation.mutate({ name: name.trim(), commodities });
+      addMutation.mutate({ name: name.trim(), commodities: cleanCommodities.map((c) => c.name) });
     }
+  }
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/shippers/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["shippers"] });
+      toast("Shipper berhasil dihapus.");
+    },
+    onError: () => toast("Gagal menghapus shipper."),
+  });
+
+  function confirmDelete(sh) {
+    if (!window.confirm(`Hapus shipper "${sh.name}"? Semua data terkait akan ikut terhapus.`)) return;
+    deleteMutation.mutate(sh.id);
   }
 
   const isPending = addMutation.isPending || updateMutation.isPending;
@@ -251,7 +259,7 @@ export default function Shippers() {
           </Field>
           <Field
             label="Commodities"
-            hint="Ketik nama komoditas lalu tekan Enter atau klik Tambah."
+            hint="Edit langsung di kolom. Tekan Enter untuk tambah baris baru."
           >
             <CommodityTagInput
               commodities={commodities}
@@ -302,12 +310,21 @@ export default function Shippers() {
                     {fmtRp(sh.total_tagihan ?? 0)}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={<IconEdit size={12} />}
-                  onClick={() => openEdit(sh)}
-                />
+                <div className="row" style={{ gap: 4 }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<IconEdit size={12} />}
+                    onClick={() => openEdit(sh)}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<IconTrash size={12} />}
+                    onClick={() => confirmDelete(sh)}
+                    style={{ color: "var(--danger)" }}
+                  />
+                </div>
               </div>
               <div className="field__lbl" style={{ marginBottom: 8 }}>
                 Commodities ({sh.commodities.length})

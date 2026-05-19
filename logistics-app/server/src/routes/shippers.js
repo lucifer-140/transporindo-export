@@ -67,24 +67,43 @@ export async function shipperRoutes(fastify) {
     return { ok: true };
   });
 
-  // Update shipper name + bulk-replace commodities
+  // Update shipper name + commodities
+  // commodities: [{id?, name}] — items with id are renamed; items without id are new
   fastify.put('/api/shippers/:id', { preHandler: requireRole('admin') }, async (request, reply) => {
     const { name, commodities = [] } = request.body ?? {};
     if (!name?.trim()) return reply.code(400).send({ error: 'Name required' });
     const db = getDb();
-    const shipper = db.prepare('SELECT id FROM shippers WHERE id = ?').get(request.params.id);
+    const shipper = db.prepare('SELECT id, name FROM shippers WHERE id = ?').get(request.params.id);
     if (!shipper) return reply.code(404).send({ error: 'Not found' });
-    const updateShipper = db.prepare('UPDATE shippers SET name = ? WHERE id = ?');
-    const deleteCommodities = db.prepare('DELETE FROM commodities WHERE shipper_id = ?');
-    const insertCommodity = db.prepare('INSERT OR IGNORE INTO commodities (shipper_id, name) VALUES (?, ?)');
+
+    const oldCommodities = db.prepare('SELECT * FROM commodities WHERE shipper_id = ?').all(shipper.id);
+    const incomingIds = new Set(commodities.filter(c => c.id).map(c => Number(c.id)));
+    const toDelete = oldCommodities.filter(c => !incomingIds.has(c.id));
+    const newShipperName = name.trim();
+
     try {
       db.exec('BEGIN');
       try {
-        updateShipper.run(name.trim(), shipper.id);
-        deleteCommodities.run(shipper.id);
-        for (const c of commodities) {
-          if (typeof c === 'string' && c.trim()) insertCommodity.run(shipper.id, c.trim());
+        if (newShipperName !== shipper.name) {
+          db.prepare('UPDATE shippers SET name = ? WHERE id = ?').run(newShipperName, shipper.id);
+          db.prepare('UPDATE bookings SET shipper = ? WHERE shipper = ?').run(newShipperName, shipper.name);
         }
+        const updateCom = db.prepare('UPDATE commodities SET name = ? WHERE id = ? AND shipper_id = ?');
+        const updateBookingCom = db.prepare('UPDATE bookings SET commodity = ? WHERE shipper = ? AND commodity = ?');
+        for (const c of commodities) {
+          if (!c.id) continue;
+          const old = oldCommodities.find(o => o.id === Number(c.id));
+          if (old && old.name !== c.name.trim()) {
+            updateCom.run(c.name.trim(), old.id, shipper.id);
+            updateBookingCom.run(c.name.trim(), newShipperName, old.name);
+          }
+        }
+        const insertCom = db.prepare('INSERT OR IGNORE INTO commodities (shipper_id, name) VALUES (?, ?)');
+        for (const c of commodities) {
+          if (!c.id && c.name?.trim()) insertCom.run(shipper.id, c.name.trim());
+        }
+        const deleteCom = db.prepare('DELETE FROM commodities WHERE id = ?');
+        for (const c of toDelete) deleteCom.run(c.id);
         db.exec('COMMIT');
       } catch (txErr) {
         try { db.exec('ROLLBACK'); } catch {}
@@ -96,7 +115,7 @@ export async function shipperRoutes(fastify) {
     }
     const updated = db.prepare('SELECT * FROM shippers WHERE id = ?').get(shipper.id);
     const newCommodities = db.prepare('SELECT * FROM commodities WHERE shipper_id = ? ORDER BY name ASC').all(shipper.id);
-    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'shipper', entityId: shipper.id, changes: { name: name.trim() } });
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'shipper', entityId: shipper.id, changes: { name: newShipperName, commodities: newCommodities.map(c => c.name) } });
     return { ...updated, commodities: newCommodities };
   });
 

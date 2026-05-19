@@ -6,6 +6,4 @@ export async function commodityRoutes(fastify) {
     const db = getDb();
     return db.prepare('SELECT * FROM commodities ORDER BY name ASC').all();
   });
-
-
 }
