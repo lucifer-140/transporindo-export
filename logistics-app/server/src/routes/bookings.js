@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import { getDb } from '../db.js';
-import { bookingSchema, statusSchema } from '../schemas/booking.js';
+import { bookingSchema, statusSchema, pelayaranSchema, containerRowSchema, identitasSchema } from '../schemas/booking.js';
 import { logAudit } from '../utils/audit.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { broadcast } from '../utils/sse.js';
@@ -16,6 +16,26 @@ function deriveQty(containers) {
 
 function getContainers(db, bookingId) {
   return db.prepare('SELECT * FROM containers WHERE booking_id = ?').all(bookingId);
+}
+
+function syncTruckingHutang(db, container, bookingId, userId) {
+  const hasTrucking = container.trucking && container.biaya_trucking > 0;
+  const existing = db.prepare('SELECT * FROM hutang WHERE container_id = ? AND hutang_type = ?').get(container.id, 'trucking');
+  if (hasTrucking) {
+    if (!existing) {
+      db.prepare(
+        "INSERT INTO hutang (pihak, booking_id, jumlah, keterangan, hutang_type, container_id, created_by) VALUES (?, ?, ?, '', 'trucking', ?, ?)"
+      ).run(container.trucking, bookingId, container.biaya_trucking, container.id, userId);
+    } else {
+      const payCount = db.prepare("SELECT COUNT(*) AS cnt FROM pembayaran WHERE entity_type='hutang' AND entity_id=?").get(existing.id).cnt;
+      if (payCount === 0) {
+        db.prepare('UPDATE hutang SET pihak=?, jumlah=? WHERE id=?').run(container.trucking, container.biaya_trucking, existing.id);
+      }
+    }
+  } else if (existing) {
+    const payCount = db.prepare("SELECT COUNT(*) AS cnt FROM pembayaran WHERE entity_type='hutang' AND entity_id=?").get(existing.id).cnt;
+    if (payCount === 0) db.prepare('DELETE FROM hutang WHERE id=?').run(existing.id);
+  }
 }
 
 
@@ -98,9 +118,9 @@ export async function bookingRoutes(fastify) {
 
     const rows = db.prepare(`SELECT * FROM bookings WHERE ${where} ORDER BY created_at DESC`).all(...params);
 
-    const header = 'id,job_no,shipper,port,port_discharge,feeder,vessel_name,vessel_no,status,notes,created_at\n';
+    const header = 'id,job_no,shipper,port,port_discharge,pelayaran,vessel_name,vessel_no,status,notes,created_at\n';
     const csv = rows.map(r =>
-      [r.id, r.job_no, r.shipper, r.port, r.port_discharge, r.feeder, r.vessel_name, r.vessel_no, r.status, r.notes, r.created_at]
+      [r.id, r.job_no, r.shipper, r.port, r.port_discharge, r.pelayaran, r.vessel_name, r.vessel_no, r.status, r.notes, r.created_at]
         .map(v => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
         .join(',')
     ).join('\n');
@@ -134,14 +154,14 @@ export async function bookingRoutes(fastify) {
 
     const publicId = randomBytes(16).toString('hex');
     const result = db.prepare(`
-      INSERT INTO bookings (job_no, shipper, commodity, port, port_discharge, feeder, vessel_name, vessel_no, in_date, out_date, trucking, notes, status, buku_id, created_by, public_id)
-      VALUES (@job_no, @shipper, @commodity, @port, @port_discharge, @feeder, @vessel_name, @vessel_no, @in_date, @out_date, @trucking, @notes, 'in_progress', @buku_id, @created_by, @public_id)
+      INSERT INTO bookings (job_no, shipper, commodity, port, port_discharge, lokasi_muat, pelayaran, vessel_name, vessel_no, in_date, out_date, trucking, notes, status, buku_id, created_by, public_id)
+      VALUES (@job_no, @shipper, @commodity, @port, @port_discharge, @lokasi_muat, @pelayaran, @vessel_name, @vessel_no, @in_date, @out_date, @trucking, @notes, 'in_progress', @buku_id, @created_by, @public_id)
     `).run({ ...fields, created_by: userId, public_id: publicId });
 
     const bookingId = result.lastInsertRowid;
 
-    const insertContainer = db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size) VALUES (?, ?, ?, ?)');
-    for (const c of containers) insertContainer.run(bookingId, c.container_no, c.seal_no, c.size);
+    const insertContainer = db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size, no_sp, trucking, biaya_trucking, in_date, out_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const c of containers) insertContainer.run(bookingId, c.container_no, c.seal_no, c.size, c.no_sp, c.trucking, c.biaya_trucking ?? null, c.in_date, c.out_date, c.notes);
 
     logAudit({ userId, action: 'create', entityType: 'booking', entityId: bookingId, changes: parsed.data });
     broadcast(['bookings', 'buku']);
@@ -166,20 +186,28 @@ export async function bookingRoutes(fastify) {
 
     db.prepare(`
       UPDATE bookings SET job_no=@job_no, shipper=@shipper, commodity=@commodity, port=@port,
-        port_discharge=@port_discharge, feeder=@feeder, vessel_name=@vessel_name, vessel_no=@vessel_no,
+        port_discharge=@port_discharge, lokasi_muat=@lokasi_muat, pelayaran=@pelayaran, vessel_name=@vessel_name, vessel_no=@vessel_no,
         in_date=@in_date, out_date=@out_date, trucking=@trucking, notes=@notes, buku_id=@buku_id
       WHERE id = @id
     `).run({ ...fields, id: existing.id });
 
+    // Remove trucking hutang with no payments before wiping containers
+    const oldTruckingHutang = db.prepare("SELECT * FROM hutang WHERE booking_id = ? AND hutang_type = 'trucking'").all(existing.id);
+    for (const h of oldTruckingHutang) {
+      const payCount = db.prepare("SELECT COUNT(*) AS cnt FROM pembayaran WHERE entity_type='hutang' AND entity_id=?").get(h.id).cnt;
+      if (payCount === 0) db.prepare('DELETE FROM hutang WHERE id=?').run(h.id);
+    }
+
     db.prepare('DELETE FROM containers WHERE booking_id = ?').run(existing.id);
-    const insertContainer = db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size) VALUES (?, ?, ?, ?)');
-    for (const c of containers) insertContainer.run(existing.id, c.container_no, c.seal_no, c.size);
+    const insertContainer = db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size, no_sp, trucking, biaya_trucking, in_date, out_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const c of containers) insertContainer.run(existing.id, c.container_no, c.seal_no, c.size, c.no_sp, c.trucking, c.biaya_trucking ?? null, c.in_date, c.out_date, c.notes);
 
     logAudit({ userId, action: 'update', entityType: 'booking', entityId: existing.id, changes: parsed.data });
     broadcast(['bookings', 'buku']);
 
     const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(existing.id);
     const savedContainers = getContainers(db, existing.id);
+    for (const c of savedContainers) { try { syncTruckingHutang(db, c, existing.id, userId); } catch {} }
     return { booking: { ...booking, qty: deriveQty(savedContainers) }, containers: savedContainers };
   });
 
@@ -210,6 +238,96 @@ export async function bookingRoutes(fastify) {
     db.prepare('UPDATE bookings SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
     logAudit({ userId: request.session.user.id, action: 'delete', entityType: 'booking', entityId: existing.id });
     broadcast(['bookings', 'buku']);
+    return reply.code(204).send();
+  });
+
+  // Update identitas section only
+  fastify.patch('/api/bookings/:id/identitas', { preHandler: requireRole('worker') }, async (request, reply) => {
+    const db = getDb();
+    const booking = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
+    if (!booking) return reply.code(404).send({ error: 'Not found' });
+
+    const parsed = identitasSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const { job_no, shipper, commodity, lokasi_muat, notes } = parsed.data;
+    db.prepare('UPDATE bookings SET job_no=?, shipper=?, commodity=?, lokasi_muat=?, notes=? WHERE id=?')
+      .run(job_no, shipper, commodity, lokasi_muat, notes, booking.id);
+
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'booking', entityId: booking.id, changes: parsed.data });
+    broadcast(['bookings']);
+    return db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id);
+  });
+
+  // Update pelayaran section only
+  fastify.patch('/api/bookings/:id/pelayaran', { preHandler: requireRole('worker') }, async (request, reply) => {
+    const db = getDb();
+    const booking = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
+    if (!booking) return reply.code(404).send({ error: 'Not found' });
+
+    const parsed = pelayaranSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const { pelayaran, vessel_name, vessel_no, port, port_discharge, lokasi_muat } = parsed.data;
+    db.prepare('UPDATE bookings SET pelayaran=?, vessel_name=?, vessel_no=?, port=?, port_discharge=?, lokasi_muat=? WHERE id=?')
+      .run(pelayaran, vessel_name, vessel_no, port, port_discharge, lokasi_muat, booking.id);
+
+    logAudit({ userId: request.session.user.id, action: 'update', entityType: 'booking', entityId: booking.id, changes: parsed.data });
+    broadcast(['bookings']);
+    return db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id);
+  });
+
+  // Add single container row (body fields optional)
+  fastify.post('/api/bookings/:id/containers', { preHandler: requireRole('worker') }, async (request, reply) => {
+    const db = getDb();
+    const booking = db.prepare('SELECT * FROM bookings WHERE public_id = ? AND deleted_at IS NULL').get(request.params.id);
+    if (!booking) return reply.code(404).send({ error: 'Not found' });
+
+    const b = request.body ?? {};
+    const result = db.prepare(
+      'INSERT INTO containers (booking_id, container_no, seal_no, size, no_sp, trucking, biaya_trucking, in_date, out_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(booking.id, b.container_no ?? '', b.seal_no ?? '', b.size ?? '40ft', b.no_sp ?? '', b.trucking ?? '', b.biaya_trucking ?? null, b.in_date ?? '', b.out_date ?? '', b.notes ?? '');
+
+    const container = db.prepare('SELECT * FROM containers WHERE id = ?').get(result.lastInsertRowid);
+    try { syncTruckingHutang(db, container, booking.id, request.session.user.id); } catch {}
+    broadcast(['bookings']);
+    return reply.code(201).send(container);
+  });
+
+  // Update single container row (partial patch)
+  fastify.patch('/api/containers/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
+    const db = getDb();
+    const container = db.prepare('SELECT * FROM containers WHERE id = ?').get(parseInt(request.params.id));
+    if (!container) return reply.code(404).send({ error: 'Not found' });
+
+    const parsed = containerRowSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const merged = { ...container, ...parsed.data };
+    db.prepare('UPDATE containers SET container_no=?, seal_no=?, size=?, no_sp=?, trucking=?, biaya_trucking=?, in_date=?, out_date=?, notes=? WHERE id=?')
+      .run(merged.container_no, merged.seal_no, merged.size, merged.no_sp, merged.trucking, merged.biaya_trucking ?? null, merged.in_date, merged.out_date, merged.notes, container.id);
+
+    const updated = db.prepare('SELECT * FROM containers WHERE id = ?').get(container.id);
+    const booking = db.prepare('SELECT id FROM bookings WHERE id = ?').get(container.booking_id);
+    if (booking) { try { syncTruckingHutang(db, updated, booking.id, request.session.user.id); } catch {} }
+    return updated;
+  });
+
+  // Delete single container row
+  fastify.delete('/api/containers/:id', { preHandler: requireRole('worker') }, async (request, reply) => {
+    const db = getDb();
+    const container = db.prepare('SELECT * FROM containers WHERE id = ?').get(parseInt(request.params.id));
+    if (!container) return reply.code(404).send({ error: 'Not found' });
+
+    // Remove linked trucking hutang if no payments exist
+    const linkedHutang = db.prepare("SELECT * FROM hutang WHERE container_id = ? AND hutang_type = 'trucking'").get(container.id);
+    if (linkedHutang) {
+      const payCount = db.prepare("SELECT COUNT(*) AS cnt FROM pembayaran WHERE entity_type='hutang' AND entity_id=?").get(linkedHutang.id).cnt;
+      if (payCount === 0) db.prepare('DELETE FROM hutang WHERE id=?').run(linkedHutang.id);
+    }
+
+    db.prepare('DELETE FROM containers WHERE id = ?').run(container.id);
+    broadcast(['bookings']);
     return reply.code(204).send();
   });
 

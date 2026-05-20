@@ -60,8 +60,8 @@ export const Badge = ({ status, label, tone, dot = true, solid = false }) => {
   );
 };
 
-export const Button = ({ children, variant = "default", size = "md", icon, onClick, type = "button", disabled, full = false, title }) => (
-  <button type={type} disabled={disabled} title={title} onClick={onClick}
+export const Button = ({ children, variant = "default", size = "md", icon, onClick, type = "button", disabled, full = false, title, style }) => (
+  <button type={type} disabled={disabled} title={title} onClick={onClick} style={style}
     className={`btn btn--${variant} btn--${size}${full ? " btn--full" : ""}${!children ? " btn--icon" : ""}`}>
     {icon}{children && <span>{children}</span>}
   </button>

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useRef, Fragment } from "react";
+import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/client.js";
 import { useAuth } from "../hooks/useAuth.js";
@@ -30,24 +30,308 @@ const IcUp   = (p) => <I {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v
 
 
 // ── Container card grid ──────────────────────────────────────────────────────
-function ContainerGrid({ containers }) {
-  if (!containers.length) return <Empty title="Belum ada container" />;
-  return (
-    <div className="ctr-grid">
-      {containers.map((c, i) => (
-        <div className="ctr-card" key={c.id ?? i}>
-          <div className="ctr-card__hd">
-            <span className="ctr-card__idx">CTR {String(i + 1).padStart(2, "0")}</span>
-            <span className={`ctr-card__size${c.size === "40" ? " is-40" : c.size === "40HC" ? " is-hc" : ""}`}>{c.size}</span>
-          </div>
-          <div className="ctr-card__no">{c.container_no || <span className="dim">—</span>}</div>
-          <div className="ctr-card__seal">
-            <span>Seal</span>
-            <span className="mono">{c.seal_no || "—"}</span>
-          </div>
+function IdentitasCard({ booking, bookingPublicId }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    job_no: booking.job_no ?? "",
+    shipper: booking.shipper ?? "",
+    commodity: booking.commodity ?? "",
+    lokasi_muat: booking.lokasi_muat ?? "",
+    notes: booking.notes ?? "",
+  });
+
+  useEffect(() => {
+    if (!editing) {
+      setForm({
+        job_no: booking.job_no ?? "",
+        shipper: booking.shipper ?? "",
+        commodity: booking.commodity ?? "",
+        lokasi_muat: booking.lokasi_muat ?? "",
+        notes: booking.notes ?? "",
+      });
+    }
+  }, [booking, editing]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.patch(`/bookings/${bookingPublicId}/identitas`, form).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingPublicId] });
+      setEditing(false);
+      toast("Identitas disimpan.");
+    },
+    onError: (e) => toast(e?.response?.data?.error ?? "Gagal menyimpan.", "error"),
+  });
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  if (!editing) {
+    return (
+      <Card title="Identitas Shipment" action={<Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setEditing(true)}>Edit</Button>}>
+        <div className="row" style={{ gap: 8, marginBottom: 12 }}><Badge status={booking.status} /></div>
+        <div className="kv-grid">
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Job No</div><div className="kv-grid__val mono">{booking.job_no || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Shipper</div><div className="kv-grid__val">{booking.shipper || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Commodity</div><div className="kv-grid__val">{booking.commodity || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Lokasi Muat</div><div className="kv-grid__val">{booking.lokasi_muat || "—"}</div></div>
         </div>
-      ))}
+        {booking.notes && (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+            <div className="kv-grid__lbl" style={{ marginBottom: 4 }}>Catatan</div>
+            <div style={{ fontSize: 12.5, color: "var(--fg-2)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{booking.notes}</div>
+          </div>
+        )}
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Identitas Shipment — Edit" action={
+      <div className="row" style={{ gap: 6 }}>
+        <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={saveMutation.isPending}>Batal</Button>
+        <Button variant="primary" size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          {saveMutation.isPending ? "Menyimpan…" : "Simpan"}
+        </Button>
+      </div>
+    }>
+      <div className="grid grid-form-2">
+        <Field label="Job No" required><Input value={form.job_no} onChange={set("job_no")} /></Field>
+        <Field label="Shipper" required><Input value={form.shipper} onChange={set("shipper")} /></Field>
+        <Field label="Commodity"><Input value={form.commodity} onChange={set("commodity")} /></Field>
+        <Field label="Lokasi Muat"><Input value={form.lokasi_muat} onChange={set("lokasi_muat")} placeholder="Lokasi pemuatan" /></Field>
+        <Field label="Notes" span={2}><textarea className="inp" rows={3} value={form.notes} onChange={set("notes")} /></Field>
+      </div>
+    </Card>
+  );
+}
+
+function PelayaranCard({ booking, bookingPublicId }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    pelayaran: booking.pelayaran ?? "",
+    vessel_name: booking.vessel_name ?? "",
+    vessel_no: booking.vessel_no ?? "",
+    port: booking.port ?? "",
+    port_discharge: booking.port_discharge ?? "",
+    lokasi_muat: booking.lokasi_muat ?? "",
+  });
+
+  useEffect(() => {
+    if (!editing) {
+      setForm({
+        pelayaran: booking.pelayaran ?? "",
+        vessel_name: booking.vessel_name ?? "",
+        vessel_no: booking.vessel_no ?? "",
+        port: booking.port ?? "",
+        port_discharge: booking.port_discharge ?? "",
+        lokasi_muat: booking.lokasi_muat ?? "",
+      });
+    }
+  }, [booking, editing]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.patch(`/bookings/${bookingPublicId}/pelayaran`, form).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingPublicId] });
+      setEditing(false);
+      toast("Pelayaran disimpan.");
+    },
+    onError: (e) => toast(e?.response?.data?.error ?? "Gagal menyimpan.", "error"),
+  });
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  if (!editing) {
+    return (
+      <Card title="Pelayaran" action={<Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setEditing(true)}>Edit</Button>}>
+        <div className="kv-grid">
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Muat</div><div className="kv-grid__val">{booking.port || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Discharge</div><div className={`kv-grid__val${booking.port_discharge ? "" : " dim"}`}>{booking.port_discharge || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Pelayaran</div><div className="kv-grid__val">{booking.pelayaran || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Vessel Name</div><div className="kv-grid__val">{booking.vessel_name || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Vessel No / Voyage</div><div className={`kv-grid__val${booking.vessel_no ? "" : " dim"}`}>{booking.vessel_no || "—"}</div></div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Pelayaran — Edit" action={
+      <div className="row" style={{ gap: 6 }}>
+        <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={saveMutation.isPending}>Batal</Button>
+        <Button variant="primary" size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          {saveMutation.isPending ? "Menyimpan…" : "Simpan"}
+        </Button>
+      </div>
+    }>
+      <div className="grid grid-form-2">
+        <Field label="Port Muat"><Input value={form.port} onChange={set("port")} /></Field>
+        <Field label="Port Discharge"><Input value={form.port_discharge} onChange={set("port_discharge")} /></Field>
+        <Field label="Pelayaran"><Input value={form.pelayaran} onChange={set("pelayaran")} placeholder="Nama feeder vessel" /></Field>
+        <Field label="Vessel Name"><Input value={form.vessel_name} onChange={set("vessel_name")} placeholder="Nama kapal utama" /></Field>
+        <Field label="Vessel No / Voyage"><Input value={form.vessel_no} onChange={set("vessel_no")} placeholder="Nomor voyage" /></Field>
+      </div>
+    </Card>
+  );
+}
+
+const EMPTY_CTR_FORM = () => ({ container_no: "", seal_no: "", size: "40ft", no_sp: "", trucking: "", biaya_trucking: "", in_date: "", out_date: "", notes: "" });
+
+function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
+  const [rows, setRows] = useState(initialContainers);
+  const [mode, setMode] = useState("idle"); // "idle" | "add" | "edit"
+  const [selectedId, setSelectedId] = useState(null);
+  const [form, setForm] = useState(EMPTY_CTR_FORM());
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  const setF = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  function startAdd() {
+    setMode("add");
+    setSelectedId(null);
+    setForm(EMPTY_CTR_FORM());
+  }
+
+  function startEdit(row) {
+    setMode("edit");
+    setSelectedId(row.id);
+    setForm({
+      container_no: row.container_no ?? "",
+      seal_no: row.seal_no ?? "",
+      size: row.size ?? "40ft",
+      no_sp: row.no_sp ?? "",
+      trucking: row.trucking ?? "",
+      biaya_trucking: row.biaya_trucking != null ? String(row.biaya_trucking) : "",
+      in_date: row.in_date ?? "",
+      out_date: row.out_date ?? "",
+      notes: row.notes ?? "",
+    });
+  }
+
+  function cancel() { setMode("idle"); setSelectedId(null); }
+
+  async function handleSave() {
+    setSaving(true);
+    const payload = { ...form, biaya_trucking: form.biaya_trucking !== "" ? parseInt(form.biaya_trucking) : null };
+    try {
+      if (mode === "add") {
+        const res = await api.post(`/bookings/${bookingPublicId}/containers`, payload);
+        setRows(rs => [...rs, res.data]);
+        queryClient.invalidateQueries({ queryKey: ["booking", bookingPublicId] });
+        toast("Container ditambahkan.");
+      } else {
+        const res = await api.patch(`/containers/${selectedId}`, payload);
+        setRows(rs => rs.map(r => r.id === selectedId ? res.data : r));
+        queryClient.invalidateQueries({ queryKey: ["booking", bookingPublicId] });
+        toast("Container disimpan.");
+      }
+      setMode("idle"); setSelectedId(null);
+    } catch {
+      toast("Gagal menyimpan.", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteRow(id) {
+    if (!confirm("Hapus baris ini?")) return;
+    try {
+      await api.delete(`/containers/${id}`);
+      setRows(rs => rs.filter(r => r.id !== id));
+      if (selectedId === id) cancel();
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingPublicId] });
+    } catch {
+      toast("Gagal menghapus baris.", "error");
+    }
+  }
+
+  const formPanel = mode !== "idle" && (
+    <div style={{ borderTop: "1px solid var(--border)", padding: 16, background: "var(--bg-2)" }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--fg-2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
+        {mode === "add" ? "Tambah Container Baru" : `Edit Baris #${rows.findIndex(r => r.id === selectedId) + 1}`}
+      </div>
+      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginBottom: 12 }}>
+        <Field label="Cont No."><Input className="mono" value={form.container_no} onChange={setF("container_no")} placeholder="ABCD1234567" /></Field>
+        <Field label="Seal No."><Input value={form.seal_no} onChange={setF("seal_no")} /></Field>
+        <Field label="Size">
+          <Select value={form.size} onChange={setF("size")}>
+            <option value="20ft">20ft</option>
+            <option value="40ft">40ft</option>
+            <option value="40HC">40HC</option>
+          </Select>
+        </Field>
+        <Field label="No. SP"><Input value={form.no_sp} onChange={setF("no_sp")} /></Field>
+        <Field label="Trucking"><Input value={form.trucking} onChange={setF("trucking")} /></Field>
+        <Field label="Biaya Trucking"><Input type="number" value={form.biaya_trucking} onChange={setF("biaya_trucking")} placeholder="0" /></Field>
+        <Field label="In Date"><Input type="date" value={form.in_date} onChange={setF("in_date")} /></Field>
+        <Field label="Out Date"><Input type="date" value={form.out_date} onChange={setF("out_date")} /></Field>
+        <Field label="Notes" style={{ gridColumn: "span 2" }}><Input value={form.notes} onChange={setF("notes")} /></Field>
+      </div>
+      <div className="row" style={{ gap: 8 }}>
+        <Button variant="ghost" size="sm" onClick={cancel} disabled={saving}>Batal</Button>
+        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+          {saving ? "Menyimpan…" : mode === "add" ? "Tambah" : "Simpan"}
+        </Button>
+      </div>
     </div>
+  );
+
+  return (
+    <Card title="Jadwal Trucking" pad={false}
+      action={<Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={startAdd}>Tambah Baris</Button>}>
+      <div className="tbl-wrap" style={{ overflowX: "auto" }}>
+        <table className="tbl" style={{ minWidth: 860 }}>
+          <thead>
+            <tr>
+              <th style={{ width: 36 }}>#</th>
+              <th>Cont No.</th>
+              <th>Seal No.</th>
+              <th style={{ width: 70 }}>Size</th>
+              <th>No. SP</th>
+              <th>Trucking</th>
+              <th style={{ width: 130 }}>Biaya Trucking</th>
+              <th style={{ width: 100 }}>In Date</th>
+              <th style={{ width: 100 }}>Out Date</th>
+              <th>Notes</th>
+              <th style={{ width: 80 }} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr><td colSpan={11} style={{ padding: "32px 16px", textAlign: "center", color: "var(--fg-3)", fontSize: 13 }}>
+                Belum ada data — klik <strong>Tambah Baris</strong>
+              </td></tr>
+            )}
+            {rows.map((row, i) => (
+              <tr key={row.id} style={selectedId === row.id ? { background: "color-mix(in srgb, var(--accent) 8%, var(--bg-1))" } : {}}>
+                <td className="muted num" style={{ fontSize: 11, textAlign: "center" }}>{String(i + 1).padStart(2, "0")}</td>
+                <td className="mono">{row.container_no || <span className="dim">—</span>}</td>
+                <td className="mono">{row.seal_no || <span className="dim">—</span>}</td>
+                <td>{row.size || <span className="dim">—</span>}</td>
+                <td>{row.no_sp || <span className="dim">—</span>}</td>
+                <td>{row.trucking || <span className="dim">—</span>}</td>
+                <td className="num">{row.biaya_trucking != null ? fmtRp(row.biaya_trucking) : <span className="dim">—</span>}</td>
+                <td>{row.in_date ? fmtDate(row.in_date) : <span className="dim">—</span>}</td>
+                <td>{row.out_date ? fmtDate(row.out_date) : <span className="dim">—</span>}</td>
+                <td>{row.notes || <span className="dim">—</span>}</td>
+                <td>
+                  <div className="row" style={{ gap: 2, justifyContent: "flex-end" }}>
+                    <Button variant="ghost" size="sm" icon={<IconEdit size={11} />} onClick={() => startEdit(row)} />
+                    <Button variant="ghost" size="sm" icon={<IconTrash size={11} />} onClick={() => deleteRow(row.id)} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {formPanel}
+    </Card>
   );
 }
 
@@ -156,33 +440,114 @@ function HutangFormModal({ open, onClose, onSave, isPending }) {
   );
 }
 
-// ── Finance tab panels ───────────────────────────────────────────────────────
-function ShipmentTabPanel({ booking, containers, onEdit }) {
-  return (
-    <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)", gap: 16 }}>
-      <Card title="Informasi Shipment" action={<Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={onEdit}>Edit</Button>}>
-        <div className="kv-grid">
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Shipper</div><div className="kv-grid__val">{booking.shipper || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Commodity</div><div className="kv-grid__val">{booking.commodity || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Muat</div><div className="kv-grid__val">{booking.port || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Discharge</div><div className={`kv-grid__val${booking.port_discharge ? "" : " dim"}`}>{booking.port_discharge || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Feeder</div><div className="kv-grid__val">{booking.feeder || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Vessel</div><div className="kv-grid__val">{booking.vessel_name || "—"} {booking.vessel_no && <span className="muted">/ {booking.vessel_no}</span>}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">In Date</div><div className={`kv-grid__val${booking.in_date ? "" : " dim"}`}>{booking.in_date ? fmtDate(booking.in_date) : "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Out Date</div><div className={`kv-grid__val${booking.out_date ? "" : " warn"}`}>{booking.out_date ? fmtDate(booking.out_date) : "Pending"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Trucking</div><div className="kv-grid__val">{booking.trucking || "—"}</div></div>
-        </div>
-        {booking.notes && (
-          <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--border)" }}>
-            <div className="kv-grid__lbl" style={{ marginBottom: 6 }}>Notes</div>
-            <div style={{ fontSize: 12.5, color: "var(--fg-2)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{booking.notes}</div>
-          </div>
-        )}
-      </Card>
+function TruckingPaymentModal({ open, onClose, hutang, onSave, isPending, editPay }) {
+  const [noVoucher, setNoVoucher] = useState("");
+  const [pelunasan, setPelunasan] = useState("");
+  const [tanggal, setTanggal] = useState(() => new Date().toISOString().slice(0, 10));
+  const [metode, setMetode] = useState("transfer");
 
-      <Card title={`Containers — ${containers.length}`} action={<Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={onEdit}>Edit</Button>}>
-        <ContainerGrid containers={containers} />
-      </Card>
+  useEffect(() => {
+    if (open) {
+      if (editPay) {
+        setNoVoucher(editPay.no_voucher ?? "");
+        setPelunasan(String(editPay.jumlah));
+        setTanggal(editPay.tanggal ?? new Date().toISOString().slice(0, 10));
+        setMetode(editPay.metode ?? "transfer");
+      } else {
+        setNoVoucher("");
+        setPelunasan("");
+        setTanggal(new Date().toISOString().slice(0, 10));
+        setMetode("transfer");
+      }
+    }
+  }, [open, editPay]);
+
+  const total = hutang?.jumlah ?? 0;
+  const alreadyPaid = hutang?.total_paid ?? 0;
+  // For edit: restore this payment's amount so sisa reflects "before this payment"
+  const sisaSebelum = editPay
+    ? Math.max(0, total - (alreadyPaid - editPay.jumlah))
+    : Math.max(0, total - alreadyPaid);
+  const pelNum = +(pelunasan) || 0;
+  const pelOver = !editPay && pelNum > sisaSebelum && pelNum > 0;
+  const sisaSetelah = Math.max(0, sisaSebelum - pelNum);
+  const canSubmit = pelunasan && tanggal && !isPending && !pelOver;
+
+  return (
+    <Modal open={open} onClose={onClose} title={editPay ? "Edit Pembayaran" : "Bayar Hutang Trucking"}
+      footer={<><Button variant="ghost" onClick={onClose}>Batal</Button><Button variant="primary" disabled={!canSubmit} onClick={() => onSave({ noVoucher, pelunasan, tanggal, metode })}>Simpan</Button></>}>
+      <div className="col" style={{ gap: 14 }}>
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--bg-2)", fontSize: 12 }}>
+          <div className="kv-grid" style={{ gap: "4px 16px" }}>
+            <div className="kv-grid__item"><div className="kv-grid__lbl">Cont No.</div><div className="kv-grid__val mono">{hutang?.container_no || "—"}</div></div>
+            <div className="kv-grid__item"><div className="kv-grid__lbl">Trucking</div><div className="kv-grid__val">{hutang?.pihak || "—"}</div></div>
+            <div className="kv-grid__item"><div className="kv-grid__lbl">Size</div><div className="kv-grid__val">{hutang?.size || "—"}</div></div>
+            <div className="kv-grid__item"><div className="kv-grid__lbl">No. SP</div><div className="kv-grid__val">{hutang?.no_sp || "—"}</div></div>
+            <div className="kv-grid__item"><div className="kv-grid__lbl">Total</div><div className="kv-grid__val num strong">{fmtRp(total)}</div></div>
+            <div className="kv-grid__item"><div className="kv-grid__lbl">Sisa</div><div className={`kv-grid__val num ${sisaSebelum > 0 ? "warn" : "ok"}`}>{fmtRp(sisaSebelum)}</div></div>
+          </div>
+        </div>
+        <div className="grid grid-form-2">
+          <Field label="No. Voucher" span={2}><Input value={noVoucher} onChange={(e) => setNoVoucher(e.target.value)} placeholder="opsional" /></Field>
+          <Field label="Pelunasan (Rp)" required>
+            <Input type="number" min={1} value={pelunasan} onChange={(e) => setPelunasan(e.target.value)} placeholder="0"
+              style={pelOver ? { borderColor: "var(--danger, #e53e3e)", outline: "none", boxShadow: "0 0 0 2px rgba(229,62,62,.15)" } : {}} />
+            {pelOver && <span style={{ fontSize: 11, color: "var(--danger, #e53e3e)", marginTop: 4, display: "block" }}>Melebihi sisa hutang ({fmtRp(sisaSebelum)})</span>}
+          </Field>
+          <Field label="Tanggal" required><Input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} /></Field>
+          <Field label="Metode" required>
+            <Select value={metode} onChange={(e) => setMetode(e.target.value)}>
+              <option value="transfer">Transfer</option>
+              <option value="cash">Cash</option>
+              <option value="giro">Giro</option>
+              <option value="lainnya">Lainnya</option>
+            </Select>
+          </Field>
+        </div>
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--bg-2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="col" style={{ gap: 2 }}>
+            <span className="muted" style={{ fontSize: 11 }}>Sisa setelah pembayaran</span>
+            <span className={`num strong ${sisaSetelah > 0 ? "warn" : "ok"}`} style={{ fontSize: 16 }}>{fmtRp(sisaSetelah)}</span>
+          </div>
+          <div className="col" style={{ gap: 2, textAlign: "right" }}>
+            <span className="muted" style={{ fontSize: 11 }}>Pelunasan</span>
+            <span className={`num strong ${pelOver ? "" : ""}`} style={{ fontSize: 16, color: pelOver ? "var(--danger, #e53e3e)" : undefined }}>{fmtRp(pelNum)}</span>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function HutangTypeModal({ open, onClose, onSelectVendor }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Tambah Hutang">
+      <div className="col" style={{ gap: 10 }}>
+        <button onClick={() => { onClose(); onSelectVendor(); }}
+          style={{ textAlign: "left", padding: "14px 16px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-1)", cursor: "pointer", transition: "background 0.15s" }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-2)"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "var(--bg-1)"}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: "var(--fg)", marginBottom: 2 }}>Hutang Vendor</div>
+          <div style={{ fontSize: 12, color: "var(--fg-3)" }}>Catat tagihan dari vendor secara manual</div>
+        </button>
+        <div style={{ padding: "14px 16px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-2)", opacity: 0.6 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: "var(--fg)", marginBottom: 2 }}>Hutang Trucking</div>
+          <div style={{ fontSize: 12, color: "var(--fg-3)" }}>Otomatis dibuat dari data Jadwal Trucking</div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Finance tab panels ───────────────────────────────────────────────────────
+function ShipmentTabPanel({ booking, containers, bookingPublicId }) {
+  return (
+    <div className="col" style={{ gap: 16 }}>
+      <div className="grid grid-2">
+        <IdentitasCard booking={booking} bookingPublicId={bookingPublicId} />
+        <PelayaranCard booking={booking} bookingPublicId={bookingPublicId} />
+      </div>
+      <JadwalTruckingTable bookingPublicId={bookingPublicId} initialContainers={containers} />
     </div>
   );
 }
@@ -244,8 +609,17 @@ function InvoiceTabPanel({ dokumen, invoiceTotal, setItemModal, deleteItemMutati
   );
 }
 
-function PiutangTabPanel({ piutang, piutangPaid, piutangSisa, piutangSt, invoiceTotal, setPiutangMutation, setPiutangModal, setPayModal, deletePiutangPayMutation }) {
+function PiutangTabPanel({ piutang, piutangPaid, piutangSisa, piutangSt, invoiceTotal, setPiutangMutation, setPiutangModal, setPayModal, deletePiutangPayMutation, deletePiutangMutation }) {
   const pct = piutang && piutang.jumlah > 0 ? Math.round((piutangPaid / piutang.jumlah) * 100) : 0;
+
+  useEffect(() => {
+    if (invoiceTotal > 0 && !piutang && !setPiutangMutation.isPending) {
+      setPiutangMutation.mutate({ jumlah: invoiceTotal });
+    } else if (invoiceTotal === 0 && piutang && !deletePiutangMutation.isPending) {
+      deletePiutangMutation.mutate();
+    }
+  }, [invoiceTotal]);
+
   return (
     <>
       <div className="bd-money-hero">
@@ -276,8 +650,9 @@ function PiutangTabPanel({ piutang, piutangPaid, piutangSisa, piutangSt, invoice
             <span className="muted" style={{ fontSize: 12 }}>{fmtRp(piutangPaid)} / {fmtRp(piutang?.jumlah ?? 0)}</span>
           </div>
           <div className="row" style={{ gap: 6 }}>
-            <Button variant="default" size="sm" onClick={() => setPiutangMutation.mutate({ jumlah: invoiceTotal })} disabled={!invoiceTotal || setPiutangMutation.isPending}>Set dari Invoice</Button>
-            <Button variant="default" size="sm" onClick={() => setPiutangModal(true)}>Set Manual</Button>
+            {/* hidden — auto-set from invoice on load */}
+            <Button variant="default" size="sm" onClick={() => setPiutangMutation.mutate({ jumlah: invoiceTotal })} disabled={!invoiceTotal || setPiutangMutation.isPending} style={{ display: "none" }}>Set dari Invoice</Button>
+            <Button variant="default" size="sm" onClick={() => setPiutangModal(true)} style={{ display: "none" }}>Set Manual</Button>
             <Button variant="primary" size="sm" icon={<IconPlus size={12} />} disabled={!piutang} onClick={() => setPayModal({ kind: "piutang", label: "Tambah Pembayaran Piutang", sisa: piutangSisa })}>Tambah Pembayaran</Button>
           </div>
         </div>
@@ -324,7 +699,11 @@ function PiutangTabPanel({ piutang, piutangPaid, piutangSisa, piutangSt, invoice
   );
 }
 
-function HutangTabPanel({ hutangList, setHutangModal, setPayModal, deleteHutangMutation, deleteHutangPayMutation }) {
+function HutangTabPanel({ hutangList, setHutangTypeModal, setPayModal, setTruckingPayModal, deleteHutangMutation, deleteHutangPayMutation, setEditTruckingPay }) {
+  const [expandedTruckingId, setExpandedTruckingId] = useState(null);
+  const truckingHutang = hutangList.filter(h => h.hutang_type === 'trucking');
+  const vendorHutang = hutangList.filter(h => h.hutang_type !== 'trucking');
+
   const totals = hutangList.reduce((acc, h) => {
     const paid = h.total_paid ?? 0;
     acc.total += h.jumlah; acc.paid += paid; acc.sisa += h.sisa ?? (h.jumlah - paid);
@@ -338,7 +717,7 @@ function HutangTabPanel({ hutangList, setHutangModal, setPayModal, deleteHutangM
         <div>
           <div className="bd-money-hero__lbl">Total Hutang</div>
           <div className="bd-money-hero__val">{fmtRp(totals.total)}</div>
-          <div className="bd-money-hero__sub">{hutangList.length} vendor</div>
+          <div className="bd-money-hero__sub">{hutangList.length} entri</div>
         </div>
         <div>
           <div className="bd-money-hero__lbl">Sudah Dibayar</div>
@@ -352,16 +731,127 @@ function HutangTabPanel({ hutangList, setHutangModal, setPayModal, deleteHutangM
         </div>
       </div>
 
+      {/* Section A: Hutang Trucking */}
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 10, marginTop: 4 }}>
+        <h3 style={{ fontSize: 13, color: "var(--fg-2)", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>Hutang Trucking</h3>
+        <span className="muted" style={{ fontSize: 11 }}>Otomatis dari Jadwal Trucking · klik baris untuk detail</span>
+      </div>
+      <Card pad={false} style={{ marginBottom: 20 }}>
+        <div className="tbl-wrap" style={{ overflowX: "auto" }}>
+          <table className="tbl" style={{ minWidth: 760 }}>
+            <thead>
+              <tr>
+                <th style={{ width: 36 }}>#</th>
+                <th>Cont No.</th>
+                <th>Seal No.</th>
+                <th style={{ width: 70 }}>Size</th>
+                <th>No. SP</th>
+                <th>Trucking</th>
+                <th style={{ width: 130 }}>Biaya Trucking</th>
+                <th style={{ width: 100 }}>In Date</th>
+                <th style={{ width: 100 }}>Out Date</th>
+                <th>Notes</th>
+                <th style={{ width: 100 }}>Status</th>
+                <th style={{ width: 28 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {truckingHutang.length === 0 && (
+                <tr><td colSpan={12} style={{ padding: "32px 16px", textAlign: "center", color: "var(--fg-3)", fontSize: 13 }}>
+                  Belum ada hutang trucking — tambahkan data di tab Shipment
+                </td></tr>
+              )}
+              {truckingHutang.map((h, i) => {
+                const isExpanded = expandedTruckingId === h.id;
+                return (
+                  <Fragment key={h.id}>
+                    <tr
+                      style={{ cursor: "pointer", background: isExpanded ? "var(--bg-2)" : "", borderLeft: isExpanded ? "3px solid var(--primary, #3b82f6)" : "3px solid transparent" }}
+                      onClick={() => setExpandedTruckingId(isExpanded ? null : h.id)}
+                      onMouseEnter={(e) => { if (!isExpanded) e.currentTarget.style.background = "var(--bg-2)"; }}
+                      onMouseLeave={(e) => { if (!isExpanded) e.currentTarget.style.background = ""; }}>
+                      <td className="muted num" style={{ fontSize: 11, textAlign: "center" }}>{String(i + 1).padStart(2, "0")}</td>
+                      <td className="mono">{h.container_no || <span className="dim">—</span>}</td>
+                      <td className="mono">{h.seal_no || <span className="dim">—</span>}</td>
+                      <td>{h.size || <span className="dim">—</span>}</td>
+                      <td>{h.no_sp || <span className="dim">—</span>}</td>
+                      <td>{h.pihak || <span className="dim">—</span>}</td>
+                      <td className="num">{fmtRp(h.jumlah)}</td>
+                      <td>{h.cont_in_date ? fmtDate(h.cont_in_date) : <span className="dim">—</span>}</td>
+                      <td>{h.cont_out_date ? fmtDate(h.cont_out_date) : <span className="dim">—</span>}</td>
+                      <td>{h.cont_notes || <span className="dim">—</span>}</td>
+                      <td><Badge status={h.status} /></td>
+                      <td style={{ textAlign: "center", color: "var(--fg-3)" }}>
+                        <IconChevron size={12} style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={12} style={{ padding: "14px 18px 14px 20px", background: "var(--bg-1)", borderBottom: "2px solid var(--border)", borderLeft: "3px solid var(--primary, #3b82f6)" }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                            Riwayat Pembayaran
+                          </div>
+                          {h.pembayaran && h.pembayaran.length > 0 ? (
+                            <div style={{ marginBottom: 12, borderRadius: 6, border: "1px solid var(--border)", overflow: "hidden" }}>
+                              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                                <thead>
+                                  <tr style={{ background: "var(--bg-2)", color: "var(--fg-3)" }}>
+                                    <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 500 }}>Tanggal</th>
+                                    <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 500 }}>Metode</th>
+                                    <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 500 }}>No. Voucher</th>
+                                    <th style={{ textAlign: "right", padding: "6px 10px", fontWeight: 500 }}>Jumlah</th>
+                                    <th style={{ width: 64, padding: "6px 10px" }} />
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {h.pembayaran.map((p, pi) => (
+                                    <tr key={p.id} style={{ borderTop: pi > 0 ? "1px solid var(--border)" : "none" }}>
+                                      <td style={{ padding: "6px 10px" }}>{fmtDate(p.tanggal)}</td>
+                                      <td style={{ padding: "6px 10px", textTransform: "capitalize" }}>{p.metode}</td>
+                                      <td style={{ padding: "6px 10px" }} className="mono">{p.no_voucher || <span className="dim">—</span>}</td>
+                                      <td style={{ padding: "6px 10px", textAlign: "right" }} className="num">{fmtRp(p.jumlah)}</td>
+                                      <td style={{ padding: "4px 8px", textAlign: "right", whiteSpace: "nowrap" }}>
+                                        <Button variant="ghost" size="sm" icon={<IconEdit size={11} />}
+                                          onClick={(e) => { e.stopPropagation(); setEditTruckingPay({ hutang: h, pay: p }); }} />
+                                        <Button variant="ghost" size="sm" icon={<IconTrash size={11} />}
+                                          onClick={(e) => { e.stopPropagation(); deleteHutangPayMutation.mutate({ hutangId: h.id, payId: p.id }); }} />
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: "var(--fg-3)", marginBottom: 12, fontStyle: "italic" }}>Belum ada pembayaran.</div>
+                          )}
+                          {h.sisa > 0 && (
+                            <Button variant="primary" size="sm" onClick={(e) => { e.stopPropagation(); setTruckingPayModal(h); }}>Bayar</Button>
+                          )}
+                          {h.sisa <= 0 && (
+                            <span style={{ fontSize: 12, color: "var(--ok, #38a169)", fontWeight: 600 }}>✓ Lunas</span>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Section B: Hutang Vendor */}
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
-        <h3 style={{ fontSize: 14, color: "var(--fg-2)", margin: 0 }}>Vendor</h3>
-        <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setHutangModal(true)}>Tambah Hutang</Button>
+        <h3 style={{ fontSize: 13, color: "var(--fg-2)", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>Hutang Vendor</h3>
+        <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setHutangTypeModal(true)}>Tambah Hutang</Button>
       </div>
 
-      {hutangList.length === 0 ? (
-        <Card><Empty title="Belum ada hutang" sub="Catat tagihan dari vendor (trucking, pelabuhan, dll)." /></Card>
+      {vendorHutang.length === 0 ? (
+        <Card><Empty title="Belum ada hutang vendor" sub="Catat tagihan dari vendor (pelabuhan, dll)." /></Card>
       ) : (
         <div className="bd-hutang-grid">
-          {hutangList.map((h) => {
+          {vendorHutang.map((h) => {
             const paid = h.total_paid ?? 0;
             const sisa = h.sisa ?? (h.jumlah - paid);
             const st = h.status;
@@ -381,7 +871,6 @@ function HutangTabPanel({ hutangList, setHutangModal, setPayModal, deleteHutangM
                   <div className="bd-vendor-card__amt"><small>Total</small><b>{fmtRp(h.jumlah)}</b></div>
                   <div className="bd-vendor-card__amt"><small>Sisa</small><b className={sisa > 0 ? "warn" : "ok"}>{fmtRp(sisa)}</b></div>
                   <Progress value={paid} max={h.jumlah || 1} tone={st === "lunas" ? "ok" : st === "sebagian" ? "warn" : "danger"} />
-
                   {h.pembayaran?.length > 0 && (
                     <div className="bd-vendor-card__pays">
                       {h.pembayaran.map((p) => (
@@ -616,43 +1105,15 @@ function ReimbursementTabPanel({ booking, notaReimbursement, invoiceTotal, pajak
 }
 
 // ── Worker view ──────────────────────────────────────────────────────────────
-function WorkerView({ booking, containers, onEdit }) {
-  function fmtCtr(ctrs) {
-    const counts = {};
-    for (const c of ctrs) counts[c.size] = (counts[c.size] ?? 0) + 1;
-    const parts = Object.entries(counts).map(([s, n]) => `${n}× ${s}`);
-    return `${ctrs.length} container${ctrs.length !== 1 ? "s" : ""}${parts.length ? ` (${parts.join(", ")})` : ""}`;
-  }
-
+function WorkerView({ booking, containers, bookingPublicId }) {
   return (
-    <>
-      <Card title="Informasi Shipment" action={<Button variant="primary" size="sm" icon={<IconEdit size={12} />} onClick={onEdit}>Edit Booking</Button>} style={{ marginBottom: 16 }}>
-        <div className="row" style={{ gap: 8, marginBottom: 16 }}>
-          <Badge status={booking.status} />
-        </div>
-        <div className="kv-grid">
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Shipper</div><div className="kv-grid__val">{booking.shipper || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Commodity</div><div className="kv-grid__val">{booking.commodity || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Muat</div><div className="kv-grid__val">{booking.port || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Discharge</div><div className={`kv-grid__val${booking.port_discharge ? "" : " dim"}`}>{booking.port_discharge || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Trucking</div><div className="kv-grid__val">{booking.trucking || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Feeder</div><div className="kv-grid__val">{booking.feeder || "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Vessel</div><div className="kv-grid__val">{booking.vessel_name || "—"}{booking.vessel_no ? <span className="muted"> / {booking.vessel_no}</span> : ""}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">In Date</div><div className={`kv-grid__val${booking.in_date ? "" : " dim"}`}>{booking.in_date ? fmtDate(booking.in_date) : "—"}</div></div>
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Out Date</div><div className={`kv-grid__val${booking.out_date ? "" : " warn"}`}>{booking.out_date ? fmtDate(booking.out_date) : "Pending"}</div></div>
-        </div>
-        {booking.notes && (
-          <div style={{ marginTop: 18, padding: 14, borderRadius: 10, background: "var(--bg-2)", borderLeft: "3px solid var(--accent)" }}>
-            <div className="kv-grid__lbl" style={{ marginBottom: 6 }}>Catatan</div>
-            <div style={{ fontSize: 12.5, color: "var(--fg-2)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{booking.notes}</div>
-          </div>
-        )}
-      </Card>
-
-      <Card title={`Containers — ${fmtCtr(containers)}`}>
-        <ContainerGrid containers={containers} />
-      </Card>
-    </>
+    <div className="col" style={{ gap: 16 }}>
+      <div className="grid grid-2">
+        <IdentitasCard booking={booking} bookingPublicId={bookingPublicId} />
+        <PelayaranCard booking={booking} bookingPublicId={bookingPublicId} />
+      </div>
+      <JadwalTruckingTable bookingPublicId={bookingPublicId} initialContainers={containers} />
+    </div>
   );
 }
 
@@ -662,8 +1123,9 @@ export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { isFinance } = useAuth();
+  const { isFinance, isWorker } = useAuth();
   const toast = useToast();
 
   // Modal state
@@ -671,13 +1133,20 @@ export default function BookingDetail() {
   const [itemModal, setItemModal] = useState(null);
   const [piutangModal, setPiutangModal] = useState(false);
   const [hutangModal, setHutangModal] = useState(false);
+  const [hutangTypeModal, setHutangTypeModal] = useState(false);
+  const [truckingPayModal, setTruckingPayModal] = useState(null);
+  const [editTruckingPay, setEditTruckingPay] = useState(null);
   const [showDelete, setShowDelete] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [pajakItemModal, setPajakItemModal] = useState(null);
   const [reimbItemModal, setReimbItemModal] = useState(null);
 
-  // Finance tab state
-  const [tab, setTab] = useState("shipment");
+  // Finance tab state — honour ?tab= query param
+  const VALID_TABS = ["shipment", "dokumen", "invoice", "piutang", "hutang", "pajak"];
+  const [tab, setTab] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    return VALID_TABS.includes(t) ? t : "shipment";
+  });
 
   // Queries
   const { data: bookingData, isLoading } = useQuery({
@@ -759,6 +1228,12 @@ export default function BookingDetail() {
     onError: (e) => toast(apiErrMsg(e, 'Gagal menambah pembayaran.'), 'error'),
   });
 
+  const deletePiutangMutation = useMutation({
+    mutationFn: () => api.delete(`/bookings/${id}/piutang/${piutang?.id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["piutang", id] }),
+    onError: (e) => toast(apiErrMsg(e, 'Gagal menghapus piutang.'), 'error'),
+  });
+
   const deletePiutangPayMutation = useMutation({
     mutationFn: (payId) => api.delete(`/bookings/${id}/piutang/${piutang.id}/pembayaran/${payId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["piutang", id] }),
@@ -775,6 +1250,18 @@ export default function BookingDetail() {
     mutationFn: (body) => api.post("/hutang", { ...body, booking_id: bookingData?.booking?.id }).then((r) => r.data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setHutangModal(false); toast('Hutang ditambahkan.'); },
     onError: (e) => toast(apiErrMsg(e, 'Gagal menambah hutang.'), 'error'),
+  });
+
+  const payTruckingHutangMutation = useMutation({
+    mutationFn: ({ hutang, noVoucher, pelunasan, tanggal, metode }) =>
+      api.post(`/hutang/${hutang.id}/pembayaran`, {
+        jumlah: parseInt(pelunasan),
+        tanggal,
+        metode,
+        no_voucher: noVoucher || null,
+      }).then(r => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setTruckingPayModal(null); toast('Pembayaran dicatat.'); },
+    onError: (e) => toast(apiErrMsg(e, 'Gagal mencatat pembayaran.'), 'error'),
   });
 
   const deleteHutangMutation = useMutation({
@@ -797,7 +1284,7 @@ export default function BookingDetail() {
 
   const editHutangPayMutation = useMutation({
     mutationFn: ({ hutangId, payId, body }) => api.put(`/hutang/${hutangId}/pembayaran/${payId}`, body).then((r) => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setPayModal(null); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hutang-booking", id] }); setPayModal(null); setEditTruckingPay(null); },
     onError: (e) => toast(apiErrMsg(e, 'Gagal mengubah pembayaran.'), 'error'),
   });
 
@@ -942,10 +1429,9 @@ export default function BookingDetail() {
         }
       />
 
-      {isFinance ? (
+      {(isFinance || isWorker) ? (
         <>
-          {/* KPI stats — always visible above tabs */}
-          <div className="bd-money-hero" style={{ marginBottom: 18 }}>
+          {isFinance && <div className="bd-money-hero" style={{ marginBottom: 18 }}>
             <div>
               <div className="bd-money-hero__lbl">Total Invoice</div>
               <div className="bd-money-hero__val">{fmtRp(invoiceTotal)}</div>
@@ -966,7 +1452,7 @@ export default function BookingDetail() {
               <div className={`bd-money-hero__val ${piutangSisa > 0 ? "warn" : "ok"}`}>{fmtRp(piutangSisa)}</div>
               <div className="bd-money-hero__sub">{piutangSisa <= 0 ? "Sudah lunas" : "Belum tertagih"}</div>
             </div>
-          </div>
+          </div>}
 
           {/* Tabs */}
           <div className="bd-tabs" role="tablist">
@@ -976,27 +1462,27 @@ export default function BookingDetail() {
             <button role="tab" className={`bd-tab ${tab === "dokumen" ? "is-active" : ""}`} onClick={() => setTab("dokumen")}>
               <IcList size={13} /> Dokumen
             </button>
-            <button role="tab" className={`bd-tab ${tab === "invoice" ? "is-active" : ""}`} onClick={() => setTab("invoice")}>
+            {!isWorker && <button role="tab" className={`bd-tab ${tab === "invoice" ? "is-active" : ""}`} onClick={() => setTab("invoice")}>
               <IcList size={13} /> Invoice
               <span className="bd-tab__count">{dokumen.length}</span>
-            </button>
-            <button role="tab" className={`bd-tab ${tab === "piutang" ? "is-active" : ""}`} onClick={() => setTab("piutang")}>
+            </button>}
+            {!isWorker && <button role="tab" className={`bd-tab ${tab === "piutang" ? "is-active" : ""}`} onClick={() => setTab("piutang")}>
               <IcDown size={13} style={{ transform: "rotate(180deg)" }} /> Piutang
-            </button>
-            <button role="tab" className={`bd-tab ${tab === "hutang" ? "is-active" : ""}`} onClick={() => setTab("hutang")}>
+            </button>}
+            {!isWorker && <button role="tab" className={`bd-tab ${tab === "hutang" ? "is-active" : ""}`} onClick={() => setTab("hutang")}>
               <IcUp size={13} style={{ transform: "rotate(180deg)" }} /> Hutang
               <span className="bd-tab__count">{hutangList.length}</span>
-            </button>
-            <button role="tab" className={`bd-tab ${tab === "pajak" ? "is-active" : ""}`} onClick={() => setTab("pajak")}>
+            </button>}
+            {!isWorker && <button role="tab" className={`bd-tab ${tab === "pajak" ? "is-active" : ""}`} onClick={() => setTab("pajak")}>
               <IcList size={13} /> Pajak &amp; Reimb.
-            </button>
+            </button>}
           </div>
 
-          {tab === "shipment" && <ShipmentTabPanel booking={booking} containers={containers} onEdit={onEdit} />}
+          {tab === "shipment" && <ShipmentTabPanel booking={booking} containers={containers} bookingPublicId={id} />}
           {tab === "dokumen"  && <BookingDocuments bookingId={id} canEdit={true} />}
           {tab === "invoice"  && <InvoiceTabPanel  dokumen={dokumen} invoiceTotal={invoiceTotal} setItemModal={setItemModal} deleteItemMutation={deleteItemMutation} onExportInvoice={() => { exportInvoiceOnly(booking, dokumen); api.post('/audit/download', { documentType: 'invoice', bookingId: booking?.id }).catch(() => {}); }} />}
-          {tab === "piutang"  && <PiutangTabPanel  piutang={piutang} piutangPaid={piutangPaid} piutangSisa={piutangSisa} piutangSt={piutangSt} invoiceTotal={invoiceTotal} setPiutangMutation={setPiutangMutation} setPiutangModal={setPiutangModal} setPayModal={setPayModal} deletePiutangPayMutation={deletePiutangPayMutation} />}
-          {tab === "hutang"   && <HutangTabPanel   hutangList={hutangList} setHutangModal={setHutangModal} setPayModal={setPayModal} deleteHutangMutation={deleteHutangMutation} deleteHutangPayMutation={deleteHutangPayMutation} />}
+          {tab === "piutang"  && <PiutangTabPanel  piutang={piutang} piutangPaid={piutangPaid} piutangSisa={piutangSisa} piutangSt={piutangSt} invoiceTotal={invoiceTotal} setPiutangMutation={setPiutangMutation} setPiutangModal={setPiutangModal} setPayModal={setPayModal} deletePiutangPayMutation={deletePiutangPayMutation} deletePiutangMutation={deletePiutangMutation} />}
+          {tab === "hutang"   && <HutangTabPanel   hutangList={hutangList} setHutangTypeModal={setHutangTypeModal} setPayModal={setPayModal} setTruckingPayModal={setTruckingPayModal} deleteHutangMutation={deleteHutangMutation} deleteHutangPayMutation={deleteHutangPayMutation} setEditTruckingPay={setEditTruckingPay} />}
           {tab === "pajak"   && (
             <div className="col" style={{ gap: 16 }}>
               <InvoicePajakTabPanel booking={booking} invoicePajak={invoicePajak} invoiceTotal={invoiceTotal} reimbTotal={notaReimbursement?.total ?? 0} onCreate={() => createInvoicePajakMutation.mutate()} onDelete={() => deleteInvoicePajakMutation.mutate()} setPajakItemModal={setPajakItemModal} deleteItemMutation={deletePajakItemMutation} />
@@ -1006,7 +1492,7 @@ export default function BookingDetail() {
           )}
         </>
       ) : (
-        <WorkerView booking={booking} containers={containers} onEdit={onEdit} />
+        <WorkerView booking={booking} containers={containers} bookingPublicId={id} />
       )}
 
       {/* Modals */}
@@ -1026,10 +1512,36 @@ export default function BookingDetail() {
         onSave={(data) => setPiutangMutation.mutate(data)}
       />
 
+      <HutangTypeModal
+        open={hutangTypeModal} onClose={() => setHutangTypeModal(false)}
+        onSelectVendor={() => setHutangModal(true)}
+      />
+
       <HutangFormModal
         open={hutangModal} onClose={() => setHutangModal(false)}
         isPending={addHutangMutation.isPending}
         onSave={(data) => addHutangMutation.mutate(data)}
+      />
+
+      <TruckingPaymentModal
+        open={!!truckingPayModal} onClose={() => setTruckingPayModal(null)}
+        hutang={truckingPayModal}
+        isPending={payTruckingHutangMutation.isPending}
+        onSave={(data) => payTruckingHutangMutation.mutate({ hutang: truckingPayModal, ...data })}
+      />
+
+      <TruckingPaymentModal
+        open={!!editTruckingPay} onClose={() => setEditTruckingPay(null)}
+        hutang={editTruckingPay?.hutang}
+        editPay={editTruckingPay?.pay}
+        isPending={editHutangPayMutation.isPending}
+        onSave={({ noVoucher, pelunasan, tanggal, metode }) =>
+          editHutangPayMutation.mutate({
+            hutangId: editTruckingPay.hutang.id,
+            payId: editTruckingPay.pay.id,
+            body: { jumlah: parseInt(pelunasan), tanggal, metode, no_voucher: noVoucher || null },
+          })
+        }
       />
 
       <InvoicePajakItemModal

@@ -100,6 +100,32 @@ function runMigrations(db) {
     WHERE peb IS NOT NULL AND peb != ''
     AND id NOT IN (SELECT DISTINCT booking_id FROM booking_documents WHERE doc_type = 'peb')
   `);
+  // 014: feeder→pelayaran + container fields (no_sp, vendor, notes)
+  try { db.exec('ALTER TABLE bookings RENAME COLUMN feeder TO pelayaran'); } catch {}
+  try { db.exec('ALTER TABLE containers ADD COLUMN no_sp TEXT'); } catch {}
+  try { db.exec('ALTER TABLE containers ADD COLUMN vendor TEXT'); } catch {}
+  try { db.exec('ALTER TABLE containers ADD COLUMN notes TEXT'); } catch {}
+  // 015: booking_flow_redesign — lokasi_muat, vendor→trucking, new container schedule cols
+  try { db.exec('ALTER TABLE bookings ADD COLUMN lokasi_muat TEXT'); } catch {}
+  try { db.exec('ALTER TABLE containers RENAME COLUMN vendor TO trucking'); } catch {}
+  try { db.exec('ALTER TABLE containers ADD COLUMN biaya_trucking INTEGER'); } catch {}
+  try { db.exec('ALTER TABLE containers ADD COLUMN in_date TEXT'); } catch {}
+  try { db.exec('ALTER TABLE containers ADD COLUMN out_date TEXT'); } catch {}
+  // 016: hutang trucking — no_voucher, container_id, hutang_type
+  try { db.exec('ALTER TABLE hutang ADD COLUMN no_voucher TEXT'); } catch {}
+  try { db.exec('ALTER TABLE hutang ADD COLUMN container_id INTEGER'); } catch {}
+  try { db.exec("ALTER TABLE hutang ADD COLUMN hutang_type TEXT NOT NULL DEFAULT 'vendor'"); } catch {}
+  // back-fill hutang for existing containers that have trucking + biaya data
+  db.exec(`
+    INSERT INTO hutang (pihak, booking_id, jumlah, keterangan, hutang_type, container_id, created_by)
+    SELECT c.trucking, c.booking_id, c.biaya_trucking, '', 'trucking', c.id, 1
+    FROM containers c
+    WHERE c.trucking IS NOT NULL AND c.trucking != ''
+      AND c.biaya_trucking IS NOT NULL AND c.biaya_trucking > 0
+      AND NOT EXISTS (
+        SELECT 1 FROM hutang h WHERE h.container_id = c.id AND h.hutang_type = 'trucking'
+      )
+  `);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -114,7 +114,7 @@ export async function bukuRoutes(fastify) {
     if (!buku) return reply.code(404).send({ error: 'Not found' });
 
     const bookings = db.prepare(`
-      SELECT id, public_id, job_no, shipper, peb, port, feeder, vessel_name, vessel_no, bon, status, notes, created_at
+      SELECT id, public_id, job_no, shipper, peb, port, pelayaran, vessel_name, vessel_no, bon, status, notes, created_at
       FROM bookings
       WHERE buku_id = ? AND deleted_at IS NULL
       ORDER BY created_at DESC

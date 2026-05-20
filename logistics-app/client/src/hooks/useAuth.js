@@ -16,6 +16,7 @@ export function useAuth() {
     loading: isLoading,
     isAdmin:   user?.role === 'admin',
     isFinance: user?.role === 'admin' || user?.role === 'finance',
+    isWorker:  user?.role === 'worker',
   };
 }
 

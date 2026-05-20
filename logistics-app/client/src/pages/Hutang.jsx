@@ -135,7 +135,7 @@ export default function Hutang() {
               const buku = bukuList.find((b) => b.id === h.buku_id);
               return (
                 <tr key={h.id} className="is-clickable"
-                  onClick={() => h.booking_id ? navigate(`/bookings/${h.booking_public_id}`) : undefined}>
+                  onClick={() => h.booking_id ? navigate(`/bookings/${h.booking_public_id}?tab=hutang`) : undefined}>
                   <td className="strong">{h.pihak}</td>
                   <td className="mono" style={{ fontSize: 12 }}>{h.job_no || "—"}</td>
                   <td>{h.shipper || <span className="dim">—</span>}</td>

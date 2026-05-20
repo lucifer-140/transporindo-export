@@ -114,8 +114,17 @@ const stmtBooking   = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 const stmtContainer = db.prepare(
-  'INSERT INTO containers (booking_id, container_no, seal_no, size, created_at) VALUES (?, ?, ?, ?, ?)'
+  'INSERT INTO containers (booking_id, container_no, seal_no, size, no_sp, trucking, biaya_trucking, in_date, out_date, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
+
+const TRUCKING_VENDORS = ['MMC', 'TAS-T'];
+const BIAYA_LIST = [1500000, 1750000, 2000000, 2250000, 2500000];
+function randItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function addDays(base, n) {
+  const d = new Date(base); d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+const BASE_DATE = '2026-05-01';
 
 const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 let contSerial = 1000000;
@@ -143,9 +152,14 @@ for (const b of BOOKINGS_DATA) {
 
   for (const c of b.containers) {
     for (let i = 0; i < c.count; i++) {
-      const no   = `${prefix}${contSerial}`;
-      const seal = `${randLetters(4)}${contSerial}`;
-      stmtContainer.run(bookingId, no, seal, c.size, now);
+      const no      = `${prefix}${contSerial}`;
+      const seal    = `${randLetters(4)}${contSerial}`;
+      const noSp    = `SP/${b.job_no.replace('/', '-')}/${String(i + 1).padStart(3, '0')}`;
+      const vendor  = randItem(TRUCKING_VENDORS);
+      const biaya   = randItem(BIAYA_LIST);
+      const inDate  = addDays(BASE_DATE, Math.floor(Math.random() * 20));
+      const outDate = addDays(inDate, 1 + Math.floor(Math.random() * 3));
+      stmtContainer.run(bookingId, no, seal, c.size, noSp, vendor, biaya, inDate, outDate, '', now);
       contSerial++;
     }
   }

@@ -6,6 +6,23 @@ Format: [version] — date — description
 
 ---
 
+## [0.16.0] — 2026-05-20
+
+### Added
+- **Hutang Trucking** — auto-created when container saved with trucking vendor + biaya; synced on edit/delete; `hutang_type` field distinguishes trucking vs vendor
+- **Trucking payment flow** — click row to expand inline panel; "Bayar" button opens payment modal; payment history shown per row with edit + delete actions
+- **Pelunasan validation** — payment modal blocks submit if amount exceeds remaining sisa; live "sisa setelah pembayaran" display
+- **Lunas indicator** — "Bayar" button hidden and "✓ Lunas" shown when hutang fully paid
+- **Edit/delete riwayat pembayaran** — pencil icon edits existing payment (pre-fills modal); trash deletes; PUT route now also updates `no_voucher` on hutang
+- **Global Hutang page** — row click navigates to `/bookings/{id}?tab=hutang`
+- **Seed script updated** — trucking vendors changed to MMC / TAS-T; container fields (trucking, biaya_trucking, in_date, out_date) included in seed
+
+### Changed
+- **BookingDetail Hutang tab** — split into Section A (Trucking table) + Section B (Vendor cards); row expand pattern with chevron indicator + left border accent
+- **Migration 016** — inline: `hutang.no_voucher`, `hutang.container_id`, `hutang.hutang_type`; backfill existing containers
+
+---
+
 ## [0.15.0] — 2026-05-19
 
 ### Added

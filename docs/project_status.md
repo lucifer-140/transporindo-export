@@ -1,7 +1,7 @@
 # Project Status
 
-**Version:** 0.15.0
-**Last Updated:** 2026-05-19
+**Version:** 0.16.0
+**Last Updated:** 2026-05-20
 **Stage:** Active Development
 
 ---
@@ -20,7 +20,7 @@
 | Session Auth | Done | Real login/logout; useAuth fetches /api/auth/me; 401 interceptor redirects to /login |
 | RBAC — Route Protection | Done | requireRole(minRole) on all server routes; ProtectedRoute on all client routes |
 | RBAC — Role Hierarchy | Done | worker < finance < admin; finance role accesses all finance pages |
-| Hutang (AP) | Done | CRUD, optional booking link, payment history, metode field, derived status |
+| Hutang (AP) | Done | CRUD, optional booking link, payment history, metode field, derived status; trucking hutang auto-created from Jadwal Trucking; inline row-expand with edit/delete payments; sisa validation |
 | Piutang (AR) | Done | Per-booking, auto-fill from invoice total, payment history, metode field, derived status |
 | Finance Summary | Done | `/api/finance/summary` aggregate; finance+ access only |
 | BukuFinance page | Done | Finance view per buku; accessible to finance and admin roles |
