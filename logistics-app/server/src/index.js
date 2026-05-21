@@ -4,9 +4,9 @@ import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
 import fastifyStatic from '@fastify/static';
 import fastifyCors from '@fastify/cors';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 
 import { getDb } from './db.js';
 import { authRoutes } from './routes/auth.js';
@@ -31,7 +31,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT ?? '8080');
 const IS_PROD = process.env.NODE_ENV === 'production';
 
-const fastify = Fastify({ logger: { level: IS_PROD ? 'info' : 'debug' } });
+const keyPath = resolve(process.env.HTTPS_KEY || './certs/key.pem');
+const certPath = resolve(process.env.HTTPS_CERT || './certs/cert.pem');
+const hasCerts = existsSync(keyPath) && existsSync(certPath);
+
+const fastify = Fastify({
+  logger: { level: IS_PROD ? 'info' : 'debug' },
+  ...(hasCerts && {
+    https: {
+      key: readFileSync(keyPath),
+      cert: readFileSync(certPath),
+    },
+  }),
+});
 
 await fastify.register(fastifyCors, {
   origin: IS_PROD ? false : 'http://localhost:5173',
@@ -42,7 +54,7 @@ await fastify.register(fastifyCookie);
 await fastify.register(fastifySession, {
   secret: process.env.SESSION_SECRET,
   cookie: {
-    secure: false,
+    secure: IS_PROD,
     httpOnly: true,
     sameSite: 'lax',
     maxAge: 8 * 60 * 60 * 1000, // 8 hours
@@ -85,7 +97,7 @@ if (IS_PROD && existsSync(publicDir)) {
 
 try {
   await fastify.listen({ port: PORT, host: '0.0.0.0' });
-  console.log(`Server listening on http://0.0.0.0:${PORT}`);
+  console.log(`Server listening on https://0.0.0.0:${PORT}`);
 } catch (err) {
   fastify.log.error(err);
   process.exit(1);

@@ -6,6 +6,22 @@ Format: [version] — date — description
 
 ---
 
+## [0.17.0] — 2026-05-21
+
+### Added
+- **PWA support** — `vite-plugin-pwa` added; app installable on desktop/mobile
+- **HTTPS (production)** — server auto-detects `certs/key.pem` + `certs/cert.pem`; falls back to HTTP if certs absent (dev unaffected)
+- **Cert generation script** — `npm run gen-cert` (`scripts/gen-cert.js`); called by `setup.ps1` with LAN IP as SAN
+- **Deploy: port 443** — setup/update scripts now use port 443 and HTTPS URL
+
+### Changed
+- **`server/src/index.js`** — HTTPS conditional on cert existence; `cookie.secure` tied to `IS_PROD`
+- **`vite.config.js`** — proxy `secure: false` added; target stays `http://localhost:8080` for dev
+- **`deploy/README.txt`** — URL updated to `https://`; note about self-signed cert warning on first visit
+- **`.env.example`** — `HTTPS_KEY` / `HTTPS_CERT` vars documented
+
+---
+
 ## [0.16.0] — 2026-05-20
 
 ### Added

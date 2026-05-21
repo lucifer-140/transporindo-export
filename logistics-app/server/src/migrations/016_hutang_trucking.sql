@@ -1,0 +1,3 @@
+ALTER TABLE hutang ADD COLUMN no_voucher   TEXT;
+ALTER TABLE hutang ADD COLUMN container_id INTEGER REFERENCES containers(id) ON DELETE SET NULL;
+ALTER TABLE hutang ADD COLUMN hutang_type  TEXT NOT NULL DEFAULT 'vendor';

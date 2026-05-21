@@ -12,7 +12,8 @@ FIRST TIME SETUP (do this once on the server PC)
 DAILY USE
 ---------
 - Just turn on the PC. Server starts by itself.
-- Users open browser and go to: http://<this-pc-ip>:8080
+- Users open browser and go to: https://<this-pc-ip>
+- First visit: browser shows a certificate warning. Click Advanced -> Proceed. This happens once per device.
 - No need to open any terminal or program.
 
 

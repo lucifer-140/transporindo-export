@@ -55,6 +55,6 @@ Write-Host "=============================" -ForegroundColor Cyan
 Write-Host "  UPDATE COMPLETE!" -ForegroundColor Green
 Write-Host "=============================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  App URL: http://$ip`:8080" -ForegroundColor White
+Write-Host "  App URL: https://$ip" -ForegroundColor White
 Write-Host ""
 pause

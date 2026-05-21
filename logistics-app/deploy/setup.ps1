@@ -23,6 +23,16 @@ Set-Location "$AppRoot\server"
 npm install --production
 Write-Host "[OK] Server dependencies installed" -ForegroundColor Green
 
+# --- Find this PC's IP (needed for cert SAN) ---
+$ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.*" } | Select-Object -First 1).IPAddress
+
+# --- Generate HTTPS certificate ---
+Write-Host "`nGenerating HTTPS certificate for $ip..." -ForegroundColor Yellow
+Set-Location "$AppRoot\server"
+$env:CERT_IP = $ip
+node scripts/gen-cert.js
+Write-Host "[OK] Certificate generated" -ForegroundColor Green
+
 # --- Install client dependencies and build ---
 Write-Host "`nInstalling client dependencies..." -ForegroundColor Yellow
 Set-Location "$AppRoot\client"
@@ -47,8 +57,9 @@ if (-not (Test-Path ".env")) {
     # Generate a random session secret
     $secret = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 48 | ForEach-Object { [char]$_ })
     (Get-Content ".env") -replace "change-this-to-a-long-random-string-before-production", $secret | Set-Content ".env"
-    # Set production mode
+    # Set production mode and port
     (Get-Content ".env") -replace "NODE_ENV=development", "NODE_ENV=production" | Set-Content ".env"
+    (Get-Content ".env") -replace "PORT=8080", "PORT=443" | Set-Content ".env"
     Write-Host "[OK] .env created with production settings" -ForegroundColor Green
 } else {
     Write-Host "[SKIP] .env already exists" -ForegroundColor DarkGray
@@ -94,9 +105,9 @@ Register-ScheduledTask `
 
 Write-Host "[OK] Auto-start registered (runs on every boot)" -ForegroundColor Green
 
-# --- Allow port 8080 through Windows Firewall ---
+# --- Allow port 443 through Windows Firewall ---
 Write-Host "`nConfiguring firewall..." -ForegroundColor Yellow
-$fwRuleName = "TAS App Port 8080"
+$fwRuleName = "TAS App Port 443"
 $existing = Get-NetFirewallRule -DisplayName $fwRuleName -ErrorAction SilentlyContinue
 if ($existing) {
     Remove-NetFirewallRule -DisplayName $fwRuleName
@@ -105,19 +116,16 @@ New-NetFirewallRule `
     -DisplayName $fwRuleName `
     -Direction Inbound `
     -Protocol TCP `
-    -LocalPort 8080 `
+    -LocalPort 443 `
     -Action Allow | Out-Null
 Write-Host "[OK] Firewall rule added" -ForegroundColor Green
-
-# --- Find this PC's IP ---
-$ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.*" } | Select-Object -First 1).IPAddress
 
 # --- Done ---
 Write-Host "`n=============================" -ForegroundColor Cyan
 Write-Host "  SETUP COMPLETE!" -ForegroundColor Green
 Write-Host "=============================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  App URL: http://$ip`:8080" -ForegroundColor White
+Write-Host "  App URL: https://$ip" -ForegroundColor White
 Write-Host ""
 Write-Host "  Share this URL with all users." -ForegroundColor White
 Write-Host "  Server will start automatically on every boot." -ForegroundColor White

@@ -6,6 +6,7 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "migrate": "node src/db.js",
+    "gen-cert": "node scripts/gen-cert.js",
     "backup": "node ../scripts/backup-db.js",
     "restore": "node ../scripts/restore-db.js"
   },

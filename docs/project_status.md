@@ -1,7 +1,7 @@
 # Project Status
 
-**Version:** 0.16.0
-**Last Updated:** 2026-05-20
+**Version:** 0.17.0
+**Last Updated:** 2026-05-21
 **Stage:** Active Development
 
 ---
@@ -36,6 +36,7 @@
 | Skeleton Loaders | Done | `Skeleton.jsx`; BookingDetail uses skeleton while loading |
 | PDF Export | Done | `exportBookingInvoice` + `exportInvoiceOnly`; invoice download in BookingDetail (finance+) |
 | Booking Documents | Done | PEB & Phyto doc numbers, SI, invoice, pelunasan info; Docs tab in BookingDetail; migration 013 |
+| PWA + HTTPS | Done | vite-plugin-pwa; HTTPS conditional on certs; gen-cert script; deploy on port 443 |
 | DB Indexes | Done | `008_indexes.sql` performance indexes |
 | Code Splitting | Done | All pages lazy-loaded via `React.lazy` + `Suspense` |
 
