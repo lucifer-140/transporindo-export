@@ -23,8 +23,7 @@ export const fmtRpShort = (n) => {
 export const fmtDate = (s) => {
   if (!s) return "—";
   const [y, m, d] = s.split("-");
-  const months = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
-  return `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
+  return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
 };
 export const monthLabel = (m) =>
   ["","Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"][m];

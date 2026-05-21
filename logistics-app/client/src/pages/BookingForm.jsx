@@ -17,6 +17,7 @@ export default function BookingForm() {
   const bukuState = location.state ?? {};
   const [form, setForm] = useState({
     job_no: '', shipper: '', commodity: '',
+    qty_20: '0', qty_40: '0', qty_40hc: '0',
     port: 'Belawan', port_discharge: '', lokasi_muat: '',
     notes: '', buku_id: bukuState.buku_id ?? '',
   });
@@ -42,11 +43,21 @@ export default function BookingForm() {
     setForm(f => ({ ...f, shipper: name, commodity: commodities.length === 1 ? commodities[0].name : '' }));
   }
 
+  function parseQty(str) {
+    const map = {};
+    if (str) for (const p of str.split(',')) {
+      const m = p.trim().match(/^(\d+)x(\d+)(hc|HC|ft)?$/i);
+      if (m) { const hc = m[3] && m[3].toUpperCase() === 'HC'; map[hc ? '40HC' : m[2] + 'ft'] = parseInt(m[1]); }
+    }
+    return { qty_20: String(map['20ft'] ?? 0), qty_40: String(map['40ft'] ?? 0), qty_40hc: String(map['40HC'] ?? 0) };
+  }
+
   useEffect(() => {
     if (existing) {
       const b = existing.booking;
       setForm({
         job_no: b.job_no, shipper: b.shipper, commodity: b.commodity ?? '',
+        ...parseQty(b.planned_qty ?? ''),
         port: b.port ?? '', port_discharge: b.port_discharge ?? '',
         lokasi_muat: b.lokasi_muat ?? '',
         notes: b.notes ?? '', buku_id: b.buku_id ?? '',
@@ -71,11 +82,21 @@ export default function BookingForm() {
 
   if (isEdit && (isLoadingBooking || isLoadingShippers)) return <BookingFormSkeleton />;
 
+  function serializeQty() {
+    const parts = [];
+    if (parseInt(form.qty_20) > 0) parts.push(`${form.qty_20}x20ft`);
+    if (parseInt(form.qty_40) > 0) parts.push(`${form.qty_40}x40ft`);
+    if (parseInt(form.qty_40hc) > 0) parts.push(`${form.qty_40hc}x40HC`);
+    return parts.join(', ');
+  }
+
   function validate() {
     const errs = {};
     if (!isEdit && !form.buku_id) errs.buku_id = 'Buku wajib dipilih';
     if (!form.job_no.trim()) errs.job_no = 'Wajib diisi';
     if (!form.shipper.trim()) errs.shipper = 'Wajib diisi';
+    if (parseInt(form.qty_20) === 0 && parseInt(form.qty_40) === 0 && parseInt(form.qty_40hc) === 0)
+      errs.qty = 'Qty wajib diisi (min 1 container)';
     return errs;
   }
 
@@ -84,7 +105,13 @@ export default function BookingForm() {
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    mutation.mutate({ ...form, buku_id: parseInt(form.buku_id), containers: [] });
+    mutation.mutate({
+      job_no: form.job_no, shipper: form.shipper, commodity: form.commodity,
+      planned_qty: serializeQty(),
+      port: form.port, port_discharge: form.port_discharge,
+      lokasi_muat: form.lokasi_muat, notes: form.notes,
+      buku_id: parseInt(form.buku_id), containers: [],
+    });
   }
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -145,6 +172,22 @@ export default function BookingForm() {
                     {shipperCommodities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </Select>
                 )}
+              </Field>
+              <Field label="Qty" required error={errors.qty} span={2}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, maxWidth: 320 }}>
+                  {[['20ft', 'qty_20'], ['40ft', 'qty_40'], ['40HC', 'qty_40hc']].map(([label, key]) => (
+                    <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ fontSize: 11, color: 'var(--fg-2)', fontWeight: 600 }}>{label}</span>
+                      <input
+                        type="number" min="0" max="99"
+                        className={`inp${errors.qty ? ' inp--error' : ''}`}
+                        style={{ textAlign: 'center', fontSize: 16, fontWeight: 600, padding: '6px 8px' }}
+                        value={form[key]}
+                        onChange={set(key)}
+                      />
+                    </div>
+                  ))}
+                </div>
               </Field>
               <Field label="Lokasi Muat">
                 <Input value={form.lokasi_muat} onChange={set('lokasi_muat')} placeholder="Lokasi pemuatan barang" />

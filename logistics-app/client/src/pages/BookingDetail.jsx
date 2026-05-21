@@ -29,15 +29,42 @@ const IcUp   = (p) => <I {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v
 
 
 
+function parseQtyCounts(str) {
+  const map = {};
+  if (!str) return map;
+  for (const part of str.split(",")) {
+    const m = part.trim().match(/^(\d+)x(\d+)(hc|HC|ft)?$/i);
+    if (!m) continue;
+    const num = m[2];
+    const hc = m[3] && m[3].toUpperCase() === "HC";
+    const size = hc ? "40HC" : num + "ft";
+    map[size] = (map[size] ?? 0) + parseInt(m[1]);
+  }
+  return map;
+}
+
 // ── Container card grid ──────────────────────────────────────────────────────
 function IdentitasCard({ booking, bookingPublicId }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
+  function parsePlannedQty(str) {
+    const c = parseQtyCounts(str);
+    return { qty_20: String(c["20ft"] ?? 0), qty_40: String(c["40ft"] ?? 0), qty_40hc: String(c["40HC"] ?? 0) };
+  }
+  function serializePlannedQty(f) {
+    const parts = [];
+    if (parseInt(f.qty_20) > 0) parts.push(`${f.qty_20}x20ft`);
+    if (parseInt(f.qty_40) > 0) parts.push(`${f.qty_40}x40ft`);
+    if (parseInt(f.qty_40hc) > 0) parts.push(`${f.qty_40hc}x40HC`);
+    return parts.join(", ");
+  }
+
   const [form, setForm] = useState({
     job_no: booking.job_no ?? "",
     shipper: booking.shipper ?? "",
     commodity: booking.commodity ?? "",
+    ...parsePlannedQty(booking.planned_qty ?? ""),
     lokasi_muat: booking.lokasi_muat ?? "",
     notes: booking.notes ?? "",
   });
@@ -48,6 +75,7 @@ function IdentitasCard({ booking, bookingPublicId }) {
         job_no: booking.job_no ?? "",
         shipper: booking.shipper ?? "",
         commodity: booking.commodity ?? "",
+        ...parsePlannedQty(booking.planned_qty ?? ""),
         lokasi_muat: booking.lokasi_muat ?? "",
         notes: booking.notes ?? "",
       });
@@ -55,7 +83,7 @@ function IdentitasCard({ booking, bookingPublicId }) {
   }, [booking, editing]);
 
   const saveMutation = useMutation({
-    mutationFn: () => api.patch(`/bookings/${bookingPublicId}/identitas`, form).then(r => r.data),
+    mutationFn: () => api.patch(`/bookings/${bookingPublicId}/identitas`, { ...form, planned_qty: serializePlannedQty(form) }).then(r => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["booking", bookingPublicId] });
       setEditing(false);
@@ -67,15 +95,37 @@ function IdentitasCard({ booking, bookingPublicId }) {
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   if (!editing) {
+    const plannedCounts = parseQtyCounts(booking.planned_qty);
+    const actualCounts = parseQtyCounts(booking.qty);
+    const mismatchItems = [];
+    if (booking.planned_qty) {
+      const allSizes = new Set([...Object.keys(plannedCounts), ...Object.keys(actualCounts)]);
+      for (const size of allSizes) {
+        const p = plannedCounts[size] ?? 0;
+        const a = actualCounts[size] ?? 0;
+        if (p !== a) mismatchItems.push({ size, planned: p, actual: a });
+      }
+    }
     return (
       <Card title="Identitas Shipment" action={<Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setEditing(true)}>Edit</Button>}>
-        <div className="row" style={{ gap: 8, marginBottom: 12 }}><Badge status={booking.status} /></div>
         <div className="kv-grid">
           <div className="kv-grid__item"><div className="kv-grid__lbl">Job No</div><div className="kv-grid__val mono">{booking.job_no || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Shipper</div><div className="kv-grid__val">{booking.shipper || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Commodity</div><div className="kv-grid__val">{booking.commodity || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Qty</div><div className="kv-grid__val">{booking.planned_qty || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Lokasi Muat</div><div className="kv-grid__val">{booking.lokasi_muat || "—"}</div></div>
         </div>
+        {mismatchItems.length > 0 && (
+          <div style={{ marginTop: 10, padding: "8px 10px", background: "color-mix(in srgb, #f59e0b 12%, var(--bg-1))", border: "1px solid #f59e0b", borderRadius: 6, fontSize: 12.5, color: "var(--fg-1)" }}>
+            <strong style={{ color: "#b45309" }}>⚠ Container belum sesuai qty:</strong>
+            {mismatchItems.map(({ size, planned, actual }) => (
+              <div key={size} style={{ marginTop: 3 }}>
+                {size}: planned <strong>{planned}</strong>, actual <strong>{actual}</strong>
+                {actual < planned ? ` — kurang ${planned - actual}` : ` — lebih ${actual - planned}`}
+              </div>
+            ))}
+          </div>
+        )}
         {booking.notes && (
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
             <div className="kv-grid__lbl" style={{ marginBottom: 4 }}>Catatan</div>
@@ -99,6 +149,22 @@ function IdentitasCard({ booking, bookingPublicId }) {
         <Field label="Job No" required><Input value={form.job_no} onChange={set("job_no")} /></Field>
         <Field label="Shipper" required><Input value={form.shipper} onChange={set("shipper")} /></Field>
         <Field label="Commodity"><Input value={form.commodity} onChange={set("commodity")} /></Field>
+        <Field label="Qty" required span={2}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, maxWidth: 320 }}>
+            {[["20ft", "qty_20"], ["40ft", "qty_40"], ["40HC", "qty_40hc"]].map(([label, key]) => (
+              <div key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 11, color: "var(--fg-2)", fontWeight: 600 }}>{label}</span>
+                <input
+                  type="number" min="0" max="99"
+                  className="inp"
+                  style={{ textAlign: "center", fontSize: 16, fontWeight: 600, padding: "6px 8px" }}
+                  value={form[key]}
+                  onChange={set(key)}
+                />
+              </div>
+            ))}
+          </div>
+        </Field>
         <Field label="Lokasi Muat"><Input value={form.lokasi_muat} onChange={set("lokasi_muat")} placeholder="Lokasi pemuatan" /></Field>
         <Field label="Notes" span={2}><textarea className="inp" rows={3} value={form.notes} onChange={set("notes")} /></Field>
       </div>
@@ -112,6 +178,8 @@ function PelayaranCard({ booking, bookingPublicId }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     pelayaran: booking.pelayaran ?? "",
+    carrier: booking.carrier ?? "",
+    tanggal_pelayaran: booking.tanggal_pelayaran ?? "",
     vessel_name: booking.vessel_name ?? "",
     vessel_no: booking.vessel_no ?? "",
     port: booking.port ?? "",
@@ -123,6 +191,8 @@ function PelayaranCard({ booking, bookingPublicId }) {
     if (!editing) {
       setForm({
         pelayaran: booking.pelayaran ?? "",
+        carrier: booking.carrier ?? "",
+        tanggal_pelayaran: booking.tanggal_pelayaran ?? "",
         vessel_name: booking.vessel_name ?? "",
         vessel_no: booking.vessel_no ?? "",
         port: booking.port ?? "",
@@ -148,9 +218,11 @@ function PelayaranCard({ booking, bookingPublicId }) {
     return (
       <Card title="Pelayaran" action={<Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => setEditing(true)}>Edit</Button>}>
         <div className="kv-grid">
-          <div className="kv-grid__item"><div className="kv-grid__lbl">Port Muat</div><div className="kv-grid__val">{booking.port || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Port of Loading</div><div className="kv-grid__val">{booking.port || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Port Discharge</div><div className={`kv-grid__val${booking.port_discharge ? "" : " dim"}`}>{booking.port_discharge || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Pelayaran</div><div className="kv-grid__val">{booking.pelayaran || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Carrier</div><div className={`kv-grid__val${booking.carrier ? "" : " dim"}`}>{booking.carrier || "—"}</div></div>
+          <div className="kv-grid__item"><div className="kv-grid__lbl">Tanggal Pelayaran</div><div className={`kv-grid__val${booking.tanggal_pelayaran ? "" : " dim"}`}>{booking.tanggal_pelayaran ? fmtDate(booking.tanggal_pelayaran) : "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Vessel Name</div><div className="kv-grid__val">{booking.vessel_name || "—"}</div></div>
           <div className="kv-grid__item"><div className="kv-grid__lbl">Vessel No / Voyage</div><div className={`kv-grid__val${booking.vessel_no ? "" : " dim"}`}>{booking.vessel_no || "—"}</div></div>
         </div>
@@ -168,9 +240,11 @@ function PelayaranCard({ booking, bookingPublicId }) {
       </div>
     }>
       <div className="grid grid-form-2">
-        <Field label="Port Muat"><Input value={form.port} onChange={set("port")} /></Field>
+        <Field label="Port of Loading"><Input value={form.port} onChange={set("port")} /></Field>
         <Field label="Port Discharge"><Input value={form.port_discharge} onChange={set("port_discharge")} /></Field>
         <Field label="Pelayaran"><Input value={form.pelayaran} onChange={set("pelayaran")} placeholder="Nama feeder vessel" /></Field>
+        <Field label="Carrier"><Input value={form.carrier} onChange={set("carrier")} placeholder="Nama carrier" /></Field>
+        <Field label="Tanggal Pelayaran"><Input type="date" value={form.tanggal_pelayaran} onChange={set("tanggal_pelayaran")} /></Field>
         <Field label="Vessel Name"><Input value={form.vessel_name} onChange={set("vessel_name")} placeholder="Nama kapal utama" /></Field>
         <Field label="Vessel No / Voyage"><Input value={form.vessel_no} onChange={set("vessel_no")} placeholder="Nomor voyage" /></Field>
       </div>
@@ -178,7 +252,11 @@ function PelayaranCard({ booking, bookingPublicId }) {
   );
 }
 
-const EMPTY_CTR_FORM = () => ({ container_no: "", seal_no: "", size: "40ft", no_sp: "", trucking: "", biaya_trucking: "", in_date: "", out_date: "", notes: "" });
+const EMPTY_CTR_FORM = () => ({ container_no: "", seal_no: "", size: "40ft", container_no_2: "", seal_no_2: "", no_sp: "", trucking: "", biaya_trucking: "", in_date: "", out_date: "", notes: "" });
+
+function SectionLabel({ children }) {
+  return <div style={{ fontSize: 11, fontWeight: 700, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>{children}</div>;
+}
 
 function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
   const [rows, setRows] = useState(initialContainers);
@@ -188,6 +266,13 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const queryClient = useQueryClient();
+  const formRef = useRef(null);
+
+  useEffect(() => {
+    if (mode === "add") {
+      setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+    }
+  }, [mode]);
 
   const setF = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -204,6 +289,8 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
       container_no: row.container_no ?? "",
       seal_no: row.seal_no ?? "",
       size: row.size ?? "40ft",
+      container_no_2: row.container_no_2 ?? "",
+      seal_no_2: row.seal_no_2 ?? "",
       no_sp: row.no_sp ?? "",
       trucking: row.trucking ?? "",
       biaya_trucking: row.biaya_trucking != null ? String(row.biaya_trucking) : "",
@@ -216,6 +303,19 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
   function cancel() { setMode("idle"); setSelectedId(null); }
 
   async function handleSave() {
+    const existingNos = new Set(
+      rows
+        .filter(r => mode === "edit" ? r.id !== selectedId : true)
+        .flatMap(r => r.size === "2x20" ? [r.container_no, r.container_no_2] : [r.container_no])
+        .filter(Boolean)
+    );
+    const toCheck = [form.container_no, ...(form.size === "2x20" ? [form.container_no_2] : [])].filter(Boolean);
+    for (const no of toCheck) {
+      if (existingNos.has(no)) {
+        toast(`Cont No. ${no} sudah ada di booking ini.`, "error");
+        return;
+      }
+    }
     setSaving(true);
     const payload = { ...form, biaya_trucking: form.biaya_trucking !== "" ? parseInt(form.biaya_trucking) : null };
     try {
@@ -251,27 +351,69 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
   }
 
   const formPanel = mode !== "idle" && (
-    <div style={{ borderTop: "1px solid var(--border)", padding: 16, background: "var(--bg-2)" }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--fg-2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
+    <div ref={formRef} style={{ borderTop: "1px solid var(--border)", padding: 16, background: "var(--bg-2)" }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--fg-2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 16 }}>
         {mode === "add" ? "Tambah Container Baru" : `Edit Baris #${rows.findIndex(r => r.id === selectedId) + 1}`}
       </div>
-      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginBottom: 12 }}>
-        <Field label="Cont No."><Input className="mono" value={form.container_no} onChange={setF("container_no")} placeholder="ABCD1234567" /></Field>
-        <Field label="Seal No."><Input value={form.seal_no} onChange={setF("seal_no")} /></Field>
-        <Field label="Size">
-          <Select value={form.size} onChange={setF("size")}>
-            <option value="20ft">20ft</option>
-            <option value="40ft">40ft</option>
-            <option value="40HC">40HC</option>
-          </Select>
-        </Field>
-        <Field label="No. SP"><Input value={form.no_sp} onChange={setF("no_sp")} /></Field>
-        <Field label="Trucking"><Input value={form.trucking} onChange={setF("trucking")} /></Field>
-        <Field label="Biaya Trucking"><Input type="number" value={form.biaya_trucking} onChange={setF("biaya_trucking")} placeholder="0" /></Field>
-        <Field label="In Date"><Input type="date" value={form.in_date} onChange={setF("in_date")} /></Field>
-        <Field label="Out Date"><Input type="date" value={form.out_date} onChange={setF("out_date")} /></Field>
-        <Field label="Notes" style={{ gridColumn: "span 2" }}><Input value={form.notes} onChange={setF("notes")} /></Field>
+
+      {/* Section: Container identity */}
+      <div style={{ marginBottom: 14 }}>
+        <SectionLabel>Container</SectionLabel>
+        <div style={{ marginBottom: 10 }}>
+          <Field label="Size" style={{ maxWidth: 140 }}>
+            <Select value={form.size} onChange={setF("size")}>
+              <option value="20ft">20ft</option>
+              <option value="2x20">2x20ft</option>
+              <option value="40ft">40ft</option>
+              <option value="40HC">40HC</option>
+            </Select>
+          </Field>
+        </div>
+        {form.size === "2x20" ? (
+          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-1)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", marginBottom: 8 }}>① Container 1</div>
+              <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <Field label="Cont No."><Input className="mono" value={form.container_no} onChange={setF("container_no")} placeholder="ABCD1234567" /></Field>
+                <Field label="Seal No."><Input value={form.seal_no} onChange={setF("seal_no")} /></Field>
+              </div>
+            </div>
+            <div style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-1)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", marginBottom: 8 }}>② Container 2</div>
+              <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <Field label="Cont No."><Input className="mono" value={form.container_no_2} onChange={setF("container_no_2")} placeholder="ABCD1234567" /></Field>
+                <Field label="Seal No."><Input value={form.seal_no_2} onChange={setF("seal_no_2")} /></Field>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <Field label="Cont No."><Input className="mono" value={form.container_no} onChange={setF("container_no")} placeholder="ABCD1234567" /></Field>
+            <Field label="Seal No."><Input value={form.seal_no} onChange={setF("seal_no")} /></Field>
+          </div>
+        )}
       </div>
+
+      {/* Section: Trucking */}
+      <div style={{ marginBottom: 14 }}>
+        <SectionLabel>Trucking</SectionLabel>
+        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+          <Field label="No. SP"><Input value={form.no_sp} onChange={setF("no_sp")} /></Field>
+          <Field label="Trucking"><Input value={form.trucking} onChange={setF("trucking")} /></Field>
+          <Field label="Biaya Trucking"><Input type="number" value={form.biaya_trucking} onChange={setF("biaya_trucking")} placeholder="0" /></Field>
+        </div>
+      </div>
+
+      {/* Section: Schedule */}
+      <div style={{ marginBottom: 14 }}>
+        <SectionLabel>Jadwal & Catatan</SectionLabel>
+        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+          <Field label="In Date"><Input type="date" value={form.in_date} onChange={setF("in_date")} /></Field>
+          <Field label="Out Date"><Input type="date" value={form.out_date} onChange={setF("out_date")} /></Field>
+          <Field label="Notes" style={{ gridColumn: "span 2" }}><Input value={form.notes} onChange={setF("notes")} /></Field>
+        </div>
+      </div>
+
       <div className="row" style={{ gap: 8 }}>
         <Button variant="ghost" size="sm" onClick={cancel} disabled={saving}>Batal</Button>
         <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
@@ -310,8 +452,16 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
             {rows.map((row, i) => (
               <tr key={row.id} style={selectedId === row.id ? { background: "color-mix(in srgb, var(--accent) 8%, var(--bg-1))" } : {}}>
                 <td className="muted num" style={{ fontSize: 11, textAlign: "center" }}>{String(i + 1).padStart(2, "0")}</td>
-                <td className="mono">{row.container_no || <span className="dim">—</span>}</td>
-                <td className="mono">{row.seal_no || <span className="dim">—</span>}</td>
+                <td className="mono" style={{ lineHeight: 1.6 }}>
+                  {row.size === "2x20"
+                    ? <><div>{row.container_no || "—"}</div><div style={{ color: "var(--fg-2)" }}>{row.container_no_2 || "—"}</div></>
+                    : (row.container_no || <span className="dim">—</span>)}
+                </td>
+                <td className="mono" style={{ lineHeight: 1.6 }}>
+                  {row.size === "2x20"
+                    ? <><div>{row.seal_no || <span className="dim">—</span>}</div><div style={{ color: "var(--fg-2)" }}>{row.seal_no_2 || <span className="dim">—</span>}</div></>
+                    : (row.seal_no || <span className="dim">—</span>)}
+                </td>
                 <td>{row.size || <span className="dim">—</span>}</td>
                 <td>{row.no_sp || <span className="dim">—</span>}</td>
                 <td>{row.trucking || <span className="dim">—</span>}</td>

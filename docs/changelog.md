@@ -6,6 +6,25 @@ Format: [version] — date — description
 
 ---
 
+## [0.18.0] — 2026-05-21
+
+### Added
+- **Identitas Shipment — Qty field** — planned qty input (spinners per size: 20ft / 40ft / 40HC); serialized as `"2x20ft, 1x40ft"`; mismatch warning banner if actual containers don't match planned qty
+- **Pelayaran — Carrier & Tanggal** — new Carrier input and Tanggal Pelayaran date field in Pelayaran card
+- **Pelayaran — label rename** — "Port Muat" → "Port of Loading"
+- **Container size 2x20** — new size option in Jadwal Trucking; shows two Cont No./Seal No. pairs in form; stored as single row with `container_no_2` / `seal_no_2` columns; `deriveQty` counts 2x20 as 2× 20ft
+- **Duplicate cont no validation** — blocks saving a container if the cont no already exists in the same booking
+- **BookingForm — Qty required** — new booking form now requires qty (min 1 container across all sizes)
+- **Auto-scroll on Tambah Baris** — page scrolls to form panel when adding new container row
+
+### Changed
+- **Date format** — all dates in tables now display as `DD/MM/YYYY` (was `D MMM YYYY`)
+- **Tambah Container Baru form** — redesigned into sections: Container (with ①② layout for 2x20) / Trucking / Jadwal & Catatan
+- **Table 2x20 display** — second container stacked below first in Cont No. and Seal No. columns
+- **Migration 017** — adds `planned_qty`, `carrier`, `tanggal_pelayaran` to bookings; `container_no_2`, `seal_no_2` to containers
+
+---
+
 ## [0.17.0] — 2026-05-21
 
 ### Added

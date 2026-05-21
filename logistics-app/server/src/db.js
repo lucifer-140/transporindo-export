@@ -111,6 +111,12 @@ function runMigrations(db) {
   try { db.exec('ALTER TABLE containers ADD COLUMN biaya_trucking INTEGER'); } catch {}
   try { db.exec('ALTER TABLE containers ADD COLUMN in_date TEXT'); } catch {}
   try { db.exec('ALTER TABLE containers ADD COLUMN out_date TEXT'); } catch {}
+  // 017: planned_qty, carrier, tanggal_pelayaran on bookings; container_no_2, seal_no_2 on containers
+  try { db.exec("ALTER TABLE bookings ADD COLUMN planned_qty TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE bookings ADD COLUMN carrier TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE bookings ADD COLUMN tanggal_pelayaran TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE containers ADD COLUMN container_no_2 TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE containers ADD COLUMN seal_no_2 TEXT NOT NULL DEFAULT ''"); } catch {}
   // 016: hutang trucking — no_voucher, container_id, hutang_type
   try { db.exec('ALTER TABLE hutang ADD COLUMN no_voucher TEXT'); } catch {}
   try { db.exec('ALTER TABLE hutang ADD COLUMN container_id INTEGER'); } catch {}
