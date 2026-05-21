@@ -62,9 +62,10 @@ const PORTS    = ['Tanjung Priok', 'Tanjung Perak', 'Belawan', 'Makassar', 'Sema
 const VESSELS  = ['MV Ocean Star', 'KM Nusantara Jaya', 'MV Pacific Glory', 'KM Bahari Indah',
                   'MV Asian Express', 'KM Selat Malaka', 'MV Horizon Bay', 'KM Timur Raya'];
 const TRUCKING = ['CV Cepat Laju', 'PT Kargo Nusa', 'UD Truk Jaya', 'CV Mitra Trans', 'PT Angkut Cepat'];
+const CARRIERS = ['Evergreen', 'COSCO', 'Maersk', 'MSC', 'CMA CGM', 'Yang Ming', 'PIL'];
 const DOK_TYPES = ['THC', 'B/L Fee', 'Admin Fee', 'Trucking', 'Storage', 'Seal Fee'];
 const HUTANG_PIHAK = ['CV Cepat Laju', 'PT Kargo Nusa', 'Pelindo II', 'Biro Jasa Priok', 'UD Forwarder Jaya'];
-const SIZES    = ['20ft', '40ft', 'HC'];
+const SIZES    = ['20ft', '40ft', '40HC'];
 const METHODS  = ['transfer', 'cash', 'giro'];
 
 const PAJAK_ITEMS = [
@@ -118,8 +119,8 @@ const stmts = {
   shipper:    db.prepare('INSERT INTO shippers (name) VALUES (?)'),
   commodity:  db.prepare('INSERT INTO commodities (shipper_id, name) VALUES (?, ?)'),
   buku:       db.prepare('INSERT INTO buku (tahun, bulan, status, created_by) VALUES (?, ?, ?, ?)'),
-  booking:    db.prepare(`INSERT INTO bookings (public_id, job_no, shipper, commodity, peb, port, feeder, vessel_name, vessel_no, bon, in_date, out_date, trucking, status, notes, buku_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
-  container:  db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size, created_at) VALUES (?, ?, ?, ?, ?)'),
+  booking:    db.prepare(`INSERT INTO bookings (public_id, job_no, shipper, commodity, peb, port, pelayaran, vessel_name, vessel_no, bon, in_date, out_date, trucking, status, notes, planned_qty, carrier, tanggal_pelayaran, buku_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+  container:  db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size, container_no_2, seal_no_2, no_sp, trucking, biaya_trucking, in_date, out_date, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
   dokumen:    db.prepare('INSERT INTO dokumen (booking_id, tipe, no_dokumen, qty, harga_satuan, biaya, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
   piutang:    db.prepare('INSERT INTO piutang (booking_id, jumlah, keterangan, created_by, created_at) VALUES (?, ?, ?, ?, ?)'),
   hutang:     db.prepare('INSERT INTO hutang (booking_id, pihak, keterangan, jumlah, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
@@ -190,6 +191,14 @@ async function main() {
       else if (b.tahun === 2025) status = b.bulan <= 10 ? 'done' : rnd(['done', 'in_progress']);
       else status = rnd(['in_progress', 'done', 'in_progress']);
 
+      const cCount = rndInt(1, 3);
+      const cSizes = Array.from({ length: cCount }, () => rnd(SIZES));
+      const sizeMap = {};
+      for (const s of cSizes) sizeMap[s] = (sizeMap[s] ?? 0) + 1;
+      const planned_qty = Object.entries(sizeMap).map(([s, n]) => `${n}x${s}`).join(', ');
+      const carrier = rnd(CARRIERS);
+      const tanggal_pelayaran = addDays(dateStr, rndInt(0, 7));
+
       const bRes = stmts.booking.run(
         randomBytes(16).toString('hex'),
         jobNo, shipper.name, commodity,
@@ -198,16 +207,21 @@ async function main() {
         `BON-${rndInt(10000,99999)}`,
         dateStr, outDate, rnd(TRUCKING),
         status, status === 'done' ? 'Selesai tanpa kendala.' : null,
+        planned_qty, carrier, tanggal_pelayaran,
         bukuId, createdBy, createdAt, createdAt
       );
       const bookingId = bRes.lastInsertRowid;
 
       // Containers (1–3)
-      const cCount = rndInt(1, 3);
+      const letters = 'ABCDEFGHJKLMNPRSTUVWXYZ';
       for (let c = 0; c < cCount; c++) {
-        const letters = 'ABCDEFGHJKLMNPRSTUVWXYZ';
-        const prefix  = [0,1,2,3].map(() => letters[rndInt(0, letters.length-1)]).join('');
-        stmts.container.run(bookingId, `${prefix}${rndInt(1000000,9999999)}`, `SEAL${rndInt(100000,999999)}`, rnd(SIZES), createdAt);
+        const prefix = [0,1,2,3].map(() => letters[rndInt(0, letters.length-1)]).join('');
+        const cNo = `${prefix}${rndInt(1000000,9999999)}`;
+        const truck = rnd(TRUCKING);
+        const biaya = rndInt(3, 20) * 500_000;
+        const inD = addDays(dateStr, rndInt(0, 3));
+        const outD = addDays(inD, rndInt(1, 5));
+        stmts.container.run(bookingId, cNo, `SEAL${rndInt(100000,999999)}`, cSizes[c], '', '', `SP-${rndInt(1000,9999)}`, truck, biaya, inD, outD, '', createdAt);
       }
 
       // Dokumen (2–4 lines)
@@ -268,6 +282,12 @@ async function main() {
     const createdAt = `${dateStr}T${pad(rndInt(8, 17))}:${pad(rndInt(0, 59))}:00`;
     const status = rnd(['in_progress', 'done', 'done', 'in_progress']);
 
+    const cCount = rndInt(1, 3);
+    const cSizes = Array.from({ length: cCount }, () => rnd(SIZES));
+    const sizeMap = {};
+    for (const s of cSizes) sizeMap[s] = (sizeMap[s] ?? 0) + 1;
+    const planned_qty = Object.entries(sizeMap).map(([s, n]) => `${n}x${s}`).join(', ');
+
     const bRes = stmts.booking.run(
       randomBytes(16).toString('hex'),
       jobNo, shipperObj.name, commodity,
@@ -276,14 +296,19 @@ async function main() {
       `BON-${rndInt(10000, 99999)}`,
       dateStr, outDate, rnd(TRUCKING),
       status, status === 'done' ? 'Selesai tanpa kendala.' : null,
+      planned_qty, rnd(CARRIERS), addDays(dateStr, rndInt(0, 7)),
       bukuId, createdBy, createdAt, createdAt
     );
     const bookingId = bRes.lastInsertRowid;
 
-    const cCount = rndInt(1, 3);
     for (let c = 0; c < cCount; c++) {
       const prefix = [0,1,2,3].map(() => LETTERS[rndInt(0, LETTERS.length-1)]).join('');
-      stmts.container.run(bookingId, `${prefix}${rndInt(1000000, 9999999)}`, `SEAL${rndInt(100000, 999999)}`, rnd(SIZES), createdAt);
+      const cNo = `${prefix}${rndInt(1000000, 9999999)}`;
+      const truck = rnd(TRUCKING);
+      const biaya = rndInt(3, 20) * 500_000;
+      const inD = addDays(dateStr, rndInt(0, 3));
+      const outD = addDays(inD, rndInt(1, 5));
+      stmts.container.run(bookingId, cNo, `SEAL${rndInt(100000, 999999)}`, cSizes[c], '', '', `SP-${rndInt(1000, 9999)}`, truck, biaya, inD, outD, '', createdAt);
     }
 
     let totalBiaya = 0;
