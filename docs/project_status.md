@@ -1,8 +1,8 @@
 # Project Status
 
-**Version:** 0.18.0
-**Last Updated:** 2026-05-21
-**Stage:** Active Development
+**Version:** 0.19.0
+**Last Updated:** 2026-06-26
+**Stage:** Active Development — simplification rebuild base
 
 ---
 

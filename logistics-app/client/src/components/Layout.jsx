@@ -2,7 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth, useLogout } from "../hooks/useAuth.js";
 import { useTheme } from "../hooks/useTheme.js";
 import { useSSE } from "../hooks/useSSE.js";
-import { IconBook, IconBox, IconUsers, IconActivity, IconShipper, IconArrow, IconExternal, IconDownload, LogoMark } from "./Icons.jsx";
+import { IconBook, IconBox, IconUsers, IconActivity, IconShipper, IconExternal, IconDownload, LogoMark } from "./Icons.jsx";
 
 export default function Layout() {
   const { user, isAdmin, isFinance } = useAuth();
@@ -23,15 +23,6 @@ export default function Layout() {
         { to: "/", end: true, label: "Buku",     icon: <IconBook size={15} /> },
         { to: "/bookings",    label: "Bookings",  icon: <IconBox size={15} />, adminOnly: true },
         { to: "/shippers",   label: "Shippers",  icon: <IconShipper size={15} />, adminOnly: true },
-      ],
-    },
-    {
-      label: "Finance",
-      links: [
-        { to: "/piutang",         label: "Piutang",          icon: <IconArrow size={15} />,  financeOnly: true },
-        { to: "/hutang",           label: "Hutang Vendor",    icon: <IconArrow size={15} style={{ transform: "rotate(180deg)" }} />, financeOnly: true },
-        { to: "/hutang-trucking", label: "Hutang Trucking",  icon: <IconArrow size={15} style={{ transform: "rotate(180deg)" }} />, financeOnly: true },
-        { to: "/hutang-dokumen",  label: "Hutang Dokumen",   icon: <IconArrow size={15} style={{ transform: "rotate(180deg)" }} />, financeOnly: true },
       ],
     },
     {

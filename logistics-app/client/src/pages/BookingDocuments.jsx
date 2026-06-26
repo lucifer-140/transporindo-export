@@ -14,26 +14,63 @@ const DOC_TYPES = [
   { value: 'certificate', label: 'Certificate' },
 ];
 
-const UNIFIED_FIELDS = [
-  { key: 'no_dok',  label: 'No. Dok',  type: 'text' },
-  { key: 'tgl_dok', label: 'Tgl. Dok', type: 'date' },
-  { key: 'no_si',   label: 'No. SI',   type: 'text' },
-  { key: 'no_inv',  label: 'No. INV',  type: 'text' },
+const PAYMENT_TYPES = [
+  { value: 'cash',   label: 'Cash' },
+  { value: 'credit', label: 'Credit' },
 ];
 
+const EMPTY = { no_sertifikat: '', tgl_bon: '', keterangan: '', no_job: '', nilai_pembayaran: '', tipe_pembayaran: '' };
+
 function fmtRp(val) {
-  if (!val && val !== 0) return '—';
+  if (val === null || val === undefined || val === '') return '—';
   return Number(val).toLocaleString('id-ID');
 }
 
-function DocRow({ doc, bookingId, onDelete, canEdit, isFinance, payment }) {
+function typeLabelOf(v) {
+  return DOC_TYPES.find(t => t.value === v)?.label ?? String(v).toUpperCase();
+}
+function payLabelOf(v) {
+  return PAYMENT_TYPES.find(t => t.value === v)?.label ?? '—';
+}
+
+// Shared field set for add/edit forms
+function DocFields({ docType, setDocType, fields, set, lockType = false }) {
+  return (
+    <>
+      <Field label="Tipe Dokumen" required>
+        <Select value={docType} onChange={e => setDocType(e.target.value)} disabled={lockType}>
+          <option value="">— Pilih jenis —</option>
+          {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </Select>
+      </Field>
+      <Field label="No. Sertifikat"><Input value={fields.no_sertifikat} onChange={set('no_sertifikat')} /></Field>
+      <Field label="Tgl Bon / Tgl Pelunasan"><Input type="date" value={fields.tgl_bon} onChange={set('tgl_bon')} /></Field>
+      <Field label="No. Job"><Input value={fields.no_job} onChange={set('no_job')} /></Field>
+      <Field label="Nilai Pembayaran"><Input type="number" min={0} value={fields.nilai_pembayaran} onChange={set('nilai_pembayaran')} placeholder="0" /></Field>
+      <Field label="Tipe Pembayaran">
+        <Select value={fields.tipe_pembayaran} onChange={set('tipe_pembayaran')}>
+          <option value="">—</option>
+          {PAYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </Select>
+      </Field>
+      <Field label="Keterangan" span={2}><Input value={fields.keterangan} onChange={set('keterangan')} /></Field>
+    </>
+  );
+}
+
+function DocRow({ doc, bookingId, onDelete, canEdit }) {
   const [editing, setEditing] = useState(false);
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const typeLabel = DOC_TYPES.find(t => t.value === doc.doc_type)?.label ?? doc.doc_type.toUpperCase();
-
-  const [fields, setFields] = useState({ no_dok: doc.no_dok ?? '', tgl_dok: doc.tgl_dok ?? '', no_si: doc.no_si ?? '', no_inv: doc.no_inv ?? '' });
+  const [fields, setFields] = useState({
+    no_sertifikat: doc.no_sertifikat ?? '',
+    tgl_bon: doc.tgl_bon ?? '',
+    keterangan: doc.keterangan ?? '',
+    no_job: doc.no_job ?? '',
+    nilai_pembayaran: doc.nilai_pembayaran ?? '',
+    tipe_pembayaran: doc.tipe_pembayaran ?? '',
+  });
   const set = (k) => (e) => setFields(f => ({ ...f, [k]: e.target.value }));
 
   const updateMutation = useMutation({
@@ -46,49 +83,57 @@ function DocRow({ doc, bookingId, onDelete, canEdit, isFinance, payment }) {
     onError: (e) => toast(e.response?.data?.error ?? 'Gagal memperbarui dokumen.', 'error'),
   });
 
+  function startEdit() {
+    setFields({
+      no_sertifikat: doc.no_sertifikat ?? '',
+      tgl_bon: doc.tgl_bon ?? '',
+      keterangan: doc.keterangan ?? '',
+      no_job: doc.no_job ?? '',
+      nilai_pembayaran: doc.nilai_pembayaran ?? '',
+      tipe_pembayaran: doc.tipe_pembayaran ?? '',
+    });
+    setEditing(true);
+  }
+
   if (editing) {
     return (
-      <div className="doc-table__row is-editing" style={{ flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-        <span className="doc-type-badge" style={{ flexShrink: 0 }}>{typeLabel}</span>
-        {UNIFIED_FIELDS.map(({ key, label, type }) => (
-          <Field key={key} label={label} style={{ flex: '1 1 120px', margin: 0 }}>
-            <Input type={type === 'date' ? 'date' : 'text'} value={fields[key]} onChange={set(key)} />
-          </Field>
-        ))}
-        <div className="row" style={{ gap: 4, marginLeft: 'auto' }}>
-          <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Batal</Button>
-          <Button variant="primary" size="sm" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate(fields)}>
-            Simpan
-          </Button>
-        </div>
-      </div>
+      <tr className="ps-grid__editrow">
+        <td colSpan={8}>
+          <div className="ps-editpanel">
+            <div className="ps-editpanel__hd">Edit Dokumen — {typeLabelOf(doc.doc_type)}</div>
+            <div className="grid grid-form-2">
+              <DocFields docType={doc.doc_type} setDocType={() => {}} fields={fields} set={set} lockType />
+            </div>
+            <div className="row" style={{ gap: 6, justifyContent: 'flex-end', marginTop: 12 }}>
+              <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Batal</Button>
+              <Button variant="primary" size="sm" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate(fields)}>Simpan</Button>
+            </div>
+          </div>
+        </td>
+      </tr>
     );
   }
 
   return (
-    <div className={`doc-table__row${isFinance ? ' is-finance' : ''}`}>
-      <div><span className="doc-type-badge">{typeLabel}</span></div>
-      <div className={`doc-table__cell mono${!doc.no_dok ? ' dim' : ''}`}>{doc.no_dok || '—'}</div>
-      <div className={`doc-table__cell${!doc.tgl_dok ? ' dim' : ''}`}>{doc.tgl_dok ? fmtDate(doc.tgl_dok) : '—'}</div>
-      <div className={`doc-table__cell mono${!doc.no_si ? ' dim' : ''}`}>{doc.no_si || '—'}</div>
-      <div className={`doc-table__cell mono${!doc.no_inv ? ' dim' : ''}`}>{doc.no_inv || '—'}</div>
-      {payment !== undefined && (
-        <>
-          <div className={`doc-table__cell mono${!payment?.no_voucher ? ' dim' : ''}`}>{payment?.no_voucher || '—'}</div>
-          <div className={`doc-table__cell${!payment?.keterangan ? ' dim' : ''}`}>{payment?.keterangan || '—'}</div>
-          <div className={`doc-table__cell${!payment?.tgl_pelunasan ? ' dim' : ''}`}>{payment?.tgl_pelunasan ? fmtDate(payment.tgl_pelunasan) : '—'}</div>
-          <div className={`doc-table__cell${!payment?.nilai_pembayaran ? ' dim' : ''}`}>{fmtRp(payment?.nilai_pembayaran)}</div>
-        </>
-      )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-        {canEdit && (
-          <>
-            <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={() => { setFields({ no_dok: doc.no_dok ?? '', tgl_dok: doc.tgl_dok ?? '', no_si: doc.no_si ?? '', no_inv: doc.no_inv ?? '' }); setEditing(true); }} />
-            <Button variant="ghost" size="sm" icon={<IconTrash size={12} />} onClick={() => onDelete(doc.id)} />
-          </>
-        )}
-      </div>
-    </div>
+    <tr>
+      <td><span className="doc-type-badge">{typeLabelOf(doc.doc_type)}</span></td>
+      <td className={`mono${!doc.no_sertifikat ? ' dim' : ''}`}>{doc.no_sertifikat || '—'}</td>
+      <td className={!doc.tgl_bon ? 'dim' : ''}>{doc.tgl_bon ? fmtDate(doc.tgl_bon) : '—'}</td>
+      <td className={`mono${!doc.no_job ? ' dim' : ''}`}>{doc.no_job || '—'}</td>
+      <td className={`num${doc.nilai_pembayaran == null ? ' dim' : ''}`}>{fmtRp(doc.nilai_pembayaran)}</td>
+      <td className={!doc.tipe_pembayaran ? 'dim' : ''}>{doc.tipe_pembayaran ? payLabelOf(doc.tipe_pembayaran) : '—'}</td>
+      <td className={!doc.keterangan ? 'dim' : ''}>{doc.keterangan || '—'}</td>
+      <td>
+        <div className="row" style={{ gap: 2, justifyContent: 'flex-end' }}>
+          {canEdit && (
+            <>
+              <Button variant="ghost" size="sm" icon={<IconEdit size={12} />} onClick={startEdit} />
+              <Button variant="ghost" size="sm" icon={<IconTrash size={12} />} onClick={() => onDelete(doc.id)} />
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -96,7 +141,7 @@ function AddDocForm({ bookingId, onDone }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [docType, setDocType] = useState('');
-  const [fields, setFields] = useState({ no_dok: '', tgl_dok: '', no_si: '', no_inv: '' });
+  const [fields, setFields] = useState(EMPTY);
   const set = (k) => (e) => setFields(f => ({ ...f, [k]: e.target.value }));
 
   const mutation = useMutation({
@@ -111,34 +156,20 @@ function AddDocForm({ bookingId, onDone }) {
 
   return (
     <Card title="Tambah Dokumen">
-      <div className="col" style={{ gap: 14 }}>
-        <Field label="Jenis Dokumen" required>
-          <Select value={docType} onChange={e => setDocType(e.target.value)}>
-            <option value="">— Pilih jenis —</option>
-            {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </Select>
-        </Field>
-        {docType && (
-          <div className="grid grid-form-2">
-            {UNIFIED_FIELDS.map(({ key, label, type }) => (
-              <Field key={key} label={label}>
-                <Input type={type === 'date' ? 'date' : 'text'} value={fields[key]} onChange={set(key)} />
-              </Field>
-            ))}
-          </div>
-        )}
-        <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
-          <Button variant="ghost" onClick={onDone}>Batal</Button>
-          <Button variant="primary" disabled={!docType || mutation.isPending} onClick={() => mutation.mutate({ doc_type: docType, ...fields })}>
-            {mutation.isPending ? 'Menyimpan…' : 'Simpan Dokumen'}
-          </Button>
-        </div>
+      <div className="grid grid-form-2">
+        <DocFields docType={docType} setDocType={setDocType} fields={fields} set={set} />
+      </div>
+      <div className="row" style={{ gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+        <Button variant="ghost" onClick={onDone}>Batal</Button>
+        <Button variant="primary" disabled={!docType || mutation.isPending} onClick={() => mutation.mutate({ doc_type: docType, ...fields })}>
+          {mutation.isPending ? 'Menyimpan…' : 'Simpan Dokumen'}
+        </Button>
       </div>
     </Card>
   );
 }
 
-export default function BookingDocuments({ bookingId, canEdit = true, isFinance = false }) {
+export default function BookingDocuments({ bookingId, canEdit = true }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -147,16 +178,6 @@ export default function BookingDocuments({ bookingId, canEdit = true, isFinance 
     queryKey: ['booking-documents', bookingId],
     queryFn: () => api.get(`/bookings/${bookingId}/documents`).then(r => r.data),
   });
-
-  const { data: hutangList = [] } = useQuery({
-    queryKey: ['booking-hutang-dokumen', bookingId],
-    queryFn: () => api.get(`/bookings/${bookingId}/hutang-dokumen`).then(r => r.data),
-    enabled: isFinance,
-  });
-
-  // map booking_document_id → first hutang entry (one payment per doc shown inline)
-  const paymentByDoc = {};
-  hutangList.forEach(h => { if (!paymentByDoc[h.booking_document_id]) paymentByDoc[h.booking_document_id] = h; });
 
   const deleteMutation = useMutation({
     mutationFn: (docId) => api.delete(`/bookings/${bookingId}/documents/${docId}`),
@@ -181,39 +202,38 @@ export default function BookingDocuments({ bookingId, canEdit = true, isFinance 
       )}
 
       {docs.length > 0 && (
-        <>
-          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: 14, color: 'var(--fg-2)', margin: 0 }}>{docs.length} Dokumen</h3>
+        <Card pad={false}>
+          <div className="bd-invoice-bar">
+            <div className="bd-invoice-bar__total">
+              <span>Dokumen</span>
+              <b>{docs.length}</b>
+            </div>
             {canEdit && !showForm && (
-              <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setShowForm(true)}>
-                Tambah Dokumen
-              </Button>
+              <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setShowForm(true)}>Tambah Dokumen</Button>
             )}
           </div>
-
-          <div className="doc-table">
-            <div className={`doc-table__hdr${isFinance ? ' is-finance' : ''}`}>
-              <span>Jenis</span>
-              <span>No. Dok</span>
-              <span>Tgl. Dok</span>
-              <span>No. SI</span>
-              <span>No. INV</span>
-              {isFinance && <><span>No. Voucher</span><span>Keterangan</span><span>Tgl. Pelunasan</span><span>Nilai Pembayaran</span></>}
-              <span />
-            </div>
-            {docs.map(doc => (
-              <DocRow
-                key={doc.id}
-                doc={doc}
-                bookingId={bookingId}
-                canEdit={canEdit}
-                isFinance={isFinance}
-                onDelete={(id) => deleteMutation.mutate(id)}
-                payment={isFinance ? (paymentByDoc[doc.id] ?? null) : undefined}
-              />
-            ))}
+          <div className="tbl-wrap">
+            <table className="tbl ps-grid" style={{ minWidth: 880 }}>
+              <thead>
+                <tr>
+                  <th style={{ width: 110 }}>Tipe</th>
+                  <th>No. Sertifikat</th>
+                  <th style={{ width: 130 }}>Tgl Bon</th>
+                  <th>No. Job</th>
+                  <th style={{ width: 130 }}>Nilai</th>
+                  <th style={{ width: 90 }}>Pembayaran</th>
+                  <th>Keterangan</th>
+                  <th style={{ width: 70 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {docs.map(doc => (
+                  <DocRow key={doc.id} doc={doc} bookingId={bookingId} canEdit={canEdit} onDelete={(id) => deleteMutation.mutate(id)} />
+                ))}
+              </tbody>
+            </table>
           </div>
-        </>
+        </Card>
       )}
     </div>
   );

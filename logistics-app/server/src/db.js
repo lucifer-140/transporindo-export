@@ -186,6 +186,18 @@ function runMigrations(db) {
       created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  // 020: dokumen fields redesign — new field set on booking_documents.
+  // doc_type kept (= Tipe Dokumen). Old no_dok/tgl_dok/no_si/no_inv left dormant.
+  for (const col of [
+    'ALTER TABLE booking_documents ADD COLUMN no_sertifikat TEXT',
+    'ALTER TABLE booking_documents ADD COLUMN tgl_bon TEXT',
+    'ALTER TABLE booking_documents ADD COLUMN keterangan TEXT',
+    'ALTER TABLE booking_documents ADD COLUMN no_job TEXT',
+    'ALTER TABLE booking_documents ADD COLUMN nilai_pembayaran INTEGER',
+    'ALTER TABLE booking_documents ADD COLUMN tipe_pembayaran TEXT',
+  ]) {
+    try { db.exec(col); } catch {}
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

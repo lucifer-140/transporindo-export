@@ -10,10 +10,6 @@ const BookingForm = lazy(() => import('./pages/BookingForm.jsx'));
 const BookingDetail = lazy(() => import('./pages/BookingDetail.jsx'));
 const Users = lazy(() => import('./pages/Users.jsx'));
 const AuditLog = lazy(() => import('./pages/AuditLog.jsx'));
-const Piutang = lazy(() => import('./pages/Piutang.jsx'));
-const Hutang = lazy(() => import('./pages/Hutang.jsx'));
-const HutangDokumen = lazy(() => import('./pages/HutangDokumen.jsx'));
-const HutangTrucking = lazy(() => import('./pages/HutangTrucking.jsx'));
 const Shippers = lazy(() => import('./pages/Shippers.jsx'));
 const BukuList = lazy(() => import('./pages/BukuList.jsx'));
 const BukuDetail = lazy(() => import('./pages/BukuDetail.jsx'));
@@ -65,26 +61,6 @@ export default function App() {
         <Route path="bookings/:id/edit" element={
           <ProtectedRoute minRole="worker">
             <Suspense fallback={<PageLoader />}><BookingForm /></Suspense>
-          </ProtectedRoute>
-        } />
-        <Route path="piutang" element={
-          <ProtectedRoute minRole="finance">
-            <Suspense fallback={<PageLoader />}><Piutang /></Suspense>
-          </ProtectedRoute>
-        } />
-        <Route path="hutang" element={
-          <ProtectedRoute minRole="finance">
-            <Suspense fallback={<PageLoader />}><Hutang /></Suspense>
-          </ProtectedRoute>
-        } />
-        <Route path="hutang-dokumen" element={
-          <ProtectedRoute minRole="finance">
-            <Suspense fallback={<PageLoader />}><HutangDokumen /></Suspense>
-          </ProtectedRoute>
-        } />
-        <Route path="hutang-trucking" element={
-          <ProtectedRoute minRole="finance">
-            <Suspense fallback={<PageLoader />}><HutangTrucking /></Suspense>
           </ProtectedRoute>
         } />
         <Route path="users" element={

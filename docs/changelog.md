@@ -6,6 +6,30 @@ Format: [version] — date — description
 
 ---
 
+## [0.19.0] — 2026-06-26
+
+System simplification ("dumb down") — strip the finance-heavy UI back to a clean rebuild base. Removed code archived under `docs/archive/` for reference; full pre-change state backed up at commit `b5c5da8`.
+
+### Added
+- **PeopleSoft-style booking detail** — booking core (Identitas / Pelayaran / Jadwal Trucking) shown above a left-rail tab set: Dokumen, Invoice, Piutang, Hutang, Pajak & Reimbursement. Tabs visible to all logged-in users (no role-gating).
+- **Dokumen redesign** — new field set: Tipe Dokumen (= Jenis Dokumen), No. Sertifikat, Tgl Bon/Tgl Pelunasan, Keterangan, No. Job, Nilai Pembayaran, Tipe Pembayaran (Cash/Credit). Migration 020 adds the columns to `booking_documents`.
+- **`docs/archive/`** — reference snapshots of removed finance pages, the old full `BookingDetail.jsx`, and old `BookingDocuments.jsx`.
+
+### Changed
+- **Sidebar** — removed the Finance section (Piutang / Hutang Vendor / Hutang Trucking / Hutang Dokumen). Now Operasional (Buku, Bookings, Shippers) + Admin (Users, Audit Log, Pengaturan, Backup).
+- **Booking detail tabs** — moved from top-horizontal to left vertical rail.
+
+### Removed
+- Money-hero widgets (Total Invoice / Piutang / Dibayar / Sisa Tagihan) from booking detail.
+- Standalone finance pages and their routes (`/piutang`, `/hutang`, `/hutang-dokumen`, `/hutang-trucking`).
+- Invoice / Piutang / Hutang / Pajak tab content — now empty placeholders ("segera hadir") pending rebuild.
+
+### Notes
+- Booking Baru (`BookingForm`) unchanged.
+- Server finance routes left mounted but dormant (no UI calls them); old `booking_documents` columns (`no_dok`/`tgl_dok`/`no_si`/`no_inv`) kept dormant in DB.
+
+---
+
 ## [0.18.0] — 2026-05-21
 
 ### Added
