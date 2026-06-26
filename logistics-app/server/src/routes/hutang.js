@@ -174,6 +174,44 @@ export async function hutangRoutes(fastify) {
     return reply.code(201).send(buildHutang(db, row));
   });
 
+  // Batch pembayaran — each hutang pays its own jumlah
+  fastify.post('/api/hutang/pembayaran/batch', { preHandler: requireRole('finance') }, async (request, reply) => {
+    const db = getDb();
+    const { payments, tanggal, metode, no_voucher } = request.body ?? {};
+    if (!Array.isArray(payments) || payments.length === 0) {
+      return reply.code(400).send({ error: 'payments array required' });
+    }
+    if (!tanggal) return reply.code(400).send({ error: 'tanggal required' });
+
+    const userId = request.session.user.id;
+    const insert = db.prepare(
+      "INSERT INTO pembayaran (entity_type, entity_id, jumlah, tanggal, metode, keterangan, created_by) VALUES ('hutang', ?, ?, ?, ?, '', ?)"
+    );
+
+    db.exec('BEGIN');
+    try {
+      for (const { hutang_id, jumlah } of payments) {
+        const hutang = db.prepare('SELECT id, booking_id FROM hutang WHERE id = ?').get(parseInt(hutang_id));
+        if (!hutang) throw new Error(`hutang ${hutang_id} not found`);
+        if (hutang.booking_id) {
+          const bk = db.prepare('SELECT buku_id FROM bookings WHERE id = ?').get(hutang.booking_id);
+          if (isBukuClosed(bk?.buku_id)) throw new Error('buku_closed');
+        }
+        if (no_voucher != null) {
+          db.prepare('UPDATE hutang SET no_voucher = ? WHERE id = ?').run(no_voucher, hutang.id);
+        }
+        const r = insert.run(hutang.id, parseInt(jumlah), tanggal, metode ?? 'transfer', userId);
+        logAudit({ userId, action: 'create', entityType: 'hutang_payment', entityId: r.lastInsertRowid, changes: { hutang_id: hutang.id, jumlah, tanggal, metode } });
+      }
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      return reply.code(400).send({ error: err.message });
+    }
+
+    return reply.code(201).send({ ok: true, count: payments.length });
+  });
+
   // Edit pembayaran on hutang
   fastify.put('/api/hutang/:id/pembayaran/:payId', { preHandler: requireRole('finance') }, async (request, reply) => {
     const db = getDb();

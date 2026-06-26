@@ -37,3 +37,9 @@ CLAUDE.md
 
 # Misc
 *.hprof
+
+# Windows / OS junk
+nul
+*.lnk
+~$*
+~$*.xlsx

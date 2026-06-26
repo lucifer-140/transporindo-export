@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TAS Logo — exports</title>
+<style>
+  :root {
+    --ink: #111;
+    --muted: #6b6b6b;
+    --line: #e6e3dd;
+    --bg: #f7f5f0;
+    --card: #ffffff;
+    --accent: #DC2626; /* matches the red in the logo */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 48px 32px 80px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; }
+  h1 { font-size: 32px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+  .sub { color: var(--muted); font-size: 15px; margin: 6px 0 0; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .card.dark { background: #0A0A0B; border-color: #2a2a2a; color: #f0eee9; }
+  .card.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .stage {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+  .stage.checker {
+    background-image:
+      linear-gradient(45deg, #ececec 25%, transparent 25%),
+      linear-gradient(-45deg, #ececec 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #ececec 75%),
+      linear-gradient(-45deg, transparent 75%, #ececec 75%);
+    background-size: 18px 18px;
+    background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+    background-color: #fff;
+  }
+  .stage img { width: 86%; height: auto; display: block; }
+
+  .meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .name { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  .card.dark .name, .card.accent .name { color: inherit; }
+  .badge {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #ECECEF;
+    color: #555;
+    border: 1px solid var(--line);
+  }
+  .card.dark .badge { background: #2a2a2a; color: #cfcbc1; border-color: #333; }
+  .card.accent .badge { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.3); }
+
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  a.btn {
+    flex: 1;
+    text-align: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--ink);
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--ink);
+    transition: background .15s ease;
+  }
+  a.btn:hover { background: #2c2c2c; }
+  a.btn.ghost { background: transparent; color: var(--ink); }
+  a.btn.ghost:hover { background: #efece5; }
+  .card.dark a.btn { background: #f0eee9; color: #111; border-color: #f0eee9; }
+  .card.dark a.btn.ghost { background: transparent; color: #f0eee9; border-color: #3a3a3a; }
+  .card.dark a.btn.ghost:hover { background: #2a2a2a; }
+  .card.accent a.btn { background: #fff; color: var(--accent); border-color: #fff; }
+  .card.accent a.btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); }
+  .card.accent a.btn.ghost:hover { background: rgba(255,255,255,0.12); }
+
+  .scales {
+    margin-top: 40px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .scales h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .scales p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+  .scale-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+  .scale-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .scale-item img { display: block; }
+  .scale-item .lbl { font-size: 12px; color: var(--muted); }
+
+  footer { margin-top: 40px; color: var(--muted); font-size: 13px; text-align: center; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: #efece5; padding: 2px 6px; border-radius: 4px; color: #333; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>TAS Logo — clean exports</h1>
+        <p class="sub">Your original artwork, prepared for use on any background and at any size.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Original PNG -->
+      <div class="card">
+        <div class="stage" style="background:#fff;">
+          <img src="assets/tas-logo.png" alt="TAS logo on white">
+        </div>
+        <div class="meta">
+          <span class="name">Original PNG</span>
+          <span class="badge">500 × 500</span>
+        </div>
+        <div class="row">
+          <a class="btn" href="assets/tas-logo.png" download>Download</a>
+          <a class="btn ghost" href="assets/tas-logo.png" target="_blank">Open</a>
+        </div>
+      </div>
+
+      <!-- Transparent PNG -->
+      <div class="card">
+        <div class="stage checker">
+          <img src="assets/tas-logo-transparent.png" alt="TAS logo with transparent background">
+        </div>
+        <div class="meta">
+          <span class="name">Transparent PNG</span>
+          <span class="badge">no background</span>
+        </div>
+        <div class="row">
+          <a class="btn" href="assets/tas-logo-transparent.png" download>Download</a>
+          <a class="btn ghost" href="assets/tas-logo-transparent.png" target="_blank">Open</a>
+        </div>
+      </div>
+
+      <!-- SVG (hand-traced vector) -->
+      <div class="card">
+        <div class="stage" style="background:#fff;">
+          <img src="assets/tas-logo.svg" alt="TAS logo as SVG">
+        </div>
+        <div class="meta">
+          <span class="name">SVG (vector)</span>
+          <span class="badge">editable shapes</span>
+        </div>
+        <div class="row">
+          <a class="btn" href="assets/tas-logo.svg" download>Download</a>
+          <a class="btn ghost" href="assets/tas-logo.svg" target="_blank">Open</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============== LIGHT vs DARK COMPARISON ============== -->
+    <section style="margin-top:48px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+        <div>
+          <h2 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-0.01em;">Light &amp; dark mode</h2>
+          <p class="sub" style="margin:4px 0 0;">Two variants of the same artwork — the dark version swaps black for white so it reads on dark backgrounds.</p>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 1fr;">
+        <!-- LIGHT version -->
+        <div class="card">
+          <div class="stage" style="background:#ffffff;">
+            <img src="assets/tas-logo.svg" alt="TAS logo, light mode">
+          </div>
+          <div class="meta">
+            <span class="name">Light mode</span>
+            <span class="badge">black + red</span>
+          </div>
+          <div class="row">
+            <a class="btn" href="assets/tas-logo.svg" download>Download SVG</a>
+            <a class="btn ghost" href="assets/tas-logo.svg" target="_blank">Open</a>
+          </div>
+        </div>
+
+        <!-- DARK version -->
+        <div class="card dark">
+          <div class="stage" style="background:#0A0A0B;">
+            <img src="assets/tas-logo-dark.svg" alt="TAS logo, dark mode">
+          </div>
+          <div class="meta">
+            <span class="name">Dark mode (cream card)</span>
+            <span class="badge">on a cream label</span>
+          </div>
+          <div class="row">
+            <a class="btn" href="assets/tas-logo-dark.svg" download>Download SVG</a>
+            <a class="btn ghost" href="assets/tas-logo-dark.svg" target="_blank">Open</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Both on tricky backgrounds -->
+      <div class="grid" style="margin-top:16px;grid-template-columns:repeat(4,1fr);gap:14px;">
+        <div class="card" style="padding:14px;">
+          <div class="stage" style="background:#ECECEF;">
+            <img src="assets/tas-logo.svg" alt="">
+          </div>
+          <div class="meta"><span class="name" style="font-size:13px;">Cream</span><span class="badge">light</span></div>
+        </div>
+        <div class="card accent" style="padding:14px;">
+          <div class="stage" style="background:var(--accent);">
+            <img src="assets/tas-logo-dark.svg" alt="">
+          </div>
+          <div class="meta"><span class="name" style="font-size:13px;">Brand red</span><span class="badge">dark</span></div>
+        </div>
+        <div class="card dark" style="padding:14px;">
+          <div class="stage" style="background:#0A0A0B;">
+            <img src="assets/tas-logo-dark.svg" alt="">
+          </div>
+          <div class="meta"><span class="name" style="font-size:13px;">Ink</span><span class="badge">dark</span></div>
+        </div>
+        <div class="card dark" style="padding:14px;background:#0e2747;border-color:#0e2747;">
+          <div class="stage" style="background:#0e2747;">
+            <img src="assets/tas-logo-dark.svg" alt="">
+          </div>
+          <div class="meta"><span class="name" style="font-size:13px;">Navy</span><span class="badge">dark</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scalability -->
+    <section class="scales">
+      <h2>Scalability check (SVG)</h2>
+      <p>One vector file, every size. Hover any tile to see the actual pixel dimensions.</p>
+
+      <div class="scale-row">
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="16"  height="16"  alt=""><span class="lbl">16 px · favicon</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="24"  height="24"  alt=""><span class="lbl">24 px</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="32"  height="32"  alt=""><span class="lbl">32 px</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="48"  height="48"  alt=""><span class="lbl">48 px</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="64"  height="64"  alt=""><span class="lbl">64 px · app icon</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="96"  height="96"  alt=""><span class="lbl">96 px</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="128" height="128" alt=""><span class="lbl">128 px</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="192" height="192" alt=""><span class="lbl">192 px · PWA</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="256" height="256" alt=""><span class="lbl">256 px</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="384" height="384" alt=""><span class="lbl">384 px</span></div>
+        <div class="scale-item"><img src="assets/tas-logo.svg" width="512" height="512" alt=""><span class="lbl">512 px · hero</span></div>
+      </div>
+
+      <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--line);">
+        <h2 style="margin:0 0 4px;">Real-world contexts</h2>
+        <p>Same SVG, three common placements.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px;">
+          <!-- Browser tab -->
+          <div style="background:#e8e6df;border-radius:10px;padding:18px;">
+            <div style="background:#fff;border-radius:8px 8px 0 0;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:13px;color:#333;">
+              <img src="assets/tas-logo.svg" width="16" height="16" alt="">
+              <span>TAS — Logistics</span>
+              <span style="margin-left:auto;color:#999;cursor:default;">×</span>
+            </div>
+            <div style="background:#fafafa;height:120px;border-radius:0 0 8px 8px;border-top:1px solid #eee;"></div>
+            <div style="margin-top:10px;font-size:11px;color:var(--muted);text-align:center;">Browser tab · 16 px</div>
+          </div>
+
+          <!-- App icon -->
+          <div style="background:#e8e6df;border-radius:10px;padding:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+            <div style="width:88px;height:88px;background:#fff;border-radius:22px;display:grid;place-items:center;box-shadow:0 6px 16px rgba(0,0,0,.12);">
+              <img src="assets/tas-logo.svg" width="68" height="68" alt="">
+            </div>
+            <div style="font-size:12px;font-weight:500;color:#333;">TAS</div>
+            <div style="font-size:11px;color:var(--muted);">App icon · 88 px</div>
+          </div>
+
+          <!-- Letterhead -->
+          <div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;align-items:center;gap:14px;">
+            <img src="assets/tas-logo.svg" width="56" height="56" alt="">
+            <div>
+              <div style="font-weight:700;font-size:16px;letter-spacing:-0.5px;">TAS</div>
+              <div style="font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;">Land &amp; Sea Logistics</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:8px;">Letterhead · 56 px</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--line);">
+        <h2 style="margin:0 0 4px;">Zoomed in (600 px)</h2>
+        <p>Stays sharp at billboard scale — no pixelation, smooth curves.</p>
+        <div style="margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="background:#F4F4F5;border-radius:10px;padding:32px;display:grid;place-items:center;">
+            <img src="assets/tas-logo.svg" width="500" height="500" alt="TAS logo light, large">
+          </div>
+          <div style="background:#0A0A0B;border-radius:10px;padding:32px;display:grid;place-items:center;">
+            <img src="assets/tas-logo-dark.svg" width="500" height="500" alt="TAS logo dark, large">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== DOWNLOAD CALLOUT ============== -->
+    <section style="margin-top:48px;background:#0A0A0B;color:#f0eee9;border-radius:14px;padding:36px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;opacity:0.6;">Complete package</div>
+        <h2 style="margin:6px 0 6px;font-size:24px;font-weight:700;letter-spacing:-0.01em;">Download everything in one folder</h2>
+        <p style="margin:0;color:#cfcbc1;font-size:14px;max-width:560px;">
+          The <code style="background:#2a2a2a;padding:2px 6px;border-radius:4px;font-family:ui-monospace,monospace;font-size:12px;">tas-logo/</code> folder contains light + dark SVG masters, high-res PNGs (2000 px), favicon-size PNGs (512 px), and a README explaining which file to use where.
+        </p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#cfcbc1;font-family:ui-monospace,Menlo,monospace;background:#0e0e0e;padding:14px 18px;border-radius:8px;border:1px solid #2a2a2a;">
+        <div>tas-logo/</div>
+        <div>├── README.md</div>
+        <div>├── light/</div>
+        <div>│&nbsp;&nbsp; ├── tas-logo.svg</div>
+        <div>│&nbsp;&nbsp; ├── tas-logo-transparent.png</div>
+        <div>│&nbsp;&nbsp; ├── tas-logo-on-white.png</div>
+        <div>│&nbsp;&nbsp; └── tas-logo-512.png</div>
+        <div>└── dark/</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;├── tas-logo-dark.svg</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;├── tas-logo-dark-transparent.png</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;├── tas-logo-dark-on-ink.png</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;└── tas-logo-dark-512.png</div>
+      </div>
+    </section>
+
+    <footer>
+      Files live in <code>assets/</code> — right-click any preview and "Save image as…", or use the download buttons.
+    </footer>
+  </div>
+</body>
+</html>

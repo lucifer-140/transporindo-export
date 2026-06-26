@@ -93,13 +93,15 @@ function runMigrations(db) {
   const sql013 = readFileSync(join(__dirname, 'migrations/013_booking_documents.sql'), 'utf8');
   db.exec(sql013);
   try { db.exec('ALTER TABLE bookings ADD COLUMN port_discharge TEXT'); } catch {}
-  // Migrate existing peb data (runs once — skips bookings already migrated)
-  db.exec(`
-    INSERT INTO booking_documents (booking_id, doc_type, no_peb, created_by)
-    SELECT id, 'peb', peb, created_by FROM bookings
-    WHERE peb IS NOT NULL AND peb != ''
-    AND id NOT IN (SELECT DISTINCT booking_id FROM booking_documents WHERE doc_type = 'peb')
-  `);
+  // Migrate existing peb data (only if old schema with no_peb still exists)
+  try {
+    db.exec(`
+      INSERT INTO booking_documents (booking_id, doc_type, no_peb, created_by)
+      SELECT id, 'peb', peb, created_by FROM bookings
+      WHERE peb IS NOT NULL AND peb != ''
+      AND id NOT IN (SELECT DISTINCT booking_id FROM booking_documents WHERE doc_type = 'peb')
+    `);
+  } catch {}
   // 014: feeder→pelayaran + container fields (no_sp, vendor, notes)
   try { db.exec('ALTER TABLE bookings RENAME COLUMN feeder TO pelayaran'); } catch {}
   try { db.exec('ALTER TABLE containers ADD COLUMN no_sp TEXT'); } catch {}
@@ -131,6 +133,58 @@ function runMigrations(db) {
       AND NOT EXISTS (
         SELECT 1 FROM hutang h WHERE h.container_id = c.id AND h.hutang_type = 'trucking'
       )
+  `);
+  // 018: booking_documents redesign — unified fields + hutang_dokumen
+  const hasNoDok = db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('booking_documents') WHERE name='no_dok'").get().n;
+  if (!hasNoDok) {
+    db.exec(`
+      ALTER TABLE booking_documents RENAME TO booking_documents_old;
+      CREATE TABLE booking_documents (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        booking_id  INTEGER NOT NULL REFERENCES bookings(id),
+        doc_type    TEXT NOT NULL CHECK(doc_type IN ('phyto','peb','coo','ico','kadin','certificate')),
+        no_dok      TEXT,
+        tgl_dok     TEXT,
+        no_si       TEXT,
+        no_inv      TEXT,
+        created_by  INTEGER REFERENCES users(id),
+        created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO booking_documents (id, booking_id, doc_type, no_dok, tgl_dok, no_si, no_inv, created_by, created_at)
+      SELECT id, booking_id, doc_type, COALESCE(no_peb, no_phyto), tgl, no_si, no_inv, created_by, created_at
+      FROM booking_documents_old;
+      DROP TABLE booking_documents_old;
+    `);
+  }
+  // 019: hutang_trucking_payments
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS hutang_trucking_payments (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      hutang_id        INTEGER NOT NULL REFERENCES hutang(id) ON DELETE CASCADE,
+      keterangan       TEXT,
+      no_voucher       TEXT,
+      tgl_pelunasan    TEXT,
+      nilai_pembayaran INTEGER,
+      tgl_pembayaran   TEXT,
+      metode           TEXT NOT NULL DEFAULT 'transfer',
+      created_by       INTEGER REFERENCES users(id),
+      created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  try { db.exec("ALTER TABLE hutang_trucking_payments ADD COLUMN metode TEXT NOT NULL DEFAULT 'transfer'"); } catch {}
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS hutang_dokumen (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_document_id INTEGER NOT NULL REFERENCES booking_documents(id) ON DELETE CASCADE,
+      booking_id          INTEGER NOT NULL REFERENCES bookings(id),
+      keterangan          TEXT,
+      no_voucher          TEXT,
+      tgl_pelunasan       TEXT,
+      nilai_pembayaran    INTEGER,
+      tgl_pembayaran      TEXT,
+      created_by          INTEGER REFERENCES users(id),
+      created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
   `);
 }
 

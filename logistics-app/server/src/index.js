@@ -26,6 +26,8 @@ import { settingsRoutes } from './routes/settings.js';
 import { auditDownloadRoutes } from './routes/auditDownload.js';
 import { backupRoutes } from './routes/backup.js';
 import { bookingDocumentRoutes } from './routes/bookingDocuments.js';
+import { hutangDokumenRoutes } from './routes/hutangDokumen.js';
+import { hutangTruckingRoutes } from './routes/hutangTrucking.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT ?? '8080');
@@ -83,6 +85,8 @@ await fastify.register(settingsRoutes);
 await fastify.register(auditDownloadRoutes);
 await fastify.register(backupRoutes);
 await fastify.register(bookingDocumentRoutes);
+await fastify.register(hutangDokumenRoutes);
+await fastify.register(hutangTruckingRoutes);
 
 // Serve built React app in production
 const publicDir = join(__dirname, '..', 'public');
