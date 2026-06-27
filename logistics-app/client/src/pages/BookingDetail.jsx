@@ -549,7 +549,7 @@ export default function BookingDetail() {
     return `${monthLabel(parseInt(m))} ${y}`;
   })();
   const crumbs = [
-    { label: "Buku Bulanan", onClick: () => navigate("/") },
+    { label: "Buku", onClick: () => navigate("/") },
     ...(bukuState.buku_id ? [{ label: bukuPeriodeLabel ?? bukuState.buku_periode, onClick: () => navigate(`/buku/${bukuState.buku_id}`) }] : []),
     { label: booking.job_no },
   ];
