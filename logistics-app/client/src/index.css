@@ -1497,3 +1497,41 @@ hr.div { border: 0; border-top: 1px solid var(--border); margin: 0; }
 .app.classic .bd-railtabs { background: #D6D6D6; }
 .app.classic .bd-rail-tab.is-active { background: #CFE0F2; color: #1a1a1a; border-left-color: #2A5685; }
 
+/* ── Dense scale: shrink the legacy ui.jsx chrome to match the .ps-* pages ── */
+.app.classic .phdr { margin-bottom: 10px; padding-bottom: 8px; }
+.app.classic .phdr__title,
+.app.classic h1 { font-size: 16px; letter-spacing: 0; }
+.app.classic h2 { font-size: 13px; }
+.app.classic .phdr__meta { font-size: 11.5px; }
+.app.classic .phdr__crumbs { font-size: 11px; }
+
+.app.classic .card { margin-bottom: 0; }
+.app.classic .card__hd { padding: 5px 10px; }
+.app.classic .card__hd h3 { font-size: 12px; }
+.app.classic .card__body { padding: 10px; }
+
+.app.classic .tbl thead th { padding: 5px 8px; font-size: 11px; letter-spacing: 0.02em; }
+.app.classic .tbl tbody td { padding: 4px 8px; font-size: 12px; }
+
+.app.classic .kv-grid { gap: 8px 14px; }
+.app.classic .kv-grid__lbl { font-size: 10px; margin-bottom: 1px; }
+.app.classic .kv-grid__val { font-size: 12px; }
+.app.classic .kv-grid__val.mono { font-size: 11.5px; }
+
+.app.classic .field { gap: 3px; }
+.app.classic .field__lbl { font-size: 11px; }
+.app.classic .inp { padding: 3px 6px; font-size: 12px; min-height: 0; }
+.app.classic textarea.inp { padding: 4px 6px; }
+
+.app.classic .btn { padding: 4px 10px; font-size: 11.5px; }
+.app.classic .btn--sm { padding: 2px 7px; font-size: 11px; }
+
+.app.classic .badge { font-size: 10px; padding: 1px 6px; }
+
+.app.classic .bd-railpanel { padding: 10px; }
+.app.classic .bd-rail-tab { padding: 6px 12px; font-size: 12px; }
+
+/* tighten the inline-spaced booking-core blocks */
+.app.classic .grid-2 { gap: 10px !important; }
+.app.classic .grid-form-2 { gap: 8px 10px !important; }
+
