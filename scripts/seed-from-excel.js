@@ -5,8 +5,12 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
+
+// Forwarder used as trucking vendor across all jobs
+const TR = 'TAS, PT./DAVID';
 
 const DB_FILE = path.join(__dirname, '../logistics-app/server/data/app.db');
 const db = new DatabaseSync(DB_FILE);
@@ -85,13 +89,16 @@ const jobs = [
     bon: '0526/038',
     status: 'done',
     commodity: '',
-    planned_qty: '20 STD x 6',
+    planned_qty: '6x20ft',
     lokasi_muat: 'KIM',
     carrier: 'EVERGREEN',
     tanggal_pelayaran: '',
     created_at: '2026-05-28T00:00:00.000Z',
+    // 6×20 STD shipped as 3 trucking moves of 2x20 (partner row Rp 0 → merged)
     containers: [
-      { size: '20', qty: 6 },
+      { size: '2x20', container_no: 'EGSU2161037', seal_no: 'EMCWRT0234', container_no_2: 'EGSU2328119', seal_no_2: 'EMCWRT0244', no_sp: '000492/26', trucking: TR, biaya_trucking: 1296250, in_date: '2026-05-15', out_date: '2026-05-18', notes: 'KIM' },
+      { size: '2x20', container_no: 'EGSU3406622', seal_no: 'EMCWRT0254', container_no_2: 'EGSU3623905', seal_no_2: 'EMCWRT0264', no_sp: '000494/26', trucking: TR, biaya_trucking: 1296250, in_date: '2026-05-15', out_date: '2026-05-18', notes: 'KIM' },
+      { size: '2x20', container_no: 'EGSU2185126', seal_no: 'EMCWRT0274', container_no_2: 'EGSU2215642', seal_no_2: 'EMCWRT0284', no_sp: '000496/26', trucking: TR, biaya_trucking: 1296250, in_date: '2026-05-15', out_date: '2026-05-18', notes: 'KIM' },
     ],
   },
   {
@@ -106,13 +113,20 @@ const jobs = [
     bon: '0526/039',
     status: 'done',
     commodity: 'WOOD PELLET',
-    planned_qty: '20 STD x 12',
+    planned_qty: '12x20ft',
     lokasi_muat: 'HAMPARAN PERAK',
     carrier: 'NAMSUNG SHIPPING CO.,LTD.',
     tanggal_pelayaran: '',
     created_at: '2026-06-03T00:00:00.000Z',
+    // 12×20 STD = 2 single 20ft + 5 trucking moves of 2x20
     containers: [
-      { size: '20', qty: 12 },
+      { size: '20ft', container_no: 'NSSU0150252', seal_no: 'NS2656854', no_sp: '000626/26', trucking: TR, biaya_trucking: 1276250, in_date: '2026-05-15', out_date: '2026-05-18', notes: 'H.PERAK' },
+      { size: '2x20', container_no: 'TEMU5751843', seal_no: 'NS2656801', container_no_2: 'NSSU0089070', seal_no_2: 'NS2656859', no_sp: '000628/26', trucking: TR, biaya_trucking: 2101250, in_date: '2026-05-16', out_date: '2026-05-18', notes: 'H.PERAK' },
+      { size: '2x20', container_no: 'NSSU0186321', seal_no: 'NS2656810', container_no_2: 'CAIU6946189', seal_no_2: 'NS2656848', no_sp: '000630/26', trucking: TR, biaya_trucking: 2101250, in_date: '2026-05-16', out_date: '2026-05-18', notes: 'H.PERAK' },
+      { size: '2x20', container_no: 'NSSU0166027', seal_no: 'NS2656819', container_no_2: 'SEGU3952272', seal_no_2: 'NS2656830', no_sp: '000632/26', trucking: TR, biaya_trucking: 2101250, in_date: '2026-05-16', out_date: '2026-05-18', notes: 'H.PERAK' },
+      { size: '2x20', container_no: 'SEKU1399162', seal_no: 'NS2656832', container_no_2: 'NSDU2003247', seal_no_2: 'NS2656874', no_sp: '000634/26', trucking: TR, biaya_trucking: 2101250, in_date: '2026-05-16', out_date: '2026-05-18', notes: 'H.PERAK' },
+      { size: '2x20', container_no: 'LYGU3130021', seal_no: 'NS2656888', container_no_2: 'TLLU3203179', seal_no_2: 'NS2656885', no_sp: '000636/26', trucking: TR, biaya_trucking: 2101250, in_date: '2026-05-16', out_date: '2026-05-18', notes: 'H.PERAK' },
+      { size: '20ft', container_no: 'DYLU2158500', seal_no: 'NS2656872', no_sp: '000638/26', trucking: TR, biaya_trucking: 1276250, in_date: '2026-05-15', out_date: '2026-05-18', notes: 'H.PERAK' },
     ],
   },
   {
@@ -127,13 +141,13 @@ const jobs = [
     bon: '0526/043',
     status: 'done',
     commodity: 'FURNITURE',
-    planned_qty: '20 STD x 1',
+    planned_qty: '1x20ft',
     lokasi_muat: 'PATUMBAK',
     carrier: 'MCC/MAERSK LINE GROUP',
     tanggal_pelayaran: '',
     created_at: '2026-05-28T00:00:00.000Z',
     containers: [
-      { size: '20', qty: 1, container_no: 'TCLU2341637' },
+      { size: '20ft', container_no: 'TCLU2341637', seal_no: 'ML-ID1068533', no_sp: '000558/26', trucking: TR, biaya_trucking: 1431250, in_date: '2026-05-19', out_date: '2026-05-22', notes: 'PATUMBAK' },
     ],
   },
   {
@@ -148,13 +162,22 @@ const jobs = [
     bon: '0526/044',
     status: 'done',
     commodity: 'WOODCHIP',
-    planned_qty: '40HC x 10',
+    planned_qty: '10x40HC',
     lokasi_muat: 'NAMORAMBE',
     carrier: 'MCC/MAERSK LINE GROUP',
     tanggal_pelayaran: '',
     created_at: '2026-05-28T00:00:00.000Z',
     containers: [
-      { size: '40HC', qty: 10 },
+      { size: '40HC', container_no: 'TRHU4259787', seal_no: 'ML-ID1068528', no_sp: '000574/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
+      { size: '40HC', container_no: 'TCNU2058136', seal_no: 'ML-ID106529',  no_sp: '000576/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
+      { size: '40HC', container_no: 'BEAU6389670', seal_no: 'ML-ID1068530', no_sp: '000578/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
+      { size: '40HC', container_no: 'SUDU5938566', seal_no: 'ML-ID1068521', no_sp: '000560/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
+      { size: '40HC', container_no: 'MRSU3848368', seal_no: 'ML-ID1068522', no_sp: '000562/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
+      { size: '40HC', container_no: 'MRKU2807187', seal_no: 'ML-ID1068523', no_sp: '000564/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
+      { size: '40HC', container_no: 'MSKU9749335', seal_no: 'ML-ID1068524', no_sp: '000566/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
+      { size: '40HC', container_no: 'TGBU6646190', seal_no: 'ML-ID1068525', no_sp: '000568/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
+      { size: '40HC', container_no: 'MRSU3207066', seal_no: 'ML-ID1068526', no_sp: '000570/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
+      { size: '40HC', container_no: 'CAAU5275843', seal_no: 'ML-ID1068527', no_sp: '000572/26', trucking: TR, biaya_trucking: 2002500, in_date: '2026-05-20', out_date: '2026-05-22', notes: 'NAMORAMBE' },
     ],
   },
 ];
@@ -169,23 +192,34 @@ jobs.forEach(job => {
 
 // ─── 5. CONTAINERS ─────────────────────────────────────────────────────────
 const insertContainer = db.prepare(`
-  INSERT INTO containers (booking_id, container_no, seal_no, size, created_at)
-  VALUES (@booking_id, @container_no, @seal_no, @size, datetime('now'))
+  INSERT INTO containers (
+    booking_id, container_no, seal_no, size, container_no_2, seal_no_2,
+    no_sp, trucking, biaya_trucking, in_date, out_date, notes, created_at
+  ) VALUES (
+    @booking_id, @container_no, @seal_no, @size, @container_no_2, @seal_no_2,
+    @no_sp, @trucking, @biaya_trucking, @in_date, @out_date, @notes, datetime('now')
+  )
 `);
 
 jobs.forEach(job => {
   const bookingId = bookingIds[job.job_no];
   job.containers.forEach(c => {
-    for (let i = 0; i < c.qty; i++) {
-      insertContainer.run({
-        booking_id: bookingId,
-        container_no: c.container_no || '',
-        seal_no: '',
-        size: c.size,
-      });
-    }
+    insertContainer.run({
+      booking_id: bookingId,
+      container_no: c.container_no || '',
+      seal_no: c.seal_no || '',
+      size: c.size,
+      container_no_2: c.container_no_2 || '',
+      seal_no_2: c.seal_no_2 || '',
+      no_sp: c.no_sp || '',
+      trucking: c.trucking || '',
+      biaya_trucking: c.biaya_trucking ?? null,
+      in_date: c.in_date || '',
+      out_date: c.out_date || '',
+      notes: c.notes || '',
+    });
   });
-  console.log(`Containers for ${job.job_no}: ${job.containers.reduce((s, c) => s + c.qty, 0)}`);
+  console.log(`Containers for ${job.job_no}: ${job.containers.length} rows`);
 });
 
 // ─── 6. PIUTANG (Revenue Lines) ────────────────────────────────────────────
@@ -269,6 +303,59 @@ supplierCosts.forEach(h => {
 });
 console.log(`Hutang: ${supplierCosts.length} entries`);
 
+// ─── 8. DOKUMEN (from import_emkl_certificates_4jobs.csv) ──────────────────
+const csvPath = path.join(__dirname, '..', 'import_emkl_certificates_4jobs.csv');
+if (fs.existsSync(csvPath)) {
+  const insertDoc = db.prepare(`
+    INSERT INTO booking_documents
+      (booking_id, doc_type, no_sertifikat, tgl_bon, keterangan, no_job, nilai_pembayaran, tipe_pembayaran, created_by, created_at)
+    VALUES
+      (@booking_id, @doc_type, @no_sertifikat, @tgl_bon, @keterangan, @no_job, @nilai_pembayaran, @tipe_pembayaran, 1, datetime('now'))
+  `);
+
+  // DD-MM-YYYY → YYYY-MM-DD (empty if not matched)
+  const toIso = (s) => {
+    const m = String(s || '').trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+  };
+  // minimal CSV splitter (handles optional double-quotes)
+  const splitCsv = (line) => {
+    const out = []; let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { q = !q; }
+      else if (ch === ',' && !q) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map(x => x.trim());
+  };
+
+  const raw = fs.readFileSync(csvPath, 'utf8').replace(/^﻿/, '');
+  const lines = raw.split(/\r?\n/).filter(l => l.trim() !== '');
+  lines.shift(); // header
+  let docCount = 0, skipped = 0;
+  for (const line of lines) {
+    const [tipe, noSert, tglBon, noJob, nilai, pembayaran, keterangan] = splitCsv(line);
+    const bookingId = bookingIds[noJob];
+    if (!bookingId) { skipped++; continue; }
+    insertDoc.run({
+      booking_id: bookingId,
+      doc_type: tipe || 'BIAYA LAIN',
+      no_sertifikat: noSert || '',
+      tgl_bon: toIso(tglBon),
+      keterangan: keterangan || '',
+      no_job: noJob || '',
+      nilai_pembayaran: nilai ? parseInt(String(nilai).replace(/[^\d]/g, ''), 10) || 0 : 0,
+      tipe_pembayaran: /credit/i.test(pembayaran) ? 'credit' : /cash/i.test(pembayaran) ? 'cash' : '',
+    });
+    docCount++;
+  }
+  console.log(`Dokumen: ${docCount} imported${skipped ? `, ${skipped} skipped (no matching job)` : ''}`);
+} else {
+  console.log('Dokumen CSV not found, skipping doc import:', csvPath);
+}
+
 // ─── SUMMARY ───────────────────────────────────────────────────────────────
 const summary = db.prepare(`SELECT job_no, shipper, status FROM bookings ORDER BY id`).all();
 console.log('\n=== IMPORT COMPLETE ===');
@@ -279,5 +366,6 @@ const counts = {
   containers: db.prepare('SELECT COUNT(*) as c FROM containers').get().c,
   piutang: db.prepare('SELECT COUNT(*) as c FROM piutang').get().c,
   hutang: db.prepare('SELECT COUNT(*) as c FROM hutang').get().c,
+  documents: db.prepare('SELECT COUNT(*) as c FROM booking_documents').get().c,
 };
 console.log('Counts:', counts);

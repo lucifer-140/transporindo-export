@@ -5,14 +5,16 @@ import { Button, Card, Empty, Field, Input, Select, fmtDate } from '../component
 import { useToast } from '../components/Toast.jsx';
 import { IconPlus, IconTrash, IconEdit } from '../components/Icons.jsx';
 
+// Tipe Dokumen master list (value === label). Free-form on the backend, so this
+// list can grow without a schema change.
 const DOC_TYPES = [
-  { value: 'phyto',       label: 'Phyto' },
-  { value: 'peb',         label: 'PEB' },
-  { value: 'coo',         label: 'COO' },
-  { value: 'ico',         label: 'ICO' },
-  { value: 'kadin',       label: 'Kadin' },
-  { value: 'certificate', label: 'Certificate' },
-];
+  'BIAYA LAIN', 'PEB', 'LIFT ON', 'COO', 'LIFT OFF', 'PE', 'PELANCAR BERKAS',
+  'PHYTOSANITARY', 'PELANCAR PHYTO', 'OVER WEIGHT', 'FUMIGATION', 'PIUTANG', 'COC',
+  'BIAYA PNBP', 'QUALITY & WEIGHT', 'TAS', 'HEALTH CERTIFICATE', 'KADIN', 'TAS-T',
+  'CLOSING CONTAINER', 'TEKEN PHYTO', 'TEMBAK SAKO', 'BERKAS', 'PINDAH KAPAL',
+  'ASURANSI', 'BIAYA KERTAS', 'BIAYA FX & FC', 'L', 'PIUTANG (K)', 'PKBM', 'LJR',
+  'HW', 'RADIATION CERTIFICATE', 'LLOYD CERTIFICATE', 'CERTIFICATE RADIATION',
+].map(t => ({ value: t, label: t }));
 
 const PAYMENT_TYPES = [
   { value: 'cash',   label: 'Cash' },

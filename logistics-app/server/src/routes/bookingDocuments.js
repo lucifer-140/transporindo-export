@@ -2,7 +2,8 @@ import { getDb } from '../db.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { logAudit } from '../utils/audit.js';
 
-const VALID_TYPES = ['phyto', 'peb', 'coo', 'ico', 'kadin', 'certificate'];
+// doc_type is now a free-form master-list value (Tipe Dokumen) — any non-empty
+// string is accepted so the list can grow without a schema/code change.
 const VALID_PAYMENT = ['cash', 'credit'];
 
 // Coerce nilai_pembayaran to integer or null
@@ -30,7 +31,7 @@ export async function bookingDocumentRoutes(fastify) {
     if (!booking) return reply.code(404).send({ error: 'Not found' });
 
     const { doc_type, no_sertifikat, tgl_bon, keterangan, no_job, nilai_pembayaran, tipe_pembayaran } = request.body ?? {};
-    if (!VALID_TYPES.includes(doc_type)) return reply.code(400).send({ error: `Invalid doc_type. Must be: ${VALID_TYPES.join(', ')}` });
+    if (!doc_type || typeof doc_type !== 'string' || doc_type.trim() === '') return reply.code(400).send({ error: 'doc_type (Tipe Dokumen) wajib diisi.' });
 
     const userId = request.session.user.id;
     const result = db.prepare(`

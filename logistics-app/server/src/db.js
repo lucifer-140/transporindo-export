@@ -198,6 +198,38 @@ function runMigrations(db) {
   ]) {
     try { db.exec(col); } catch {}
   }
+  // 021: drop the doc_type CHECK constraint so the expanded Tipe Dokumen master
+  // list (BIAYA LAIN, LIFT ON, PIUTANG, …) can be stored. Rebuild table if needed.
+  try {
+    const ddl = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='booking_documents'").get()?.sql ?? '';
+    if (ddl.includes('CHECK')) {
+      db.exec(`
+        ALTER TABLE booking_documents RENAME TO booking_documents_chk;
+        CREATE TABLE booking_documents (
+          id               INTEGER PRIMARY KEY AUTOINCREMENT,
+          booking_id       INTEGER NOT NULL REFERENCES bookings(id),
+          doc_type         TEXT NOT NULL,
+          no_dok           TEXT,
+          tgl_dok          TEXT,
+          no_si            TEXT,
+          no_inv           TEXT,
+          no_sertifikat    TEXT,
+          tgl_bon          TEXT,
+          keterangan       TEXT,
+          no_job           TEXT,
+          nilai_pembayaran INTEGER,
+          tipe_pembayaran  TEXT,
+          created_by       INTEGER REFERENCES users(id),
+          created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO booking_documents
+          (id, booking_id, doc_type, no_dok, tgl_dok, no_si, no_inv, no_sertifikat, tgl_bon, keterangan, no_job, nilai_pembayaran, tipe_pembayaran, created_by, created_at)
+        SELECT id, booking_id, doc_type, no_dok, tgl_dok, no_si, no_inv, no_sertifikat, tgl_bon, keterangan, no_job, nilai_pembayaran, tipe_pembayaran, created_by, created_at
+        FROM booking_documents_chk;
+        DROP TABLE booking_documents_chk;
+      `);
+    }
+  } catch {}
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
