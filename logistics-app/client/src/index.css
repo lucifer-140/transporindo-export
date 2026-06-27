@@ -1308,3 +1308,192 @@ hr.div { border: 0; border-top: 1px solid var(--border); margin: 0; }
   .auth { grid-template-columns: 0.5fr 1fr; }
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   CLASSIC PEOPLESOFT / ORACLE SKIN  — applied via .app.classic
+   Flat, boxy, grey, steel-blue header bars. Overrides design tokens for the
+   whole authenticated shell so existing components inherit the plain look.
+   ════════════════════════════════════════════════════════════════════════ */
+.app.classic {
+  --bg: #E9E9E9;
+  --bg-2: #DCDCDC;
+  --surface: #FFFFFF;
+  --surface-2: #F0F0F0;
+  --surface-3: #E4E4E4;
+  --hover: #EAF1F9;
+  --border: #9AA3AE;
+  --border-strong: #6B7280;
+  --fg: #1A1A1A;
+  --fg-2: #333333;
+  --fg-3: #555555;
+  --fg-4: #777777;
+  --accent: #2A5685;
+  --accent-soft: #D6E2F0;
+  --accent-hover: #1E4068;
+  --accent-text: #FFFFFF;
+  --shadow-card: none;
+  --shadow-pop: 0 2px 10px rgba(0,0,0,0.3);
+  font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  grid-template-columns: 210px 1fr;
+}
+/* Flatten every corner inside the classic shell */
+.app.classic *,
+.app.classic *::before,
+.app.classic *::after { border-radius: 0 !important; }
+
+/* ── Sidebar / menu tree ─────────────────────────────────────────────── */
+.ps-sidebar {
+  background: #D6D6D6;
+  border-right: 1px solid var(--border-strong);
+  padding: 0;
+  gap: 0;
+}
+.ps-titlebar {
+  background: linear-gradient(#3A6298, #2A5685);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-strong);
+  letter-spacing: .02em;
+}
+.ps-menu { flex: 1; overflow-y: auto; padding: 6px 0; }
+.ps-menu__group { margin-bottom: 2px; }
+.ps-menu__hd {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; text-align: left;
+  background: #C5CDD8; border: 0; border-bottom: 1px solid var(--border);
+  padding: 5px 8px; font-weight: 700; font-size: 11.5px; color: #1f2d40;
+  cursor: pointer;
+}
+.ps-menu__hd:hover { background: #BCC6D4; }
+.ps-menu__caret { font-size: 9px; width: 10px; color: #3a5a82; }
+.ps-menu__items { padding: 3px 0; background: #E4E4E4; border-bottom: 1px solid var(--border); }
+.ps-menu__item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px 4px 18px;
+  font-size: 12px; color: #003399; cursor: pointer;
+  text-decoration: none;
+}
+.ps-menu__item--l2 { padding-left: 32px; }
+.ps-menu__item:hover { background: var(--hover); text-decoration: underline; }
+.ps-menu__item.is-active { color: #1A1A1A; font-weight: 700; background: #CFE0F2; }
+.ps-menu__bullet { color: #6b7280; font-size: 9px; }
+.ps-menu__sub { border-left: 1px dotted #9AA3AE; margin-left: 18px; }
+
+.ps-userbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; border-top: 1px solid var(--border-strong);
+  background: #CFCFCF; font-size: 11.5px;
+}
+.ps-userbar__name { font-weight: 700; color: #333; }
+.ps-userbar__link { background: none; border: 0; color: #003399; cursor: pointer; font-size: 11.5px; text-decoration: underline; }
+
+/* ── Page + panels ───────────────────────────────────────────────────── */
+.ps-main { padding: 12px 16px 28px; background: var(--bg); }
+.ps-page { max-width: 1100px; }
+.ps-pagehd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; gap: 12px; flex-wrap: wrap;
+}
+.ps-pagehd h1 { font-size: 16px; font-weight: 700; color: #1f2d40; }
+.ps-pagehd__actions { display: flex; gap: 6px; }
+.ps-tag {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  background: #C5CDD8; color: #1f2d40; border: 1px solid var(--border);
+  padding: 1px 6px; margin-left: 6px; vertical-align: middle;
+}
+
+.ps-crumbs { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #555; margin-bottom: 8px; }
+.ps-crumbs__sep { color: #999; }
+
+.ps-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  margin-bottom: 14px;
+}
+.ps-panel__hd {
+  background: linear-gradient(#5E7CA3, #41648c);
+  color: #fff; font-weight: 700; font-size: 12px;
+  padding: 5px 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.ps-panel__ft {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 10px; border-top: 1px solid var(--border);
+  background: #F0F0F0;
+}
+.ps-addpanel { padding: 0; }
+.ps-formrow {
+  display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+  padding: 10px;
+}
+.ps-formrow label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; font-weight: 700; color: #333; }
+.ps-formrow input, .ps-formrow select, .ps-search, .ps-addpanel input, .ps-addpanel select {
+  font: inherit; font-weight: 400;
+  border: 1px solid var(--border-strong);
+  background: #fff; padding: 3px 6px; color: #1a1a1a;
+}
+.ps-formrow__btns { display: flex; gap: 6px; }
+.ps-error { padding: 6px 10px; color: #B00020; font-size: 11.5px; background: #FCE8E8; border-top: 1px solid #E0A0A0; }
+
+.ps-search { width: 240px; max-width: 50%; }
+.ps-panel__hd .ps-search { color: #1a1a1a; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.ps-btn {
+  font: inherit; font-size: 11.5px; font-weight: 700;
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(#FCFCFC, #DDDDDD);
+  color: #1a1a1a; padding: 4px 12px; cursor: pointer;
+}
+.ps-btn:hover { background: linear-gradient(#FFFFFF, #E6E6E6); }
+.ps-btn:disabled { opacity: .5; cursor: default; }
+.ps-btn--primary {
+  border-color: #1E4068;
+  background: linear-gradient(#4A78AD, #2A5685);
+  color: #fff;
+}
+.ps-btn--primary:hover { background: linear-gradient(#5687BE, #335f93); }
+.ps-btn--link {
+  border: 0; background: none; color: #003399; padding: 2px 4px;
+  text-decoration: underline; font-weight: 400;
+}
+
+/* ── Tables ──────────────────────────────────────────────────────────── */
+.ps-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.ps-table thead th {
+  background: linear-gradient(#6E8AAE, #4F6F98);
+  color: #fff; font-weight: 700; text-align: left;
+  padding: 5px 8px; border: 1px solid var(--border-strong); white-space: nowrap;
+}
+.ps-table tbody td {
+  padding: 4px 8px; border: 1px solid var(--border);
+  color: #1a1a1a;
+}
+.ps-table tbody tr:nth-child(even) td { background: #F2F4F7; }
+.ps-table tbody tr:hover td { background: var(--hover); }
+.ps-table tbody tr.is-selected td { background: #CFE0F2; }
+.ps-table tbody tr.is-clickable { cursor: pointer; }
+.ps-table__empty { text-align: center; color: #777; padding: 18px 8px !important; }
+
+.ps-empty { padding: 18px 12px; color: #555; font-size: 12px; }
+.ps-empty--err { color: #B00020; }
+.ps-hint { font-size: 11px; color: #666; }
+.ps-notice {
+  padding: 7px 10px; margin-bottom: 12px; font-size: 11.5px;
+  background: #FFF7D6; border: 1px solid #E0C76B; color: #6b5400;
+}
+
+/* ── Flatten inherited ui.jsx chrome inside the classic shell ─────────── */
+.app.classic .card { border: 1px solid var(--border-strong); box-shadow: none; }
+.app.classic .card__hd { background: linear-gradient(#5E7CA3, #41648c); color: #fff; }
+.app.classic .card__hd h3 { color: #fff; }
+.app.classic .inp,
+.app.classic .btn { border-radius: 0 !important; }
+.app.classic .btn--primary { background: linear-gradient(#4A78AD, #2A5685); border: 1px solid #1E4068; }
+.app.classic .tbl thead th { background: linear-gradient(#6E8AAE, #4F6F98); color: #fff; }
+.app.classic .bd-detail { border-color: var(--border-strong); }
+.app.classic .bd-railtabs { background: #D6D6D6; }
+.app.classic .bd-rail-tab.is-active { background: #CFE0F2; color: #1a1a1a; border-left-color: #2A5685; }
+
