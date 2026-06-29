@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth, useLogout } from "../hooks/useAuth.js";
 import { useSSE } from "../hooks/useSSE.js";
 
@@ -34,6 +34,7 @@ export default function Layout() {
   const { user, isAdmin } = useAuth();
   const logout = useLogout();
   const location = useLocation();
+  const navigate = useNavigate();
   useSSE();
 
   // Show the Bookings → (tabs) sub-tree contextually when inside a buku/booking.
@@ -71,6 +72,20 @@ export default function Layout() {
       </aside>
 
       <main className="main ps-main">
+        {location.pathname !== "/" && (
+          <button
+            className="ps-back"
+            onClick={() => navigate(-1)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              marginBottom: 12, padding: "5px 12px", fontSize: 12.5, fontWeight: 600,
+              color: "var(--fg-2)", background: "var(--bg-2)",
+              border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer",
+            }}
+          >
+            ← Kembali
+          </button>
+        )}
         <Outlet />
       </main>
     </div>

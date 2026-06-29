@@ -5,15 +5,11 @@ import { Button, Card, Empty, Field, Input, Select, fmtDate } from '../component
 import { useToast } from '../components/Toast.jsx';
 import { IconPlus, IconTrash, IconEdit } from '../components/Icons.jsx';
 
-// Tipe Dokumen master list (value === label). Free-form on the backend, so this
+// Tipe EMKL master list (value === label). Free-form on the backend, so this
 // list can grow without a schema change.
 const DOC_TYPES = [
-  'BIAYA LAIN', 'PEB', 'LIFT ON', 'COO', 'LIFT OFF', 'PE', 'PELANCAR BERKAS',
-  'PHYTOSANITARY', 'PELANCAR PHYTO', 'OVER WEIGHT', 'FUMIGATION', 'PIUTANG', 'COC',
-  'BIAYA PNBP', 'QUALITY & WEIGHT', 'TAS', 'HEALTH CERTIFICATE', 'KADIN', 'TAS-T',
-  'CLOSING CONTAINER', 'TEKEN PHYTO', 'TEMBAK SAKO', 'BERKAS', 'PINDAH KAPAL',
-  'ASURANSI', 'BIAYA KERTAS', 'BIAYA FX & FC', 'L', 'PIUTANG (K)', 'PKBM', 'LJR',
-  'HW', 'RADIATION CERTIFICATE', 'LLOYD CERTIFICATE', 'CERTIFICATE RADIATION',
+  'BIAYA LAIN', 'PEB', 'PHYTO', 'FUMIGASI', 'LIFT ON', 'COO', 'LIFT OFF',
+  'BIAYA LAPANGAN', 'SERTIFIKAT',
 ].map(t => ({ value: t, label: t }));
 
 const PAYMENT_TYPES = [
@@ -39,9 +35,10 @@ function payLabelOf(v) {
 function DocFields({ docType, setDocType, fields, set, lockType = false }) {
   return (
     <>
-      <Field label="Tipe Dokumen" required>
+      <Field label="Tipe EMKL" required>
         <Select value={docType} onChange={e => setDocType(e.target.value)} disabled={lockType}>
           <option value="">— Pilih jenis —</option>
+          {docType && !DOC_TYPES.some(t => t.value === docType) && <option value={docType}>{docType}</option>}
           {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </Select>
       </Field>
@@ -65,6 +62,7 @@ function DocRow({ doc, bookingId, onDelete, canEdit }) {
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  const [docType, setDocType] = useState(doc.doc_type ?? '');
   const [fields, setFields] = useState({
     no_sertifikat: doc.no_sertifikat ?? '',
     tgl_bon: doc.tgl_bon ?? '',
@@ -79,13 +77,14 @@ function DocRow({ doc, bookingId, onDelete, canEdit }) {
     mutationFn: (body) => api.put(`/bookings/${bookingId}/documents/${doc.id}`, body).then(r => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-documents', bookingId] });
-      toast('Dokumen diperbarui.');
+      toast('EMKL diperbarui.');
       setEditing(false);
     },
-    onError: (e) => toast(e.response?.data?.error ?? 'Gagal memperbarui dokumen.', 'error'),
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal memperbarui EMKL.', 'error'),
   });
 
   function startEdit() {
+    setDocType(doc.doc_type ?? '');
     setFields({
       no_sertifikat: doc.no_sertifikat ?? '',
       tgl_bon: doc.tgl_bon ?? '',
@@ -102,13 +101,13 @@ function DocRow({ doc, bookingId, onDelete, canEdit }) {
       <tr className="ps-grid__editrow">
         <td colSpan={8}>
           <div className="ps-editpanel">
-            <div className="ps-editpanel__hd">Edit Dokumen — {typeLabelOf(doc.doc_type)}</div>
+            <div className="ps-editpanel__hd">Edit EMKL — {typeLabelOf(doc.doc_type)}</div>
             <div className="grid grid-form-2">
-              <DocFields docType={doc.doc_type} setDocType={() => {}} fields={fields} set={set} lockType />
+              <DocFields docType={docType} setDocType={setDocType} fields={fields} set={set} />
             </div>
             <div className="row" style={{ gap: 6, justifyContent: 'flex-end', marginTop: 12 }}>
               <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Batal</Button>
-              <Button variant="primary" size="sm" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate(fields)}>Simpan</Button>
+              <Button variant="primary" size="sm" disabled={!docType || updateMutation.isPending} onClick={() => updateMutation.mutate({ doc_type: docType, ...fields })}>Simpan</Button>
             </div>
           </div>
         </td>
@@ -150,21 +149,21 @@ function AddDocForm({ bookingId, onDone }) {
     mutationFn: (body) => api.post(`/bookings/${bookingId}/documents`, body).then(r => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-documents', bookingId] });
-      toast('Dokumen ditambahkan.');
+      toast('EMKL ditambahkan.');
       onDone();
     },
-    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menambah dokumen.', 'error'),
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menambah EMKL.', 'error'),
   });
 
   return (
-    <Card title="Tambah Dokumen">
+    <Card title="Tambah EMKL">
       <div className="grid grid-form-2">
         <DocFields docType={docType} setDocType={setDocType} fields={fields} set={set} />
       </div>
       <div className="row" style={{ gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
         <Button variant="ghost" onClick={onDone}>Batal</Button>
         <Button variant="primary" disabled={!docType || mutation.isPending} onClick={() => mutation.mutate({ doc_type: docType, ...fields })}>
-          {mutation.isPending ? 'Menyimpan…' : 'Simpan Dokumen'}
+          {mutation.isPending ? 'Menyimpan…' : 'Simpan EMKL'}
         </Button>
       </div>
     </Card>
@@ -183,8 +182,8 @@ export default function BookingDocuments({ bookingId, canEdit = true }) {
 
   const deleteMutation = useMutation({
     mutationFn: (docId) => api.delete(`/bookings/${bookingId}/documents/${docId}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['booking-documents', bookingId] }); toast('Dokumen dihapus.'); },
-    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menghapus dokumen.', 'error'),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['booking-documents', bookingId] }); toast('EMKL dihapus.'); },
+    onError: (e) => toast(e.response?.data?.error ?? 'Gagal menghapus EMKL.', 'error'),
   });
 
   if (isLoading) return null;
@@ -196,9 +195,9 @@ export default function BookingDocuments({ bookingId, canEdit = true }) {
       {docs.length === 0 && !showForm && (
         <Card>
           <Empty
-            title="Belum ada dokumen"
-            sub="Tambahkan dokumen seperti Phyto, PEB, COO, ICO, Kadin, atau Certificate."
-            action={canEdit && <Button variant="primary" icon={<IconPlus size={12} />} onClick={() => setShowForm(true)}>Tambah Dokumen</Button>}
+            title="Belum ada EMKL"
+            sub="Tambahkan EMKL seperti PEB, Phyto, Fumigasi, COO, Lift On/Off, atau Sertifikat."
+            action={canEdit && <Button variant="primary" icon={<IconPlus size={12} />} onClick={() => setShowForm(true)}>Tambah EMKL</Button>}
           />
         </Card>
       )}
@@ -207,11 +206,11 @@ export default function BookingDocuments({ bookingId, canEdit = true }) {
         <Card pad={false}>
           <div className="bd-invoice-bar">
             <div className="bd-invoice-bar__total">
-              <span>Dokumen</span>
+              <span>EMKL</span>
               <b>{docs.length}</b>
             </div>
             {canEdit && !showForm && (
-              <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setShowForm(true)}>Tambah Dokumen</Button>
+              <Button variant="primary" size="sm" icon={<IconPlus size={12} />} onClick={() => setShowForm(true)}>Tambah EMKL</Button>
             )}
           </div>
           <div className="tbl-wrap">

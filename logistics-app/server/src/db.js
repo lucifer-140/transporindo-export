@@ -230,6 +230,10 @@ function runMigrations(db) {
       `);
     }
   } catch {}
+  // 022: biaya_tambahan on containers + normalize trucking vendor names.
+  try { db.exec('ALTER TABLE containers ADD COLUMN biaya_tambahan INTEGER'); } catch {}
+  try { db.exec("UPDATE containers SET trucking = 'MMC' WHERE trucking = 'TAS, PT./DAVID'"); } catch {}
+  try { db.exec("UPDATE containers SET trucking = 'TAS' WHERE trucking IN ('TAS-T', 'TAS, PT.')"); } catch {}
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

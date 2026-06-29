@@ -55,13 +55,16 @@ export async function bookingDocumentRoutes(fastify) {
     const doc = db.prepare('SELECT * FROM booking_documents WHERE id = ? AND booking_id = ?').get(parseInt(request.params.docId), booking.id);
     if (!doc) return reply.code(404).send({ error: 'Not found' });
 
-    const { no_sertifikat, tgl_bon, keterangan, no_job, nilai_pembayaran, tipe_pembayaran } = request.body ?? {};
+    const { doc_type, no_sertifikat, tgl_bon, keterangan, no_job, nilai_pembayaran, tipe_pembayaran } = request.body ?? {};
+    if (doc_type !== undefined && (typeof doc_type !== 'string' || doc_type.trim() === '')) {
+      return reply.code(400).send({ error: 'doc_type (Tipe EMKL) wajib diisi.' });
+    }
     db.prepare(`
       UPDATE booking_documents
-      SET no_sertifikat = ?, tgl_bon = ?, keterangan = ?, no_job = ?, nilai_pembayaran = ?, tipe_pembayaran = ?
+      SET doc_type = ?, no_sertifikat = ?, tgl_bon = ?, keterangan = ?, no_job = ?, nilai_pembayaran = ?, tipe_pembayaran = ?
       WHERE id = ?
     `).run(
-      no_sertifikat ?? null, tgl_bon ?? null, keterangan ?? null, no_job ?? null,
+      doc_type ?? doc.doc_type, no_sertifikat ?? null, tgl_bon ?? null, keterangan ?? null, no_job ?? null,
       toIntOrNull(nilai_pembayaran), normPayment(tipe_pembayaran), doc.id
     );
 

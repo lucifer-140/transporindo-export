@@ -1,7 +1,7 @@
 # Project Status
 
-**Version:** 0.19.0
-**Last Updated:** 2026-06-26
+**Version:** 0.20.0
+**Last Updated:** 2026-06-29
 **Stage:** Active Development — simplification rebuild base
 
 ---
@@ -13,7 +13,10 @@
 | Buku (Monthly Ledger) | Done | YYYY/MM ledger; bookings belong to a buku; BukuList with year filter tabs + month search; BukuDetail with master-detail split panel (shipper sidebar + paginated booking table with search) |
 | Shippers & Commodities | Done | Master data management; commodities linked to shipper; smart auto-fill in booking form |
 | Bookings CRUD | Done | Soft-delete, search, CSV export, shipper/commodity fields; buku-first creation flow |
-| Containers | Done | Multi-container per booking, derived qty; 2x20 size (dual cont/seal); planned qty with mismatch warning; duplicate cont no validation |
+| Containers | Done | Multi-container per booking, derived qty; 2x20 size (dual cont/seal); planned qty with mismatch warning; duplicate cont no validation; Biaya Tambahan column (migration 022) |
+| Tarif Angkutan auto-price | Done | `client/src/data/tarif.js` — Lokasi Muat dropdown + trucking auto-fills Biaya Trucking by lokasi × trucking × size; MMC/TAS → main table, others → secondary; see `docs/tarif-angkutan.md` |
+| EMKL (was Dokumen) | Done | Tab/labels renamed to EMKL; master list trimmed (BIAYA LAIN, PEB, PHYTO, FUMIGASI, LIFT ON, COO, LIFT OFF, BIAYA LAPANGAN, SERTIFIKAT); Tipe editable on edit |
+| Global back button | Done | `← Kembali` in Layout on every page (navigate(-1)), hidden on root |
 | Invoice (was Dokumen) | Done | Line items: Uraian/Qty/Harga Satuan/Jumlah; total row |
 | Users + Roles | Done | admin/finance/worker; bcrypt; edit (full_name, role, password); delete with confirm |
 | Audit Log | Done | Read-only, paginated; admin-only access |

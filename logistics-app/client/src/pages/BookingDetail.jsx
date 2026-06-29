@@ -7,6 +7,7 @@ import { useToast } from "../components/Toast.jsx";
 import { Button, Card, PageHeader, Empty, Field, Input, Select, fmtRp, fmtDate, monthLabel } from "../components/ui.jsx";
 import { IconEdit, IconTrash, IconPlus, IconMore } from "../components/Icons.jsx";
 import BookingDocuments from "./BookingDocuments.jsx";
+import { LOKASI_OPTIONS, TRUCKING_OPTIONS, getTarif } from "../data/tarif.js";
 
 function apiErrMsg(e, fallback) {
   const err = e?.response?.data?.error;
@@ -163,7 +164,13 @@ function IdentitasCard({ booking, bookingPublicId }) {
             ))}
           </div>
         </Field>
-        <Field label="Lokasi Muat"><Input value={form.lokasi_muat} onChange={set("lokasi_muat")} placeholder="Lokasi pemuatan" /></Field>
+        <Field label="Lokasi Muat">
+          <Select value={form.lokasi_muat} onChange={set("lokasi_muat")}>
+            <option value="">— Pilih lokasi muat —</option>
+            {!LOKASI_OPTIONS.includes(form.lokasi_muat) && form.lokasi_muat && <option value={form.lokasi_muat}>{form.lokasi_muat}</option>}
+            {LOKASI_OPTIONS.map(l => <option key={l} value={l}>{l}</option>)}
+          </Select>
+        </Field>
         <Field label="Notes" span={2}><textarea className="inp" rows={3} value={form.notes} onChange={set("notes")} /></Field>
       </div>
     </Card>
@@ -253,13 +260,13 @@ function PelayaranCard({ booking, bookingPublicId }) {
   );
 }
 
-const EMPTY_CTR_FORM = () => ({ container_no: "", seal_no: "", size: "40ft", container_no_2: "", seal_no_2: "", no_sp: "", trucking: "", biaya_trucking: "", in_date: "", out_date: "", notes: "" });
+const EMPTY_CTR_FORM = () => ({ container_no: "", seal_no: "", size: "40ft", container_no_2: "", seal_no_2: "", no_sp: "", trucking: "", biaya_trucking: "", biaya_tambahan: "", in_date: "", out_date: "", notes: "" });
 
 function SectionLabel({ children }) {
   return <div style={{ fontSize: 11, fontWeight: 700, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>{children}</div>;
 }
 
-function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
+function JadwalTruckingTable({ bookingPublicId, initialContainers, lokasiMuat }) {
   const [rows, setRows] = useState(initialContainers);
   const [mode, setMode] = useState("idle"); // "idle" | "add" | "edit"
   const [selectedId, setSelectedId] = useState(null);
@@ -276,6 +283,16 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
   }, [mode]);
 
   const setF = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // Auto-fill biaya trucking from the tarif table on trucking/size change.
+  function applyTarif(patch) {
+    setForm(f => {
+      const next = { ...f, ...patch };
+      const tarif = getTarif(lokasiMuat, next.trucking, next.size);
+      if (tarif != null) next.biaya_trucking = String(tarif);
+      return next;
+    });
+  }
 
   function startAdd() {
     setMode("add");
@@ -295,6 +312,7 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
       no_sp: row.no_sp ?? "",
       trucking: row.trucking ?? "",
       biaya_trucking: row.biaya_trucking != null ? String(row.biaya_trucking) : "",
+      biaya_tambahan: row.biaya_tambahan != null ? String(row.biaya_tambahan) : "",
       in_date: row.in_date ?? "",
       out_date: row.out_date ?? "",
       notes: row.notes ?? "",
@@ -318,7 +336,11 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
       }
     }
     setSaving(true);
-    const payload = { ...form, biaya_trucking: form.biaya_trucking !== "" ? parseInt(form.biaya_trucking) : null };
+    const payload = {
+      ...form,
+      biaya_trucking: form.biaya_trucking !== "" ? parseInt(form.biaya_trucking) : null,
+      biaya_tambahan: form.biaya_tambahan !== "" ? parseInt(form.biaya_tambahan) : null,
+    };
     try {
       if (mode === "add") {
         const res = await api.post(`/bookings/${bookingPublicId}/containers`, payload);
@@ -362,7 +384,7 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
         <SectionLabel>Container</SectionLabel>
         <div style={{ marginBottom: 10 }}>
           <Field label="Size" style={{ maxWidth: 140 }}>
-            <Select value={form.size} onChange={setF("size")}>
+            <Select value={form.size} onChange={e => applyTarif({ size: e.target.value })}>
               <option value="20ft">20ft</option>
               <option value="2x20">2x20ft</option>
               <option value="40ft">40ft</option>
@@ -400,9 +422,17 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
         <SectionLabel>Trucking</SectionLabel>
         <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
           <Field label="No. SP"><Input value={form.no_sp} onChange={setF("no_sp")} /></Field>
-          <Field label="Trucking"><Input value={form.trucking} onChange={setF("trucking")} /></Field>
+          <Field label="Trucking">
+            <Select value={form.trucking} onChange={e => applyTarif({ trucking: e.target.value })}>
+              <option value="">— Pilih —</option>
+              {!TRUCKING_OPTIONS.includes(form.trucking) && form.trucking && <option value={form.trucking}>{form.trucking}</option>}
+              {TRUCKING_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+            </Select>
+          </Field>
           <Field label="Biaya Trucking"><Input type="number" value={form.biaya_trucking} onChange={setF("biaya_trucking")} placeholder="0" /></Field>
+          <Field label="Biaya Tambahan"><Input type="number" value={form.biaya_tambahan} onChange={setF("biaya_tambahan")} placeholder="0" /></Field>
         </div>
+        {!lokasiMuat && <div style={{ marginTop: 6, fontSize: 11, color: "var(--fg-3)" }}>Set Lokasi Muat di Identitas Shipment untuk auto-isi biaya.</div>}
       </div>
 
       {/* Section: Schedule */}
@@ -438,6 +468,7 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
               <th>No. SP</th>
               <th>Trucking</th>
               <th style={{ width: 130 }}>Biaya Trucking</th>
+              <th style={{ width: 130 }}>Biaya Tambahan</th>
               <th style={{ width: 100 }}>In Date</th>
               <th style={{ width: 100 }}>Out Date</th>
               <th>Notes</th>
@@ -446,7 +477,7 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={11} style={{ padding: "32px 16px", textAlign: "center", color: "var(--fg-3)", fontSize: 13 }}>
+              <tr><td colSpan={12} style={{ padding: "32px 16px", textAlign: "center", color: "var(--fg-3)", fontSize: 13 }}>
                 Belum ada data — klik <strong>Tambah Baris</strong>
               </td></tr>
             )}
@@ -467,6 +498,7 @@ function JadwalTruckingTable({ bookingPublicId, initialContainers }) {
                 <td>{row.no_sp || <span className="dim">—</span>}</td>
                 <td>{row.trucking || <span className="dim">—</span>}</td>
                 <td className="num">{row.biaya_trucking != null ? fmtRp(row.biaya_trucking) : <span className="dim">—</span>}</td>
+                <td className="num">{row.biaya_tambahan != null ? fmtRp(row.biaya_tambahan) : <span className="dim">—</span>}</td>
                 <td>{row.in_date ? fmtDate(row.in_date) : <span className="dim">—</span>}</td>
                 <td>{row.out_date ? fmtDate(row.out_date) : <span className="dim">—</span>}</td>
                 <td>{row.notes || <span className="dim">—</span>}</td>
@@ -497,7 +529,7 @@ function EmptyTab({ label }) {
 
 // ── Left-rail tab definitions ────────────────────────────────────────────────
 const TABS = [
-  { key: "dokumen", label: "Dokumen",               icon: IcDoc },
+  { key: "dokumen", label: "EMKL",                  icon: IcDoc },
   { key: "invoice", label: "Invoice",               icon: IcList },
   { key: "piutang", label: "Piutang",               icon: IcMoney },
   { key: "hutang",  label: "Hutang",                icon: IcMoney },
@@ -614,7 +646,7 @@ export default function BookingDetail() {
           <IdentitasCard booking={booking} bookingPublicId={id} />
           <PelayaranCard booking={booking} bookingPublicId={id} />
         </div>
-        <JadwalTruckingTable bookingPublicId={id} initialContainers={containers} />
+        <JadwalTruckingTable bookingPublicId={id} initialContainers={containers} lokasiMuat={booking.lokasi_muat} />
       </div>
 
       {/* PeopleSoft-style left rail + panel */}

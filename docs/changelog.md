@@ -6,6 +6,30 @@ Format: [version] — date — description
 
 ---
 
+## [0.20.0] — 2026-06-29
+
+EMKL rework + Tarif Angkutan auto-pricing, plus data import for Buku May 2026.
+
+### Added
+- **Tarif Angkutan module** (`client/src/data/tarif.js`) — Sept 2022 tariff table (18 routes) + secondary trucker table (SP2/SSG/BBT, HW, LJR). Exposes `LOKASI_OPTIONS`, `TRUCKING_OPTIONS`, `getTarif(lokasi, trucking, size)`. See `docs/tarif-angkutan.md`.
+- **Lokasi Muat dropdown** — Booking form + Identitas Shipment now pick Lokasi Muat from the tarif route list (free-form legacy values preserved via fallback option).
+- **Trucking auto-price** — in Jadwal Trucking → Tambah/Edit Container, selecting Trucking (or Size) auto-fills Biaya Trucking from `getTarif(lokasi × trucking × size)`. MMC/TAS use the main table; other vendors use the secondary table. Biaya stays editable.
+- **Biaya Tambahan** — new per-container cost column on Jadwal Trucking (table + add/edit form). Migration 022 adds `containers.biaya_tambahan`.
+- **Global back button** — `← Kembali` rendered in `Layout` above every page (navigate(-1)); hidden on root.
+- **`docs/tarif-angkutan.md`** — reference for the tariff data, trucking rename rules, size→column mapping, and 2x20 pairing logic.
+
+### Changed
+- **Dokumen tab → EMKL** — tab label, card titles, buttons (Tambah/Simpan EMKL), empty state, and toasts renamed throughout `BookingDocuments.jsx`.
+- **Tipe EMKL master list** — replaced with: BIAYA LAIN, PEB, PHYTO, FUMIGASI, LIFT ON, COO, LIFT OFF, BIAYA LAPANGAN, SERTIFIKAT. Legacy values still display + remain selectable on edit via fallback option.
+- **Edit EMKL — Tipe now editable** — was locked; client sends `doc_type` and server PUT (`bookingDocuments.js`) persists it.
+- **Trucking vendor rename** — `TAS, PT./DAVID` → `MMC`; `TAS, PT.` / `TAS-T` → `TAS`. Applied in seeds + idempotent normalization in migration 022 for existing rows.
+- **Seed `scripts/seed-from-excel.js`** — rewritten for the full 9-job Buku May 2026 import (29/31/32/36/38/39/43/44/45 V): containers + EMKL certificates inlined (CSV dependency dropped). Container notes left empty; `lokasi_muat` mapped to canonical tarif labels. `biaya_trucking = 0` partner rows fold into the preceding row as a 2x20 trucking move (`container_no_2`/`seal_no_2`).
+
+### Database
+- **Migration 022** — `ALTER TABLE containers ADD COLUMN biaya_tambahan INTEGER`; normalize trucking vendor names (idempotent).
+
+---
+
 ## [0.19.0] — 2026-06-26
 
 System simplification ("dumb down") — strip the finance-heavy UI back to a clean rebuild base. Removed code archived under `docs/archive/` for reference; full pre-change state backed up at commit `b5c5da8`.

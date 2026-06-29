@@ -164,8 +164,8 @@ export async function bookingRoutes(fastify) {
 
     const bookingId = result.lastInsertRowid;
 
-    const insertContainer = db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size, container_no_2, seal_no_2, no_sp, trucking, biaya_trucking, in_date, out_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    for (const c of containers) insertContainer.run(bookingId, c.container_no, c.seal_no, c.size, c.container_no_2 ?? '', c.seal_no_2 ?? '', c.no_sp, c.trucking, c.biaya_trucking ?? null, c.in_date, c.out_date, c.notes);
+    const insertContainer = db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size, container_no_2, seal_no_2, no_sp, trucking, biaya_trucking, biaya_tambahan, in_date, out_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const c of containers) insertContainer.run(bookingId, c.container_no, c.seal_no, c.size, c.container_no_2 ?? '', c.seal_no_2 ?? '', c.no_sp, c.trucking, c.biaya_trucking ?? null, c.biaya_tambahan ?? null, c.in_date, c.out_date, c.notes);
 
     logAudit({ userId, action: 'create', entityType: 'booking', entityId: bookingId, changes: parsed.data });
     broadcast(['bookings', 'buku']);
@@ -203,8 +203,8 @@ export async function bookingRoutes(fastify) {
     }
 
     db.prepare('DELETE FROM containers WHERE booking_id = ?').run(existing.id);
-    const insertContainer = db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size, no_sp, trucking, biaya_trucking, in_date, out_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    for (const c of containers) insertContainer.run(existing.id, c.container_no, c.seal_no, c.size, c.no_sp, c.trucking, c.biaya_trucking ?? null, c.in_date, c.out_date, c.notes);
+    const insertContainer = db.prepare('INSERT INTO containers (booking_id, container_no, seal_no, size, container_no_2, seal_no_2, no_sp, trucking, biaya_trucking, biaya_tambahan, in_date, out_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const c of containers) insertContainer.run(existing.id, c.container_no, c.seal_no, c.size, c.container_no_2 ?? '', c.seal_no_2 ?? '', c.no_sp, c.trucking, c.biaya_trucking ?? null, c.biaya_tambahan ?? null, c.in_date, c.out_date, c.notes);
 
     logAudit({ userId, action: 'update', entityType: 'booking', entityId: existing.id, changes: parsed.data });
     broadcast(['bookings', 'buku']);
@@ -289,8 +289,8 @@ export async function bookingRoutes(fastify) {
 
     const b = request.body ?? {};
     const result = db.prepare(
-      'INSERT INTO containers (booking_id, container_no, seal_no, size, container_no_2, seal_no_2, no_sp, trucking, biaya_trucking, in_date, out_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(booking.id, b.container_no ?? '', b.seal_no ?? '', b.size ?? '40ft', b.container_no_2 ?? '', b.seal_no_2 ?? '', b.no_sp ?? '', b.trucking ?? '', b.biaya_trucking ?? null, b.in_date ?? '', b.out_date ?? '', b.notes ?? '');
+      'INSERT INTO containers (booking_id, container_no, seal_no, size, container_no_2, seal_no_2, no_sp, trucking, biaya_trucking, biaya_tambahan, in_date, out_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(booking.id, b.container_no ?? '', b.seal_no ?? '', b.size ?? '40ft', b.container_no_2 ?? '', b.seal_no_2 ?? '', b.no_sp ?? '', b.trucking ?? '', b.biaya_trucking ?? null, b.biaya_tambahan ?? null, b.in_date ?? '', b.out_date ?? '', b.notes ?? '');
 
     const container = db.prepare('SELECT * FROM containers WHERE id = ?').get(result.lastInsertRowid);
     try { syncTruckingHutang(db, container, booking.id, request.session.user.id); } catch {}
@@ -308,8 +308,8 @@ export async function bookingRoutes(fastify) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
     const merged = { ...container, ...parsed.data };
-    db.prepare('UPDATE containers SET container_no=?, seal_no=?, size=?, container_no_2=?, seal_no_2=?, no_sp=?, trucking=?, biaya_trucking=?, in_date=?, out_date=?, notes=? WHERE id=?')
-      .run(merged.container_no, merged.seal_no, merged.size, merged.container_no_2 ?? '', merged.seal_no_2 ?? '', merged.no_sp, merged.trucking, merged.biaya_trucking ?? null, merged.in_date, merged.out_date, merged.notes, container.id);
+    db.prepare('UPDATE containers SET container_no=?, seal_no=?, size=?, container_no_2=?, seal_no_2=?, no_sp=?, trucking=?, biaya_trucking=?, biaya_tambahan=?, in_date=?, out_date=?, notes=? WHERE id=?')
+      .run(merged.container_no, merged.seal_no, merged.size, merged.container_no_2 ?? '', merged.seal_no_2 ?? '', merged.no_sp, merged.trucking, merged.biaya_trucking ?? null, merged.biaya_tambahan ?? null, merged.in_date, merged.out_date, merged.notes, container.id);
 
     const updated = db.prepare('SELECT * FROM containers WHERE id = ?').get(container.id);
     const booking = db.prepare('SELECT id FROM bookings WHERE id = ?').get(container.booking_id);

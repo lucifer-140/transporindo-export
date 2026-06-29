@@ -14,7 +14,8 @@ build/
 *.db
 *.db-shm
 *.db-wal
-data/
+# DB data dir only (scoped so client src/data/ stays tracked)
+/logistics-app/server/data/
 
 # Logs
 *.log

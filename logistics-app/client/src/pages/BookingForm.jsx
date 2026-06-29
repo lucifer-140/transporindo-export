@@ -6,6 +6,7 @@ import { Button, PageHeader, Card, Field, Input, Select } from '../components/ui
 import { useToast } from '../components/Toast.jsx';
 import { IconCheck } from '../components/Icons.jsx';
 import { BookingFormSkeleton } from '../components/Skeleton.jsx';
+import { LOKASI_OPTIONS } from '../data/tarif.js';
 
 export default function BookingForm() {
   const { id } = useParams();
@@ -190,7 +191,11 @@ export default function BookingForm() {
                 </div>
               </Field>
               <Field label="Lokasi Muat">
-                <Input value={form.lokasi_muat} onChange={set('lokasi_muat')} placeholder="Lokasi pemuatan barang" />
+                <Select value={form.lokasi_muat} onChange={set('lokasi_muat')}>
+                  <option value="">— Pilih lokasi muat —</option>
+                  {!LOKASI_OPTIONS.includes(form.lokasi_muat) && form.lokasi_muat && <option value={form.lokasi_muat}>{form.lokasi_muat}</option>}
+                  {LOKASI_OPTIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                </Select>
               </Field>
               <Field label="Notes" span={2}>
                 <textarea className="inp" rows={3} value={form.notes} onChange={set('notes')} placeholder="Catatan tambahan (opsional)" />

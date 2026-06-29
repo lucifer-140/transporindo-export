@@ -117,7 +117,7 @@ const stmtContainer = db.prepare(
   'INSERT INTO containers (booking_id, container_no, seal_no, size, no_sp, trucking, biaya_trucking, in_date, out_date, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 
-const TRUCKING_VENDORS = ['MMC', 'TAS-T'];
+const TRUCKING_VENDORS = ['MMC', 'TAS'];
 const BIAYA_LIST = [1500000, 1750000, 2000000, 2250000, 2500000];
 function randItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function addDays(base, n) {
